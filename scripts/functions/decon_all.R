@@ -24,17 +24,23 @@
 #' @export
 FilterBulkSingleNucleus <- function(seurat.obj, 
                                     bulk.obj,
-                                    min.rna.features = 200,
-                                    max.rna.features = 2500,
-                                    min.rna.count = 800,
-                                    max.mt.percent = 0.5,
-                                    group = "donor",
-                                    lfc.threshold = 0.583,
-                                    change = "lessAbs") {
+                                    min.rna.ft = 200,
+                                    max.rna.ft = 2500,
+                                    min.rna.ct = 800,
+                                    max.mt.pt = 0.01,
+                                    max.rb.pt = 0.05,
+                                    scrublet_score = 0.4,
+                                    group = "Participant.ID",
+                                    lfc.thresh = 0.583,
+                                    change = "greaterAbs") {
+  # seurat qc 
   seurat.obj <- subset(seurat.obj, 
-                       subset = nFeature_RNA > min.rna.features & nFeature_RNA < max.rna.features &
-                         nCount_RNA > min.rna.count & 
-                         PercentMito <= max.mt.percent)
+                       subset = nFeature_RNA   > min.rna.ft     & 
+                                nFeature_RNA   < max.rna.ft     &
+                                nCount_RNA     > min.rna.ct     & 
+                                scrublet_score < scrublet.score &
+                                PercentRibo   <= max.rb.pt      &
+                                PercentMito   <= max.mt.pt)
   
   pseudo.bulk        <- AggregateExpression(seurat.obj, 
                                             group.by = group,
@@ -42,35 +48,31 @@ FilterBulkSingleNucleus <- function(seurat.obj,
                                             slot = "counts", 
                                             return.seurat = FALSE)
   pseudo.bulk      <- as.data.frame(pseudo.bulk$RNA)
-  colnames(pseudo.bulk) <- sapply(strsplit(colnames(pseudo.bulk), "-"), "[[", 2)
+  colnames(pseudo.bulk) <- paste0(colnames(pseudo.bulk), "-pb")
+  
   # match sn and bulk transcripts
-  colnames(bulk.obj) <- sn_p
-  bulk.sn <- merge(pseudo.bulk, bulk.obj, by = 0)
-  seqs <- bulk.sn$Row.names
-  ids <- c(colnames(pseudo.bulk), colnames(bulk.obj))
-  # make the counts into integers
-  bulk.sn <- bulk.sn[,2:length(bulk.sn)] |>
-    lapply(as.integer) |>
-    as.data.frame()
-  rownames(bulk.sn) <- seqs
+  bulk.sn <- merge(pseudo.bulk, bulk.obj, by.x = "row.names", by.y = "row.names")
+  genes <- bulk.sn[,1]
+  bulk.sn <-  sapply(bulk.sn[,c(2:length(bulk.sn))], as.numeric)
+  rownames(bulk.sn) <- genes
+  
   #make meta data
-  meta.data <- data.frame("id" = ids,
+  meta.data <- data.frame("id" = colnames(bulk.sn),
                           "type" = as.factor(c(
-                            rep("single.nucleus", length(pseudo.bulk)),
+                            rep("single.nucleus",length(pseudo.bulk)),
                             rep("bulk",length(bulk.obj)))))
   # create DESeq2 object
   dds <- DESeqDataSetFromMatrix(countData = bulk.sn,
                                 colData = meta.data, 
-                                design = ~type + id) 
+                                design = ~type) 
   
   # diff expression analysis
   dds <- DESeq(dds)
-  result_de <- results(dds, lfcThreshold = lfc.threshold, altHypothesis = "greaterAbs",
+  result_de <- results(dds, lfcThreshold = lfc.thresh, altHypothesis = change,
                        contrast = c("type", "bulk", "single.nucleus"))
   good.genes <- subset(result_de, padj > 0.05)
   good.genes <- rownames(good.genes)
-  # this is the moneymaker step 
-  # filter out the transcripts not represented in the res_filter obj
+
   return(good.genes)
 }
 

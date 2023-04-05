@@ -26,7 +26,6 @@ gtex.sn$Participant.ID <- droplevels(gtex.sn$Participant.ID)
 
 SaveH5Seurat(gtex.sn, "data/processed/internal/sn_gtex_lv_match.h5seurat", overwrite = T)
 
-
 # GTEx bulk
 url <- "https://storage.googleapis.com/gtex_analysis_v8/rna_seq_data/gene_reads/gene_reads_2017-06-05_v8_heart_left_ventricle.gct.gz"
 temp <- tempfile(fileext = ".gct.gz")
