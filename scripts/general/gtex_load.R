@@ -3,7 +3,6 @@ libs <- c("Seurat", "zellkonverter", "curl")
 require(libs)
 lapply(libs, require, character.only = T)
 
-
 #### initial data processing and organization #####
 
 # GTEx snRNAseq
