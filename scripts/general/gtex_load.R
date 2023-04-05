@@ -1,7 +1,7 @@
 library(dplyr)
-libs <- c("Seurat", "zellkonverter", "curl")
-require(libs)
+libs <- c("Seurat", "zellkonverter", "curl", "SeuratDisk")
 lapply(libs, require, character.only = T)
+setwd("/proj/raulab/users/brian/r_projects/gtex")
 
 #### initial data processing and organization #####
 
@@ -9,7 +9,7 @@ lapply(libs, require, character.only = T)
 url <- "https://storage.googleapis.com/gtex_analysis_v9/snrna_seq_data/GTEx_8_tissues_snRNAseq_atlas_071421.public_obs.h5ad" 
 temp <- tempfile(fileext = ".h5ad")
 curl::curl_download(url, temp)
-gtex.sn <- zellkonverter::readH5AD(temp, verbose=T, layers=T, varm=F, obsm=F, varp=F, obsp=F, uns=F)
+gtex.sn <- zellkonverter::readH5AD(temp, verbose=F, layers=T, varm=F, obsm=F, varp=F, obsp=F, uns=F)
 gtex.sn <- as.Seurat(
   gtex.sn,
   counts = "counts",
@@ -17,9 +17,11 @@ gtex.sn <- as.Seurat(
   assay = NULL,
   project = "SingleCellExperiment"
 )
+
+# clean up metadata
 colnames(gtex.sn@meta.data)[c(2,3,11)] <- c("nCount_RNA", "nFeature_RNA", "PercentMito")
 gtex.sn <- RenameAssays(gtex.sn, "originalexp" = "RNA")  |>
-              subset(subset = tissue == "heart")
+  subset(subset = tissue == "heart")
 gtex.sn$Participant.ID <- droplevels(gtex.sn$Participant.ID)
 
 SaveH5Seurat(gtex.sn, "data/processed/internal/sn_gtex_lv_match.h5seurat", overwrite = T)
@@ -29,13 +31,22 @@ SaveH5Seurat(gtex.sn, "data/processed/internal/sn_gtex_lv_match.h5seurat", overw
 url <- "https://storage.googleapis.com/gtex_analysis_v8/rna_seq_data/gene_reads/gene_reads_2017-06-05_v8_heart_left_ventricle.gct.gz"
 temp <- tempfile(fileext = ".gct.gz")
 curl::curl_download(url, temp)
+gtex.bk <- read.delim(temp, 
+                      skip = 2, row.names = 1, stringsAsFactors = F)
 
-bk_gtex <- read.delim(temp, 
-  skip = 2, row.names = 1, stringsAsFactors = F)
-
-bk_gtex <- bk_gtex[,-1] |>
+# sum expression of gene isoforms
+gtex.bk <- gtex.bk[,-1] |>
   group_by(Description) |>
   summarise(across(everything(), sum)) |>
   as.data.frame()
 
-write.csv(bk_gtex, "data/processed/internal/gtex_lv_counts_summed.csv", overwrite = F)
+# rename columns to match Participant.ID in gtex.sn
+names <- colnames(gtex.bk)[grepl("GTEX", colnames(gtex.bk))] |>
+  strsplit(colnames(gtex.bk), split = "[.]") |>
+  lapply('[', 2) 
+
+names <- paste0("GTEX-", names)
+
+colnames(gtex.bk)  <- c("gene", names)
+
+write.csv(gtex.bk, "data/processed/internal/gtex_lv_counts_summed.csv")
