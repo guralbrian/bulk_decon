@@ -27,12 +27,12 @@ FilterBulkSingleNucleus <- function(seurat.obj,
                                     min.rna.ft = 200,
                                     max.rna.ft = 2500,
                                     min.rna.ct = 800,
-                                    max.mt.pt = 0.01,
-                                    max.rb.pt = 0.05,
-                                    scrublet_score = 0.4,
-                                    group = "Participant.ID",
+                                    max.mt.pt  = 0.05,
+                                    max.rb.pt  = 0.05,
+                                   scrublet.score   = 0.4,
+                                    group      = "Participant.ID",
                                     lfc.thresh = 0.583,
-                                    change = "greaterAbs") {
+                                    change     = "greaterAbs") {
   # seurat qc 
   seurat.obj <- subset(seurat.obj, 
                        subset = nFeature_RNA   > min.rna.ft     & 
@@ -76,44 +76,26 @@ FilterBulkSingleNucleus <- function(seurat.obj,
   return(good.genes)
 }
 
-ScaleMakePseudobulk <- function(seurat.obj, 
-                                min.rna.features = 200,
-                                max.rna.features = 2500,
-                                min.rna.count = 800,
-                                max.mt.percent = 5,
-                                group) {
-  seurat.obj <- subset(seurat.obj, 
-                       subset = nFeature_RNA > min.rna.features & nFeature_RNA < max.rna.features &
-                         nCount_RNA > 800 & 
-                         percent_mito < 5)
-  seurat.obj <- seurat.obj |>
-    FindVariableFeatures() |>
-    ScaleData() 
-  
-  pseudo.bulk        <- AggregateExpression(seurat.obj, 
-                                            group.by = group,
-                                            assays = 'RNA',
-                                            slot = "counts", 
-                                            return.seurat = FALSE)
-  pseudo.bulk      <- as.data.frame(pseudo.bulk$RNA)
-}
-
-
 ClusterSeurat <- function(seurat.obj,
-                          res = 0.2,
                           subset = F,
-                          percentMito = 0.05,
-                          featuresRNAmin = 400,
-                          featuresRNAmax = 3000,
-                          countRNA = 800,
-                          nfeatures = 2000,
-                          harmony = F){
+                          min.rna.ft = 200,
+                          max.rna.ft = 2500,
+                          min.rna.ct = 800,
+                          max.mt.pt  = 0.01,
+                          max.rb.pt  = 0.05,
+                          scrublet_score = 0.4,
+                          harmony    = F,
+                          regress.by = "Participant.ID",
+                          res        = 0.2,
+                          nfeatures  = 2000){
   if(subset == T){
     seurat.obj <- subset(seurat.obj, 
-                         nFeature_RNA > featuresRNAmin & 
-                           nFeature_RNA < featuresRNAmax &
-                           nCount_RNA > countRNA &
-                           PercentMito <= percentMito)
+                         subset = nFeature_RNA   > min.rna.ft     & 
+                                  nFeature_RNA   < max.rna.ft     &
+                                  nCount_RNA     > min.rna.ct     & 
+                                 scrublet_score <= scrublet_score &
+                                  PercentRibo   <= max.rb.pt      &
+                                  PercentMito   <= max.mt.pt)
   }
   seurat.obj <- seurat.obj |>
     NormalizeData(verbose = F) |>
@@ -123,31 +105,31 @@ ClusterSeurat <- function(seurat.obj,
   
   if(harmony == T){
     seurat.obj <- RunHarmony(seurat.obj, 
-                             group.by.vars = "Participant.ID")
+                             group.by.vars = regress.by)
   }
   
   # find elbow
+    # Determine percent of variation associated with each PC
+    pct <- seurat.obj[["pca"]]@stdev / sum(seurat.obj[["pca"]]@stdev) * 100
+    # Calculate cumulative percents for each PC
+    cumu <- cumsum(pct)
+    # Determine which PC exhibits cumulative percent greater than 90% and % variation associated with the PC as less than 5
+    co1 <- which(cumu > 90 & pct < 5)[1]
+    # Determine the difference between variation of PC and subsequent PC
+    co2 <- sort(which((pct[1:length(pct) - 1] - pct[2:length(pct)]) > 0.1), decreasing = T)[1] + 1
+    pcs <- min(co1, co2)
   
-  # Determine percent of variation associated with each PC
-  pct <- seurat.obj[["pca"]]@stdev / sum(seurat.obj[["pca"]]@stdev) * 100
-  # Calculate cumulative percents for each PC
-  cumu <- cumsum(pct)
-  # Determine which PC exhibits cumulative percent greater than 90% and % variation associated with the PC as less than 5
-  co1 <- which(cumu > 90 & pct < 5)[1]
-  # Determine the difference between variation of PC and subsequent PC
-  co2 <- sort(which((pct[1:length(pct) - 1] - pct[2:length(pct)]) > 0.1), decreasing = T)[1] + 1
-  pcs <- min(co1, co2)
   if(harmony == T){
     seurat.obj <- seurat.obj |>
-      RunUMAP(dims = 1:pcs, reduction = "harmony", verbose = F) |>
       FindNeighbors(dims = 1:pcs, reduction = "harmony", verbose = F) |>
-      FindClusters(resolution = res, reduction = "harmony", verbose = F)
+      FindClusters(resolution = res, verbose = F) |>
+      RunUMAP(dims = 1:pcs, reduction = "harmony", verbose = F)
     return(seurat.obj)
   }else{
     seurat.obj <- seurat.obj |>
-      RunUMAP(dims = 1:pcs, reduction = "pca") |>
-      FindNeighbors(dims = 1:pcs, reduction = "pca") |>
-      FindClusters(resolution = res, reduction = "pca")
+      FindNeighbors(dims = 1:pcs, reduction = "pca", verbose = F) |>
+      FindClusters(resolution = res, verbose = F) |>
+      RunUMAP(dims = 1:pcs, reduction = "pca", verbose = F)
     return(seurat.obj)
   }}
 
@@ -370,6 +352,41 @@ optimMusic <- function(param,
                test.params) |>
     t()
   return(results)
+}
+
+plotUMAP <- function(data,
+                     dim.ft = NULL,
+                     feat.ft = NULL) {
+  dim.plots  <- vector("list", length(dim.ft))
+  feat.plots <- vector("list", length(feat.ft))
+  
+  for(i in seq_along(dim.plots)){
+    dim.plots[[i]]<- DimPlot(data, 
+                             reduction = 'umap', 
+                             group.by = dim.ft[[i]],
+                             label = T) & NoLegend()
+  } 
+  
+  for(i in seq_along(feat.plots)){
+    feat.plots[[i]] <-  FeaturePlot(data, 
+                                    reduction = "umap", 
+                                    features = feat.ft[[i]],
+                                    pt.size = 0.4, 
+                                    order = TRUE,
+                                    label = TRUE) & NoLegend() 
+  }
+  return(patchwork::wrap_plots(c(dim.plots, feat.plots)))
+}
+
+# returns the proportion of nuclei in each cluster above a value of meta data 
+mitoProps <- function(data,
+                      cutoff = 0.03)
+  {
+  sn.mito <- subset(data, subset = PercentMito > cutoff)
+  sn.mito.tb <- table(sn.mito$seurat_clusters)
+  sn.tb <- table(data$seurat_clusters)
+  clust.pcs <- (sn.mito.tb / sn.tb) * 100
+  return(clust.pcs)
 }
 
 # you need to finish the last part of this ratio loop to name the output 
