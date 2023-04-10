@@ -77,14 +77,14 @@ FilterBulkSingleNucleus <- function(seurat.obj,
 }
 
 ClusterSeurat <- function(seurat.obj,
-                          subset = F,
+                          subset = T,
                           min.rna.ft = 200,
                           max.rna.ft = 2500,
                           min.rna.ct = 800,
                           max.mt.pt  = 0.01,
                           max.rb.pt  = 0.05,
                           scrublet_score = 0.4,
-                          harmony    = F,
+                          harmony    = T,
                           regress.by = "Participant.ID",
                           res        = 0.2,
                           nfeatures  = 2000){
@@ -104,8 +104,10 @@ ClusterSeurat <- function(seurat.obj,
     RunPCA(verbose = F) 
   
   if(harmony == T){
+    seurat.obj@meta.data[[regress.by]] <- droplevels(seurat.obj@meta.data[[regress.by]]) 
     seurat.obj <- RunHarmony(seurat.obj, 
-                             group.by.vars = regress.by)
+                             group.by.vars = regress.by,
+                             verbose = F)
   }
   
   # find elbow
@@ -356,7 +358,12 @@ optimMusic <- function(param,
 
 plotUMAP <- function(data,
                      dim.ft = NULL,
-                     feat.ft = NULL) {
+                     feat.ft = NULL, 
+                     width = NULL,
+                     height = NULL,
+                     ncol = NULL,
+                     nrow = NULL,
+                     design = NULL) {
   dim.plots  <- vector("list", length(dim.ft))
   feat.plots <- vector("list", length(feat.ft))
   
@@ -375,17 +382,22 @@ plotUMAP <- function(data,
                                     order = TRUE,
                                     label = TRUE) & NoLegend() 
   }
-  return(patchwork::wrap_plots(c(dim.plots, feat.plots)))
+  return(patchwork::wrap_plots(c(dim.plots, feat.plots), 
+                               widths = width,
+                               heights = height,
+                               ncol = ncol,
+                               nrow = nrow,
+                               design = design))
 }
 
 # returns the proportion of nuclei in each cluster above a value of meta data 
 mitoProps <- function(data,
-                      cutoff = 0.03)
-  {
+                      cutoff = 0.03){
   sn.mito <- subset(data, subset = PercentMito > cutoff)
   sn.mito.tb <- table(sn.mito$seurat_clusters)
   sn.tb <- table(data$seurat_clusters)
-  clust.pcs <- (sn.mito.tb / sn.tb) * 100
+  clust.pcs <- (sn.mito.tb / sn.tb) * 100 |>
+                round(digits = 1)
   return(clust.pcs)
 }
 
