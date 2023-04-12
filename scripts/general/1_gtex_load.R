@@ -22,10 +22,14 @@ gtex.sn <- as.Seurat(
 colnames(gtex.sn@meta.data)[c(2,3,11)] <- c("nCount_RNA", "nFeature_RNA", "PercentMito")
 gtex.sn <- RenameAssays(gtex.sn, "originalexp" = "RNA")  |>
   subset(subset = tissue == "heart")
-gtex.sn$Participant.ID <- droplevels(gtex.sn$Participant.ID)
+
+meta <- names(gtex.sn@meta.data)[sapply(gtex.sn@meta.data, is.factor)]
+
+for(i in meta){
+ gtex.sn@meta.data[[i]] <- droplevels(gtex.sn@meta.data[[i]])
+}
 
 SaveH5Seurat(gtex.sn, "data/processed/internal/sn_gtex_lv_match.h5seurat", overwrite = T)
-
 
 # GTEx bulk
 url <- "https://storage.googleapis.com/gtex_analysis_v8/rna_seq_data/gene_reads/gene_reads_2017-06-05_v8_heart_left_ventricle.gct.gz"

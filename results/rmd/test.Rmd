@@ -1,0 +1,215 @@
+---
+title: "GTEx RNAseq Deconvolution"
+author: "Brian Gural"
+date: "4/10/2023"
+output: github_document
+---
+
+```{r setup, include=FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Overview
+The pipeline is currently divided into 3 portions: 
+
+**1_gtex_load.R**\
+ - Loads, cleans, and saves the snRNAseq and bulk RNAseq datasets\
+ - Accesses data by URL\
+ - Converts AnnData file to .H5Seurat file\
+
+**2_gtex_de_genes.R**\
+ - Aggregates subject-matched single nucleus data into pseudo-bulk counts matrices, then compares them to actual bulk.\
+ - Essentially, identifies differentially expressed genes between bulk and single nucleus RNAseq\
+ - Can adjust several parameters including prefiltering of nuclei by RNA count/features, mitocondrial/ribosomal gene content, and doublet tags. Also can change log fold change threshold for DE and directionality (i.e. greaterAbs, lessAbs, etc.)\
+ - Saves a seurat obj w/o DE genes
+
+**3_gtex_decon.R**\
+ - Preforms bulk deconvolution on several hundred GTEx samples after processing snRNAseq\
+ - Clusters snRNAseq, excludes clusters on adjustable criteria (i.e. mitocondrial content, doublet scores, etc.), and repeats clustering after exclusion of nuclei\
+ - Outputs stacked barcharts of composition estimates\
+ 
+## Clustering and nuclei exclusion\
+After loading our data and packages, we perform dimensional reduction and exclude low-quality clusters:
+
+```{r load data, include = F}
+setwd("/proj/raulab/users/brian/r_projects/bulk_decon")
+# load libraries 
+library(dplyr) # load first since we'll need dplyr::lapply()
+libs <- c("Seurat", "DESeq2", "patchwork","SeuratDisk", "MuSiC", "reshape2", 
+          "tidyverse", "SingleCellExperiment","harmony", "SCpubr") # list libraries here
+lapply(libs, require, character.only = T, quietly = T)
+
+source("scripts/functions/decon_all.R") # load our own functions
+
+##### Load data #####
+gtex.sn <- LoadH5Seurat("data/processed/internal/sn_gtex_no_de.h5seurat")
+gtex.bk <- read.csv("data/processed/internal/gtex_lv_counts_summed.csv", check.names = F, row.names = 2)
+gtex.bk <- gtex.bk[,-1]
+```
+
+```{r cluster1.visualize, echo=TRUE, message=FALSE, warning=FALSE}
+
+# cluster and remove mito-heavy nuclei
+sn.clust <- ClusterSeurat(gtex.sn, 
+                              res = 0.3,
+                              subset = T,
+                              max.rna.ft = 5000,
+                              max.mt.pt = 0.5,
+                              max.rb.pt = 0.5,
+                              scrublet_score  = 0.4,
+                              harmony = T,
+                              regress.by = "batch")
+
+```
+
+The GTEx data we're using had been pre-annotated with cell types (fine and broad), so we can overlay those labels to get an idea of what cell types we're looking at:
+
+```{r cluster1.dim, fig.width = 7, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
+# standard visuals for clusters and mitocondrial contaminants
+dim.ft  <- c("Broad.cell.type", "seurat_clusters" )
+
+plotUMAP(data = sn.clust,
+         dim.ft = dim.ft,
+         nrow = 2, 
+         ncol = 1)
+```
+
+We can also look for poor quality clusters by overlaying mitocondrial and ribosome transcript proportions:
+
+```{r cluster1.feat , fig.width = 7, fig.height= 4, echo=FALSE, message=FALSE, warning=FALSE}
+# standard visuals for clusters and mitocondrial contaminants
+feat.ft <- c("PercentMito", "PercentRibo")
+
+plotUMAP(data = sn.clust,
+         feat.ft = feat.ft,
+         nrow = 1, 
+         ncol = 2)
+vln.ft <- c("PercentMito")
+vln.groups <- c("seurat_clusters", "Broad.cell.type")
+plotUMAP(data = sn.clust,
+         vln.ft = vln.ft,
+         vln.groups = vln.groups,
+         nrow = 1, 
+         ncol = 2)
+```
+
+To quantify this, we're going to look at how many nuclei in each cluster contain more than 1% mitocondrial RNA. We'll set a cutoff off 20% of nuclei within a cluster and repeat the clustering without those nuclei.
+
+```{r cluster2, echo=FALSE, message=FALSE, warning=FALSE, fig.align= 'center', include = F}
+# select bad clusters/cells
+# select bad clusters/cells
+bad.clust <- mitoProps(sn.clust,
+                  cutoff = 0.05) 
+bad.cells <- WhichCells(sn.clust, 
+                        idents = names(bad.clust[bad.clust > 20])) # sets a 20% cutoff
+
+sn.clust <- subset(gtex.sn, cells = bad.cells, invert = T)
+
+
+# redo QC with removed cells 
+sn.clust <- ClusterSeurat(sn.clust, 
+                          res = 0.05,
+                          subset = T,
+                          min.rna.ft = 200,
+                          max.rna.ft = 5000,
+                          min.rna.ct = 800,
+                          max.mt.pt = 0.01,
+                          max.rb.pt = 0.01,
+                          scrublet_score  = 0.4,
+                          nfeatures = 2000,
+                          harmony = T,
+                          regress.by = "batch")
+
+```
+
+```{r cluster2.dim, fig.width = 7, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
+# standard visuals for clusters and mitocondrial contaminants
+dim.ft  <- c("Broad.cell.type", "seurat_clusters" )
+
+plotUMAP(data = sn.clust,
+         dim.ft = dim.ft,
+         nrow = 2, 
+         ncol = 1)
+```
+```{r cluster2.feat , fig.width = 7, fig.height= 4, echo=FALSE, message=FALSE, warning=FALSE}
+# standard visuals for clusters and mitocondrial contaminants
+feat.ft <- c("PercentMito", "PercentRibo")
+
+plotUMAP(data = sn.clust,
+         feat.ft = feat.ft,
+         nrow = 1, 
+         ncol = 2)
+VlnPlot(sn.clust, features = "PercentMito", group.by = "seurat_clusters") + theme(legend.position = 'none')
+VlnPlot(sn.clust, features = "PercentMito", group.by = "Broad.cell.type") + theme(legend.position = 'none')
+```
+
+```{r music, fig.width = 7, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
+# music_prop needs a SCE format & ExpressionSet  
+#Idents(sn.clust) <- sn.clust$Broad.cell.type
+sn.sce <- as.SingleCellExperiment(sn.clust, assay = "RNA")
+
+# music_prop needs exprs matrix
+bulk.es <- ExpressionSet(assayData = as.matrix(gtex.bk))
+bulk.es <- exprs(bulk.es)
+# estimate bulk composition with music
+decon <- music_prop(bulk.mtx = bulk.es, sc.sce = sn.sce, markers = NULL,
+                    clusters = "Broad.cell.type", samples = "Participant.ID", verbose = F)
+
+# turn music output into graph-friendly dataframe
+# also adds ratios of nuclei clusters from subject-matched samples
+props <- processProps(decon.obj = decon,
+                           seurat.obj = sn.clust)
+decon.melt = melt(props, id.vars = c("names", "group"))
+colnames(decon.melt) = c('Sub',"Type", 'CellType', 'Prop')
+decon.melt$CellType = factor(decon.melt$CellType, levels = unique(decon.melt$CellType))
+decon.melt$Prop <- as.numeric(decon.melt$Prop)
+```
+
+```{r music.p1, fig.width = 8, fig.height= 7, echo=FALSE, fig.align= 'center', message=FALSE, warning=FALSE}
+
+matches <- levels(sn.clust$Participant.ID)
+
+# plot comparing subject-matched bulk and sn estimates
+
+ggplot(decon.melt[which(decon.melt$Sub %in% matches),], 
+       aes(x=Sub, y=Prop, fill=CellType))  +
+    geom_bar(stat='identity', 
+             position = "fill", 
+             width = 0.5,
+             color = "black")+
+    ylab("Proportion") +
+    facet_grid(~Type, scales = "free_x") +
+    theme(
+      axis.text.x = element_text(color = "black", size = 15, angle = 45),
+      strip.text = element_text(size = 20),
+      title = element_text(size = 20),
+      legend.text = element_text(size = 18),
+      axis.ticks.x = element_blank()) +
+    xlab("Samples")+
+  scale_fill_viridis_d(direction = 1)
+
+```
+
+```{r music.p2, fig.width = 8, fig.height= 6, fig.align= 'center', echo=FALSE, message=FALSE, warning=FALSE}
+
+rank <- props[order(props[which(props$group == "Bulk"),1]),length(props)-1]
+
+
+ggplot(decon.melt[which(decon.melt$Type == "Bulk"),], 
+       aes(x=factor(Sub, levels = rank), y=Prop, fill=CellType))  +
+  geom_bar(stat='identity', 
+           position = "fill", 
+           width = 1)+
+  ylab("Proportion") +
+  facet_grid(~Type, scales = "free_x") +
+  theme(
+    axis.text.x = element_blank(),
+    strip.text = element_blank(),
+    title = element_text(size = 20),
+    legend.text = element_text(size = 18),
+    axis.ticks.x = element_blank()) +
+  xlab("GTEx Individuals")+
+  scale_fill_viridis_d(direction = 1)
+
+
+```
