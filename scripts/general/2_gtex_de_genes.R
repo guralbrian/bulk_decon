@@ -24,9 +24,24 @@ good.genes <- FilterBulkSingleNucleus(gtex.sn,
                                      min.rna.ct = 800,
                                      max.mt.pt = 0.01,
                                      max.rb.pt = 0.01,
-                                     scrublet_score = 0.4,
+                                     scrublet.score = 0.4,
                                      group = "Participant.ID",
                                      lfc.thresh = log2(5),
                                      change = "greaterAbs") 
 
-write.csv(good.genes, "data/processed/internal/gtex_stable_genes.csv", row.names = F)
+# Make new seurat with stable genes 
+counts <- GetAssayData(gtex.sn, slot="counts", assay="RNA")[good.genes,] |>
+  CreateSeuratObject()
+
+# add meta data
+meta.features <- colnames(gtex.sn@meta.data)
+for(i in meta.features){
+  counts <- AddMetaData(counts, gtex.sn@meta.data[[i]], col.name = i)
+}
+
+# reassign and clear junk
+gtex.sn <- counts
+rm(counts)
+gc()
+
+SaveH5Seurat(gtex.sn, "data/processed/internal/sn_gtex_no_de.h5seurat", overwrite = T)
