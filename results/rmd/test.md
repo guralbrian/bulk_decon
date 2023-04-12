@@ -39,15 +39,12 @@ and exclude low-quality clusters:
 ``` r
 # cluster and remove mito-heavy nuclei
 sn.clust <- ClusterSeurat(gtex.sn, 
-                              res = 0.2,
+                              res = 0.3,
                               subset = T,
-                              min.rna.ft = 200,
-                              max.rna.ft = 2500,
-                              min.rna.ct = 800,
-                              max.mt.pt = 0.05,
-                              max.rb.pt = 0.05,
+                              max.rna.ft = 5000,
+                              max.mt.pt = 0.5,
+                              max.rb.pt = 0.5,
                               scrublet_score  = 0.4,
-                              nfeatures = 2000,
                               harmony = T,
                               regress.by = "batch")
 ```
@@ -61,31 +58,15 @@ types we’re looking at:
 We can also look for poor quality clusters by overlaying mitocondrial
 and ribosome transcript proportions:
 
-![](test_files/figure-gfm/cluster1.feat%20-1.png)<!-- -->
+![](test_files/figure-gfm/cluster1.feat%20-1.png)<!-- -->![](test_files/figure-gfm/cluster1.feat%20-2.png)<!-- -->
 
 To quantify this, we’re going to look at how many nuclei in each cluster
-contain more than 1% mitocondrial RNA:
-
-| Seurat Cluster |  % \>1% mt |
-|:---------------|-----------:|
-| 0              |  8.4715849 |
-| 1              |  0.5064964 |
-| 2              | 11.7454545 |
-| 3              |  3.5633739 |
-| 4              |  5.7458564 |
-| 5              |  6.5972222 |
-| 6              | 37.8947368 |
-| 7              | 14.5593870 |
-| 8              | 25.8278146 |
-| 9              |  5.7142857 |
-| 10             |  8.4210526 |
-
-Now we’ll set a cutoff off 20% of nuclei within a cluster. Once we label
-all of the nuclei in each mitocondrial cluster, we repeat the clustering
-without those nuclei.
+contain more than 1% mitocondrial RNA. We’ll set a cutoff off 20% of
+nuclei within a cluster and repeat the clustering without those nuclei.
 
 ![](test_files/figure-gfm/cluster2.dim-1.png)<!-- -->
+![](test_files/figure-gfm/cluster2.feat%20-1.png)<!-- -->![](test_files/figure-gfm/cluster2.feat%20-2.png)<!-- -->![](test_files/figure-gfm/cluster2.feat%20-3.png)<!-- -->
 
-![](test_files/figure-gfm/music.p1-1.png)<!-- -->
+<img src="test_files/figure-gfm/music.p1-1.png" style="display: block; margin: auto;" />
 
-![](test_files/figure-gfm/music.p2-1.png)<!-- -->
+<img src="test_files/figure-gfm/music.p2-1.png" style="display: block; margin: auto;" />

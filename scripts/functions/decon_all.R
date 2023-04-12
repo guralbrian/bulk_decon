@@ -150,6 +150,7 @@ processProps <- function(decon.obj,
   
   ##### Add SN ground truths back in ####
   props <- as.data.frame(decon.obj[[1]])
+  props <- props[,as.character(seq(0,length(props)-1))] # reorders columns
   props$names <- rownames(props) 
   active.idents <- as.data.frame(table(seurat.obj@active.ident, seurat.obj@meta.data[[subject.slot]]))
   
@@ -160,7 +161,6 @@ processProps <- function(decon.obj,
   active.idents <- active.idents  |>
     group_by(Var2)|>
     mutate(proportion = Freq/sum(Freq))
-  count <- nrow(props)
   for(i in unique(active.idents$Var2)){
     props <- rbind(props, c(as.vector(t(active.idents[active.idents$Var2 == i, 4])), i))
   }
@@ -359,6 +359,8 @@ optimMusic <- function(param,
 plotUMAP <- function(data,
                      dim.ft = NULL,
                      feat.ft = NULL, 
+                     vln.ft = NULL,
+                     vln.groups = NULL,
                      width = NULL,
                      height = NULL,
                      ncol = NULL,
@@ -366,23 +368,35 @@ plotUMAP <- function(data,
                      design = NULL) {
   dim.plots  <- vector("list", length(dim.ft))
   feat.plots <- vector("list", length(feat.ft))
+  vln.plots <- vector("list", length(vln.ft)*length(vln.groups))
   
   for(i in seq_along(dim.plots)){
-    dim.plots[[i]]<- DimPlot(data, 
+    dim.plots[[i]]<- do_DimPlot(data, 
                              reduction = 'umap', 
                              group.by = dim.ft[[i]],
-                             label = T) & NoLegend()
+                             label = T) + 
+                          NoLegend() + 
+                          ggtitle(dim.ft[[i]])
   } 
   
   for(i in seq_along(feat.plots)){
-    feat.plots[[i]] <-  FeaturePlot(data, 
+    feat.plots[[i]] <-  SCpubr::do_FeaturePlot(data, 
                                     reduction = "umap", 
                                     features = feat.ft[[i]],
                                     pt.size = 0.4, 
                                     order = TRUE,
-                                    label = TRUE) & NoLegend() 
+                                    label = TRUE) + 
+                                    ggtitle(feat.ft[[i]])
   }
-  return(patchwork::wrap_plots(c(dim.plots, feat.plots), 
+  for(i in seq_along(vln.ft)){
+    for(j in seq_along(vln.groups)){
+    vln.plots[[i*j]] <-  SCpubr::do_ViolinPlot(data, 
+                                               features = vln.ft[[i]], 
+                                               group.by = vln.groups[[j]]) + 
+                                               ggtitle(paste0(vln.ft[[i]], " by ", vln.groups[[j]]))
+    }
+  }
+  return(patchwork::wrap_plots(c(dim.plots, feat.plots, vln.plots), 
                                widths = width,
                                heights = height,
                                ncol = ncol,

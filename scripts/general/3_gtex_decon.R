@@ -7,24 +7,10 @@ lapply(libs, require, character.only = T)
 source("scripts/functions/decon_all.R") # load our own functions
 
 ##### Load data #####
-gtex.sn <- LoadH5Seurat("data/processed/internal/sn_gtex_lv_match.h5seurat")
-good.genes <- read.csv("data/processed/internal/gtex_stable_genes.csv")
+gtex.sn <- LoadH5Seurat("data/processed/internal/sn_gtex_no_de.h5seurat")
 gtex.bk <- read.csv("data/processed/internal/gtex_lv_counts_summed.csv", check.names = F, row.names = 2)
 gtex.bk <- gtex.bk[,-1]
-# Make new seurat with stable genes 
-counts <- GetAssayData(gtex.sn, slot="counts", assay="RNA")[good.genes$x,] |>
-            CreateSeuratObject()
 
-# add meta data
-meta.features <- colnames(gtex.sn@meta.data)
-for(i in meta.features){
-  counts <- AddMetaData(counts, gtex.sn@meta.data[[i]], col.name = i)
-}
-
-# reassign and clear junk
-gtex.sn <- counts
-rm(counts)
-gc()
 
 # cluster and remove mito-heavy nuclei
 sn.clust <- ClusterSeurat(gtex.sn, 
@@ -42,7 +28,7 @@ sn.clust <- ClusterSeurat(gtex.sn,
 
 # standard visuals for clusters and mitocondrial contaminants
 dim.ft  <- c("Broad.cell.type", "seurat_clusters" )
-feat.ft <- c("PercentMito")
+feat.ft <- c("PercentMito", "PercentRibo")
 
 plotUMAP(data = sn.clust,
          dim.ft = dim.ft,
@@ -51,6 +37,7 @@ plotUMAP(data = sn.clust,
 # select bad clusters/cells
 bad.clust <- mitoProps(sn.clust,
                   cutoff = 0.01)
+print(bad.clust)
 
 bad.cells <- WhichCells(sn.clust, 
                         idents = names(bad.clust[bad.clust > 20])) # sets a 20% cutoff
@@ -131,7 +118,7 @@ aspect_ratio <- 1/0.4375
 
 # all gtex, ordered by cm content
 
-rank <- props[order(props[which(props$group == "Bulk"),4]),10]
+rank <- props[order(props[which(props$group == "Bulk"),4]),length(props)-1]
 
 
 ggplot(decon.melt[which(decon.melt$Type == "Bulk"),], 
