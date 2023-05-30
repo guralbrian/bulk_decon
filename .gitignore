@@ -56,6 +56,10 @@ vignettes/*.pdf
 *README_cache/
 #*README_files/
 
+# Results Folder
+
+results/ 
+
 # Data folder
 data/
 
