@@ -62,8 +62,6 @@ data/
 # Data files 
 .csv
 .h5seurat
-
-
 # Images
 .png
 .pdf
