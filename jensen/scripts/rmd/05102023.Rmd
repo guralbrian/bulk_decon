@@ -29,15 +29,15 @@ libs <- c("Seurat", "ggplot2", "DESeq2", "patchwork","SeuratDisk", "MuSiC", "res
           "AUCell", "viridis", "gplots", "scales", "ggrepel", "gridExtra", "scCustomize",
           "httr","readxl","matrixStats", "TabulaMurisSenisData") # list libraries here
 lapply(libs, require, character.only = T)
-source("scripts/jensen/functions/decon_all.R")
+source("jensen/scripts/functions/decon_all.R")
 ```
 
 
 ```{r load data, include = F, cache = TRUE}
-bulk <- read.csv("data/jensen/processed/jensen_rau_froese_cpm", row.names = 1)
-bulk_pheno <- read.csv("data/jensen/processed/jensen_rau_froese_pheno", row.names = 1)
-sn_rau <- LoadH5Seurat("data/jensen/raw/b6_sn.h5seurat")
-sn_tm  <- LoadH5Seurat("data/jensen/processed/tabula_muris.h5seurat")
+bulk <- read.csv("jensen/data/processed/jensen_rau_froese_cpm", row.names = 1)
+bulk_pheno <- read.csv("jensen/data/processed/jensen_rau_froese_pheno", row.names = 1)
+sn_rau <- LoadH5Seurat("jensen/data/raw/b6_sn.h5seurat")
+sn_tm  <- LoadH5Seurat("jensen/data/processed/tabula_muris.h5seurat")
 ```
 \
 ```{r bulk PCA, fig.height=7, fig.width=10, include = T, echo = F, warning = F}
@@ -78,7 +78,7 @@ pca_plot
 sn_all <- merge(sn_rau, sn_tm)
 sn_all$origin <- as.factor(sn_all$origin)
 sn.clust.1 <- ClusterSeurat(sn_all, max.rna.ft = 4000,
-                            max.mt.pt = 1, res = 0.05, regress.by = c("orig.ident", "origin"))
+                            max.mt.pt = 1, res = 0.05, regress.by = c("orig.ident"))
 ```
 
 ```{r cluster.1 data, echo=TRUE}
@@ -147,7 +147,7 @@ McLellan 2020 (DOI: 10.1161/CIRCULATIONAHA.119.045115) has a reasonably accessib
 ```{r load broad markers, echo=F, fig.height=10, fig.width=8, message=FALSE, warning=FALSE, cache = T, cache=T}
 # load markers
 sn.clust.2 <- sn.clust.1
-markers.broad <- read.csv("data/processed/external/skelly_2020/mclellen_cell_markers_broad.csv")
+markers.broad <- read.csv("jensen/data/processed/external/mclellan_2020/mclellan_cell_markers_broad.csv")
 ```
 
 \
@@ -183,7 +183,7 @@ sn.clust.2 <- AddMetaData(sn.clust.2, broad.cell.types)
 
 ```{r fine.cell.types, echo=FALSE, fig.height=4, fig.width=7, message=FALSE, warning=FALSE, cache=T}
 # load markers
-markers.fine <- read.csv("data/processed/external/skelly_2020/mclellen_cell_markers.csv")
+markers.fine <- read.csv("jensen/data/processed/external/mclellan_2020/mclellen_cell_markers.csv")
 
 # Split 'markers' into separate data frames for each unique subcluster
 subclusters <- split(markers.fine, markers.fine$subcluster)
