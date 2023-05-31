@@ -1,0 +1,363 @@
+---
+title: "Jensen-Rau Meeting"
+author: "Brian Gural"
+date: "5/10/2023"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+---
+
+
+
+
+```{r setup, include=FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Introduction and Context\
+The aim of this analysis is to estimate the cellular composition of bulk-RNAseq reads from mouse left ventricular tissue. We'll find cell-type-specific gene expression reference profiles with snRNAseq. These two single nucleus samples are aggregates of several adult, male B6 from Christoph's post-doc.\
+\
+This document explains the workflow in the order in which the data processing occurred. You can jump to portions with the table of contents on the left.\
+
+## Load data and packages\
+
+
+```{r load libs, message=FALSE, warning=FALSE, cache=FALSE, include=F}
+# load libraries
+libs <- c("Seurat", "ggplot2", "DESeq2", "patchwork","SeuratDisk", "MuSiC", "reshape2",
+          "tidyverse", "SingleCellExperiment","harmony", "SCpubr","shiny", 
+          "AUCell", "viridis", "gplots", "scales", "ggrepel", "gridExtra", "scCustomize",
+          "httr","readxl","matrixStats", "TabulaMurisSenisData") # list libraries here
+lapply(libs, require, character.only = T)
+source("scripts/jensen/functions/decon_all.R")
+```
+
+
+```{r load data, include = F, cache = TRUE}
+bulk <- read.csv("data/jensen/processed/jensen_rau_froese_cpm", row.names = 1)
+bulk_pheno <- read.csv("data/jensen/processed/jensen_rau_froese_pheno", row.names = 1)
+sn_rau <- LoadH5Seurat("data/jensen/raw/b6_sn.h5seurat")
+sn_tm  <- LoadH5Seurat("data/jensen/processed/tabula_muris.h5seurat")
+```
+\
+```{r bulk PCA, fig.height=7, fig.width=10, include = T, echo = F, warning = F}
+# Perform PCA on the log-transformed, normalized counts
+pca <- prcomp(t(bulk), center = TRUE, scale. = TRUE)
+
+# Extract the first two principal components
+pca_df <- as.data.frame(pca$x[, 1:2])
+colnames(pca_df) <- c("PC1", "PC2")
+
+# Add sample names to the PCA data frame
+pca_df$Sample <- rownames(pca_df)
+
+# Merge PCA data frame with phenotype data
+pca_df <- merge(pca_df, bulk_pheno, by.x = "Sample", by.y = "id")
+
+# Create the PCA plot using ggplot2 with color and shape based on genotype and treatment
+pca_plot <- ggplot(pca_df, aes(x = PC1, y = PC2, label = Sample, color = fraction, shape = origin)) +
+  geom_point(size = 5)+
+  geom_text_repel(size = 4, force = 10) +
+  scale_color_brewer(palette = "Dark2") +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 16),
+    title = element_text(size = 20),
+    legend.text = element_text(size = 14)
+  ) +
+  labs(title = "PCA plot of cell fractions and bulk",
+       x = paste0("PC1 (", percent(pca$sdev[1]^2 / sum(pca$sdev^2)), " variance)"),
+       y = paste0("PC2 (", percent(pca$sdev[2]^2 / sum(pca$sdev^2)), " variance)"))
+pca_plot
+
+```
+
+## Clustering nuclei\
+
+```{r cluster1, echo=TRUE, message=FALSE, warning=FALSE, cache = TRUE}
+sn_all <- merge(sn_rau, sn_tm)
+sn_all$origin <- as.factor(sn_all$origin)
+sn.clust.1 <- ClusterSeurat(sn_all, max.rna.ft = 4000,
+                            max.mt.pt = 1, res = 0.05, regress.by = c("orig.ident", "origin"))
+```
+
+```{r cluster.1 data, echo=TRUE}
+sn.clust.1
+```
+\
+Now, we can visualize our data plotted on UMAPs. The top two plots are showing us how our clustering decided to group the nuclei and the right is how well we integrated our two samples.\
+\
+The lower two feature plots are showing percent mitocondrial RNA and number of transcripts counted in each nuclei. High mitocondrial gene content indicates cytoplasmic contamination, which would confound deconvolution methods.\
+```{r cluster1.dim, echo=FALSE, fig.height=14, fig.width=10, message=FALSE, warning=FALSE, cache=T}
+# standard visuals for clusters and mitocondrial contaminants
+dim.ft  <- c("seurat_clusters", "origin", "orig.ident")
+feat.ft <- c("PercentMito", "nCount_RNA")
+vln.ft <- c("PercentMito")
+vln.groups <- c("seurat_clusters")
+
+plotUMAP(data = sn.clust.1,
+         dim.ft = dim.ft,
+         feat.ft = feat.ft,
+         nrow = 3, 
+         ncol = 2)
+
+```
+
+### Removing mitocondrial clusters\
+We're going to look at how many nuclei in each cluster contain more than 3% mitocondrial RNA. We'll set a cutoff off 20% of nuclei within a cluster and repeat the clustering without those nuclei. After I remove that cluster, I still set a mitocondrial gene percent cutoff at 2% for the reclustering, since the initial clustering and MT% threshold largely serve to bait highly cytoplasmic nuclei together.\ 
+
+```{r remove mito cluster 1, eval=FALSE, fig.align='center', message=FALSE, warning=FALSE, cache=TRUE, include=FALSE}
+# select bad clusters/cells
+bad.clust <- mitoProps(sn.clust.1,
+                  cutoff = 1) 
+bad.clust.names <- as.numeric(names(bad.clust[bad.clust > 20]))
+bad.cells <- WhichCells(sn.clust.1, 
+                        idents = levels(sn.clust.1)[bad.clust.names]) # sets a 20% cutoff
+
+sn.clust.2 <- subset(sn.clust.1, cells = bad.cells, invert = T)
+
+
+# redo QC with removed cells 
+sn.clust.2 <- ClusterSeurat(sn.clust.2, max.rna.ft = 4000,
+                          max.mt.pt = 5, res = 0.4)
+```
+\
+
+```{r no mito dim, eval=FALSE, fig.height=12, fig.width=10, message=FALSE, warning=FALSE, cache=TRUE, include=FALSE}
+# standard visuals for clusters and mitocondrial contaminants
+
+
+dim.ft  <- c("seurat_clusters", "origin")
+feat.ft <- c("PercentMito", "nCount_RNA")
+
+plotUMAP(data = sn.clust.2,
+         dim.ft = dim.ft,
+         feat.ft = feat.ft,
+         nrow = 2, 
+         ncol = 2)
+
+```
+
+
+## Defining cell types\
+To annotate the clusters with actual cell types, I've  decided to  reference existing mouse single cell datasets.\
+McLellan 2020 (DOI: 10.1161/CIRCULATIONAHA.119.045115) has a reasonably accessible list of marker genes for their clusters. They repeated their clustering, yielding both a broad and fine classification. So we'll be doing the process twice.\
+
+
+```{r load broad markers, echo=F, fig.height=10, fig.width=8, message=FALSE, warning=FALSE, cache = T, cache=T}
+# load markers
+sn.clust.2 <- sn.clust.1
+markers.broad <- read.csv("data/processed/external/skelly_2020/mclellen_cell_markers_broad.csv")
+```
+
+\
+```{r broad.cell.types AUC, echo=FALSE, fig.height=4, fig.width=7, message=FALSE, warning=FALSE, cache=T}
+# Split 'markers' into separate data frames for each unique subcluster
+subclusters <- split(markers.broad, markers.broad$cluster)
+# Extract the gene names from each subcluster data frame
+subcluster_genes <- lapply(subclusters, function(x) x$gene)
+# Create a list with named elements corresponding to each subcluster
+geneSets <- setNames(subcluster_genes, names(subclusters))
+# make expression matrix of single cell
+my.expr <-  sn.clust.2@assays$RNA@counts
+# Find  AUC for each cell by each type
+cells_AUC <- AUCell_run(my.expr, geneSets)
+cells_assignment <- AUCell_exploreThresholds(cells_AUC, plotHist=F, assign=TRUE)
+
+# get the thresholds and report when/how they're passdd
+selectedThresholds <- getThresholdSelected(cells_assignment)
+
+auc.val <- cells_AUC@assays@data@listData$AUC |>
+              as.data.frame() |>
+              t()
+
+# Apply process_cell_id function to each row of auc.val using lapply()
+broad_cell_types_list <- lapply(1:nrow(auc.val), function(i) processCellId(auc.val[i, ]))
+
+# Convert the list to a data frame
+broad.cell.types <- data.frame(BroadCellType = unlist(broad_cell_types_list), stringsAsFactors = FALSE)
+rownames(broad.cell.types) <- rownames(auc.val)
+
+sn.clust.2 <- AddMetaData(sn.clust.2, broad.cell.types)
+```
+
+```{r fine.cell.types, echo=FALSE, fig.height=4, fig.width=7, message=FALSE, warning=FALSE, cache=T}
+# load markers
+markers.fine <- read.csv("data/processed/external/skelly_2020/mclellen_cell_markers.csv")
+
+# Split 'markers' into separate data frames for each unique subcluster
+subclusters <- split(markers.fine, markers.fine$subcluster)
+# Extract the gene names from each subcluster data frame
+subcluster_genes <- lapply(subclusters, function(x) x$gene)
+# Create a list with named elements corresponding to each subcluster
+geneSets <- setNames(subcluster_genes, names(subclusters))
+# make expression matrix of single cell
+my.expr <-  sn.clust.2@assays$RNA@counts
+# Find  AUC for each cell by each type
+cells_AUC <- AUCell_run(my.expr, geneSets)
+cells_assignment <- AUCell_exploreThresholds(cells_AUC, plotHist=F, assign=TRUE)
+
+# get the thresholds and report when/how they're passdd
+selectedThresholds <- getThresholdSelected(cells_assignment)
+
+auc.val <- cells_AUC@assays@data@listData$AUC |>
+              as.data.frame() |>
+              t()
+
+# Apply process_cell_id function to each row of auc.val using lapply()
+fine_cell_types_list <- lapply(1:nrow(auc.val), function(i) processCellId(auc.val[i, ]))
+
+# Convert the list to a data frame
+fine.cell.types <- data.frame(FineCellType = unlist(fine_cell_types_list), stringsAsFactors = FALSE)
+rownames(fine.cell.types) <- rownames(auc.val)
+
+sn.clust.2 <- AddMetaData(sn.clust.2, fine.cell.types)
+```
+
+### Label Clusters\
+
+```{r dim broad/fine, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE,}
+# standard visuals for clusters and mitocondrial contaminants
+dim.ft  <- c("BroadCellType", "FineCellType")
+plotUMAP(data = sn.clust.2,
+         dim.ft = dim.ft,
+         feat.ft = NULL,
+         nrow = 1, 
+         ncol = 2)
+
+```
+\
+And these are the clusters we found earlier, for reference:\
+\
+```{r dim broad/fine ref, echo=FALSE, fig.height=6, fig.width=5, message=FALSE, warning=FALSE,fig.align = 'center'}
+# standard visuals for clusters and mitocondrial contaminants
+dim.ft  <- c("seurat_clusters")
+plotUMAP(data = sn.clust.2,
+         dim.ft = dim.ft,
+         feat.ft = NULL,
+         nrow = 1, 
+         ncol = 1)
+
+```
+\
+
+### Defining Seurat clusters\
+
+
+```{r heatmap for all celltypes, echo=FALSE, fig.height=12, fig.width=10, message=FALSE, warning=FALSE, eval=T}
+# Create a contingency table
+contingency_table <- table(c(sn.clust.2$BroadCellType,sn.clust.2$FineCellType),
+                           c(sn.clust.2$seurat_clusters,sn.clust.2$seurat_clusters))
+
+# Perform the chi-squared test
+chi_squared_test <- chisq.test(contingency_table)
+
+# Calculate the standardized residuals
+observed_frequencies <- contingency_table
+expected_frequencies <- chi_squared_test$expected
+standardized_residuals <- (observed_frequencies - expected_frequencies) / sqrt(expected_frequencies)
+
+
+col_palette <- viridis(25)
+# Create a heatmap of the standardized residuals
+heatmap.2(standardized_residuals, 
+          trace = "none", 
+          col = col_palette,
+          main = "Residuals, All Cell Types",
+          xlab = "Seurat Clusters",
+          ylab = "All Cell Types",
+          margins = c(8, 12),
+          key.title = "Standardized Residuals",
+          srtCol = 0,
+          cexRow = 1.2)
+
+```
+\
+
+```{r label clusters w chisq for celltypes, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE}
+# Find the index of the largest value in each column of the normalized_contingency_table
+max.indices <- apply(standardized_residuals, 2, which.max)
+# Get the corresponding BroadCellType for each Seurat cluster
+assigned.cell.types <- rownames(standardized_residuals)[max.indices] |>
+                          make.unique()
+
+#rename the clusters
+names(assigned.cell.types) <- levels(sn.clust.2)
+sn.clust.2 <- RenameIdents(sn.clust.2, assigned.cell.types)
+
+```
+
+Here's what our final clusters and labels look like: \
+
+```{r final cluster labels, echo=FALSE, fig.height=7, fig.width=10, message=FALSE, warning=FALSE}
+do_DimPlot(sn.clust.2, reduction = "umap", label = T, repel = T) + NoLegend()
+```
+
+## MuSiC and composition estimates\
+
+
+```{r cluster2.dim, fig.width = 7, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
+# music_prop needs exprs matrix
+sn.sce <- as.SingleCellExperiment(sn.clust.2, assay = "RNA")
+bulk.es <- ExpressionSet(assayData = as.matrix(bulk))
+bulk.es <- exprs(bulk.es)
+# estimate bulk composition with music
+# Find the index of the specified cell type
+labels <- standardized_residuals |>
+  as.data.frame() |>
+  group_by(Var2) |>
+  summarise(Value = max(Freq))
+
+good_labels <- labels[which(labels$Value > 40), 1]
+cell_types <-levels(Idents(sn.clust.2))[good_labels$Var2]
+# Access the cell type using the index
+
+decon <- music_prop(bulk.mtx = 2^bulk.es, sc.sce = sn.sce, markers = NULL,
+                    clusters = "ident", samples = "orig.ident",
+                    select.ct = cell_types)
+```
+
+
+```{r cluster2.feat , fig.width = 7, fig.height= 4, echo=FALSE, message=FALSE, warning=FALSE}
+# turn music output into graph-friendly dataframe
+# also adds ratios of nuclei clusters from subject-matched samples
+decon.melt = melt(decon$Est.prop.weighted)
+colnames(decon.melt) = c('Sub', 'CellType', 'Prop')
+decon.melt$CellType = factor(decon.melt$CellType, levels = unique(decon.melt$CellType))
+
+decon.melt$CellType = factor(decon.melt$CellType, levels = unique(decon.melt$CellType))
+decon.melt$Prop <- as.numeric(decon.melt$Prop)
+
+decon.melt$genotype <- "wt"
+decon.melt[grepl("A", decon.melt$Sub), 4] <- "ko"
+decon.melt$treatment <- "control"
+decon.melt[grepl("Lx", decon.melt$Sub), 5] <- "mi"
+decon.melt$type <- "whole"
+decon.melt[grepl("RNA", decon.melt$Sub), 6] <- "fraction"
+
+decon.melt$origin <- "Jensen"
+decon.melt[grepl("B6", decon.melt$Sub), 4] <- "Rau"
+decon.melt[grepl("Sham", decon.melt$Sub), 4] <- "Froese"
+
+```
+
+```{r music plot controls, fig.width = 12, fig.height= 7, echo=FALSE, message=FALSE, warning=FALSE}
+ggplot(decon.melt,
+       aes(x=Sub, y=Prop, fill=CellType))  +
+  geom_bar(stat='identity',
+           position = "fill",
+           width = 0.5,
+           color = "black")+
+  scale_fill_viridis_d(name = "Cell Type")+
+  facet_wrap(~genotype, 
+             scales = "free_x",
+             labeller =  label_wrap_gen(multi_line=FALSE)) +
+  ylab("Proportion") +
+  theme( axis.text.x = element_text(color = "black", size = 15, angle = 30),
+         strip.text = element_text(size = 20),
+         title = element_text(size = 20),
+         legend.text = element_text(size = 18),
+         axis.ticks.x = element_blank()) +
+  xlab("Samples (5%)")
+
+```
