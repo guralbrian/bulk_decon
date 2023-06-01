@@ -83,7 +83,8 @@ ClusterSeurat <- function(seurat.obj,
                           regress.by = "orig.ident",
                           harmony    = T,
                           res        = 0.2,
-                          nfeatures  = 2000){
+                          nfeatures  = 2000,
+                          drop.levels = FALSE){
   if(subset == T){
     seurat.obj <- subset(seurat.obj, 
                          subset = nFeature_RNA   > min.rna.ft     & 
@@ -98,10 +99,13 @@ ClusterSeurat <- function(seurat.obj,
     RunPCA(verbose = F) 
   
   if(harmony == T){
+    if(drop.levels ==T){
     seurat.obj@meta.data[[regress.by]] <- droplevels(seurat.obj@meta.data[[regress.by]]) 
+    }
     seurat.obj <- RunHarmony(seurat.obj, 
                              group.by.vars = regress.by,
-                             verbose = F)
+                             verbose = F,
+                             project.dim = F)
   }
   
   # find elbow
@@ -369,7 +373,8 @@ plotUMAP <- function(data,
     dim.plots[[i]]<- do_DimPlot(data, 
                              reduction = 'umap', 
                              group.by = dim.ft[[i]],
-                             label = T) + 
+                             label = T,
+                             repel = T) + 
                           NoLegend() + 
                           ggtitle(dim.ft[[i]])
   } 
@@ -406,13 +411,35 @@ plotUMAP <- function(data,
 
 # returns the proportion of nuclei in each cluster above a value of meta data 
 mitoProps <- function(data,
-                      cutoff = 0.03){
-  sn.mito <- subset(data, subset = PercentMito > cutoff)
-  sn.mito.tb <- table(sn.mito$seurat_clusters)
-  sn.tb <- table(data$seurat_clusters)
-  clust.pcs <- (sn.mito.tb / sn.tb) * 100 |>
-                round(digits = 1)
-  return(clust.pcs)
+                      cutoff = 0.03,
+                      origins.considered = "rau"){
+                      sn.mito <- subset(data, subset = PercentMito > cutoff &
+                                          origin %in% origins.considered)
+                      sn.mito.tb <- table(sn.mito$seurat_clusters)
+                      sn.origin <- subset(data, subset = origin %in% origins.considered)
+                      sn.tb <- table(sn.origin$seurat_clusters)
+                      clust.pcs <- (sn.mito.tb / sn.tb) * 100 |>
+                        round(digits = 1)
+                      return(clust.pcs)
 }
 
-# you need to finish the last part of this ratio loop to name the output 
+# Create a function to process a single row (cell ID) from auc.val
+processCellId <- function(row_values) {
+  # Filter the columns with values greater than 0
+  filtered_values <- row_values[row_values > 0]
+  # Calculate the ratio between the value in auc.val and the corresponding cell type's threshold value from selectedThresholds
+  ratios_for_cell_id_list <- lapply(names(filtered_values), function(cell_type) {
+    filtered_values[cell_type] / selectedThresholds[[cell_type]]
+  })
+  ratios_for_cell_id <- unlist(ratios_for_cell_id_list, use.names = TRUE)
+  names(ratios_for_cell_id) <- names(filtered_values)
+  # Filter the ratios above 1
+  filtered_ratios <- ratios_for_cell_id[ratios_for_cell_id > 1]
+  # Find the cell type corresponding to the largest ratio for the current cell ID
+  if (length(filtered_ratios) > 0) {
+    max_ratio_cell_type <- names(filtered_ratios)[which.max(filtered_ratios)]
+  } else {
+    max_ratio_cell_type <- NA
+  }
+  return(max_ratio_cell_type)
+}
