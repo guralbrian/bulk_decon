@@ -27,7 +27,7 @@ for(i in colnames(colData(sn_muris))){
 sn_muris_seurat$PercentMito <- 0
 sn_muris_seurat$origin <- "tabula_muris"
 
-SaveH5Seurat(sn_muris_seurat, "data/jensen/processed/tabula_muris")
+SaveH5Seurat(sn_muris_seurat, "jensen/data/processed/tabula_muris")
 
 # Froese ####
 
@@ -52,11 +52,11 @@ froese <- Reduce(function(x,y) merge(x,y,by="SYMBOL",all=TRUE),
 rownames(froese) <- froese$SYMBOL
 froese <- froese[,-1]
 rm(froese_cm,froese_fb,froese_ec)
-write.csv(froese, "data/jensen/processed/froese_fractions")
+write.csv(froese, "jensen/data/processed/froese_fractions")
 
 # Christoph fractions + Jensen whole df + Froese fractions, in CPM
-jensen_whole <- read.csv("data/jensen/raw/jensen_counts.csv", header = 1, row.names = 1)
-rau_fractions <- read.csv("data/jensen/processed/celltype_counts.csv", row.names = 1)
+jensen_whole <- read.csv("jensen/data/raw/jensen_counts.csv", header = 1, row.names = 1)
+rau_fractions <- read.csv("jensen/data/processed/celltype_counts.csv", row.names = 1)
 
 # Merge non-cpm data
 all_bulk <- merge(rau_fractions, jensen_whole, by = "row.names")
@@ -76,11 +76,11 @@ all_bulk <- merge(log2_cpm, froese, by = "row.names")
 rownames(all_bulk) <- all_bulk$Row.names
 all_bulk <- all_bulk[,-1]
 
-write.csv(all_bulk, "data/jensen/processed/jensen_rau_froese_cpm")
+write.csv(all_bulk, "jensen/data/processed/jensen_rau_froese_cpm")
 
 # Phenotype/metadata for bulk RNAseq ####
 
-pheno <- read.csv("data/jensen/raw/bulk_phenotypes.csv", header = 1, row.names = 1)
+pheno <- read.csv("jensen/data/raw/bulk_phenotypes.csv", header = 1, row.names = 1)
 pheno$genotype <- "wt"
 pheno[grepl("A", pheno$id), 3] <- "ko"
 pheno$treatment <- "control"
@@ -107,4 +107,4 @@ all_pheno$origin <- "Jensen"
 all_pheno[grepl("B6", all_pheno$id), 4] <- "Rau"
 all_pheno[grepl("Sham", all_pheno$id), 4] <- "Froese"
 
-write.csv(all_pheno, "data/jensen/processed/jensen_rau_froese_pheno")
+write.csv(all_pheno, "jensen/data/processed/jensen_rau_froese_pheno")

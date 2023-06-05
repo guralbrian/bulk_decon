@@ -102,9 +102,18 @@ ggplot(decon.melt,
 
 ```{r bisque, fig.width = 7, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
 library("DirichletReg")
-head(ArcticLake)
+library("Ternary")
+
+decon.mat <- decon$Est.prop.weighted
+plot(decon.mat[,c(1,2,6)], cex = 0.5, a2d = list(colored = FALSE, c.grid = FALSE))
+
 
 AL <- DR_data(ArcticLake[, 1:3])
+# Include the full path to your data file here if necessary:
+myData <- decon.mat[,c(1,2,6,7)]
+
+
+
 
 plot(AL, cex = 0.5, a2d = list(colored = FALSE, c.grid = FALSE))
 
@@ -162,7 +171,6 @@ aitch.vals <- data.frame(aitchison = rep(NA, dim(est.fractions)[1]))
                     
 rownames(aitch.vals) <- rownames(est.samples)
 
-i <- row.names(sim.fractions)[1]
 for(i in rownames(sim.fractions)){
 aitch.vals[i,] <- coda.base::dist(
                   rbind(sim.fractions[i,cell.types],est.fractions[i,cell.types]), 
@@ -293,4 +301,68 @@ ggplot(decon.melt,
          legend.text = element_text(size = 18),
          axis.ticks.x = element_blank())
 
+```
+
+```{r bisque ternary , fig.width = 7, fig.height= 4, echo=FALSE, message=FALSE, warning=FALSE}
+bisque.comp <- t(bisque.marker$bulk.props) |>
+  as.data.frame()
+bisque.comp <- bisque.comp[,c(2,4,5)]
+
+
+TernaryPlot(
+  atip = "",
+  btip = "",
+  ctip = "",
+  alab = "CMs",
+  blab = "endothelial cells",
+  clab = "fibroblasts",
+  lab.offset = 0.16,
+  lab.col = "#000000",
+  point = "up",
+  clockwise = TRUE,
+  xlim = NULL,
+  ylim = NULL,
+  lab.cex = 1,
+  lab.font = 1,
+  tip.cex = 1,
+  tip.font = 1,
+  tip.col = "#000000",
+  isometric = TRUE,
+  atip.rotate = NULL,
+  btip.rotate = NULL,
+  ctip.rotate = NULL,
+  atip.pos = NULL,
+  btip.pos = NULL,
+  ctip.pos = NULL,
+  padding = 0.08,
+  col = "#FFFFFF",
+  grid.lines = 10,
+  grid.col = "#A9A9A9",
+  grid.lty = "solid",
+  grid.lwd = 1,
+  grid.minor.lines = 4,
+  grid.minor.col = "#D3D3D3",
+  grid.minor.lty = "solid",
+  grid.minor.lwd = 1,
+  axis.lty = "solid",
+  axis.labels = TRUE,
+  axis.cex = 0.8,
+  axis.font = 1,
+  axis.rotate = TRUE,
+  axis.tick = TRUE,
+  axis.lwd = 1,
+  ticks.lwd = 1,
+  ticks.length = 0.025,
+  axis.col = "#000000",
+  ticks.col = "#A9A9A9"
+)
+
+TernaryPoints(bisque.comp[, 1:3],
+  type = "p",
+  cex = 1.8,
+  pch = 16,
+  lwd = 1,
+  lty = "solid",
+  col = "#222222"
+)
 ```
