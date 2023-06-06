@@ -4,7 +4,6 @@ lapply(libs, require, character.only = T)
 
 #### initial data processing and organization #####
 # Tabula Muris ####
-
 sn_muris <- TabulaMurisSenisDroplet(
   tissues = "Heart_and_Aorta",
   processedCounts = FALSE,
@@ -28,6 +27,92 @@ sn_muris_seurat$PercentMito <- 0
 sn_muris_seurat$origin <- "tabula_muris"
 
 SaveH5Seurat(sn_muris_seurat, "jensen/data/processed/tabula_muris")
+
+# Wu 2021 ####
+
+# Import data from Wu 2021 doi.org/10.1152/physiolgenomics.00016.2021
+geo <- "GSM5471468"
+filePaths = getGEOSuppFiles("GSM5471468")
+
+# Unzip files
+paths <- rownames(filePaths)
+for(i in paths){
+  gunzip(i)
+}
+
+# Read and format as Seurat
+wu.mt <- readMM("GSM5471468/GSM5471468_matrix.mtx")
+cell.ids <- readLines("GSM5471468/GSM5471468_barcodes.tsv")
+genes <- read.table("GSM5471468/GSM5471468_genes.tsv")
+colnames(wu.mt) <- paste0(cell.ids, "-wu")
+rownames(wu.mt) <- genes$V2
+sn.wu <- CreateSeuratObject(wu.mt)
+sn.wu$origin <- "wu"
+sn.wu$orig.ident <- "wu"
+SaveH5Seurat(sn.wu, "jensen/data/processed/single_cell/wu_2021")
+
+
+# Martini 2019 ####
+
+# Import data from Martini 2019 doi.org/10.1161/CIRCULATIONAHA.119.041694
+geo <- "GSE122930"
+dir <- "./jensen/data/processed/geo"
+filePaths = getGEOSuppFiles(geo, baseDir = dir)
+paths <- rownames(filePaths)
+
+# Unzip files
+for(i in paths){
+  if(endsWith(i, '.gz')){
+    gunzip(i)
+  }
+}
+
+# select files ending in .mtx or .tsv
+files <- list.files(paste0(dir, "/", geo))
+files.mtx <- files[endsWith(files, '.mtx')]
+files.tsv <- files[endsWith(files, '.tsv')]
+
+# group by lapply(names, strsplit( "_"), "[[", 2)
+
+treatment <- lapply(strsplit(files.mtx, "_"), "[[", 2)
+timepoint <- lapply(strsplit(files.mtx, "_"), "[[", 3)
+samples.martini <- paste0(treatment,"_", timepoint)
+
+# read in each file and merge
+
+for(i in samples.martini){
+  # List the .mtx file and read
+  mtx.file <- files.mtx[grepl(i, files.mtx)]
+  mtx <- readMM(paste0(dir, "/",geo, "/", mtx.file))
+  
+  # Get list the barcodes .tsv file
+  tsv.bar <- files.tsv[grepl(i, files.tsv) & grepl("barcodes", files.tsv)]
+  tsv.bar <- readLines(paste0(dir, "/",geo, "/", tsv.bar))
+  
+  # Get list the genes .tsv file
+  tsv.genes <- files.tsv[grepl(i, files.tsv) & grepl("genes", files.tsv)]
+  tsv.genes <- read.table(paste0(dir, "/",geo, "/", tsv.genes))
+  
+  # Format and return sparse matrix
+  colnames(mtx) <- paste0(tsv.bar, "-mar")
+  rownames(mtx) <- tsv.genes$V2
+  assign(i, mtx)
+}
+
+# Convert to Seurats
+for(i in 1:length(samples.martini)){
+  seurat <- CreateSeuratObject(get(samples.martini[i]))
+  seurat$martini.cond <- samples.martini[i]
+  assign(samples.martini[i], seurat)
+}
+
+# Merge Seurats and save
+sn.martini <- merge(get(samples.martini[1]), get(samples.martini[2])) |>
+  merge(get(samples.martini[3])) |>
+  merge(get(samples.martini[4]))
+sn.martini$origin <- "martini"
+sn.martini$orig.ident <- paste0("martini_", sn.martini$martini.cond)
+SaveH5Seurat(sn.martini, "jensen/data/processed/single_cell/martini_2019")
 
 # Froese ####
 
