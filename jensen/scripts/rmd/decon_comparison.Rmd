@@ -34,9 +34,9 @@ source("jensen/scripts/functions/decon_all.R")
 ```{r load data, include = F, cache = TRUE}
 bulk <- read.csv("jensen/data/processed/jensen_rau_froese_cpm", row.names = 1)
 bulk.pheno <- read.csv("jensen/data/processed/jensen_rau_froese_pheno", row.names = 1)
-sn <- LoadH5Seurat("jensen/data/processed/single_cell/05102023.h5seurat")
+sn <- LoadH5Seurat("jensen/data/processed/single_cell/06062023.h5seurat")
 ```
-\
+
 ## MuSiC and composition estimates\
 
 
@@ -100,7 +100,7 @@ ggplot(decon.melt,
 ## DirichletReg\
 
 
-```{r bisque, fig.width = 7, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
+```{r bisque, eval=FALSE, fig.height=8, fig.width=7, message=FALSE, warning=FALSE, include=FALSE}
 library("DirichletReg")
 library("Ternary")
 
@@ -184,7 +184,7 @@ aitch.vals
 ```{r DeconvoBuddies Find markers, fig.width = 7, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
 # find markers
 library(DeconvoBuddies)
-
+sn <- sn.clust.2
 sn.sce <- as.SingleCellExperiment(sn, assay = "RNA") |>
   as("SummarizedExperiment")
 # add gene names, not sure why they broke
@@ -204,7 +204,7 @@ cell_colors <- create_cell_colors(cell_types = cell_types, pallet = "tableau", s
 
 plot_marker_express(sn.sce,
     marker_stats,
-    "granulocytes",
+    "CMs",
     n_genes = 5,
     rank_col = "rank_ratio",
     anno_col = "anno_ratio",
@@ -222,9 +222,6 @@ top_markers <- marker_stats %>%
 
 ```{r bisque, fig.width = 7, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
 
-marker.data.frame <- data.frame(gene=paste("Gene", 1:6),
-                                cluster=c("Neurons", "Neurons", "Astrocytes", "Oligodendrocytes", "Microglia", "Endothelial Cells"),
-                                avg_logFC=c(0.82, 0.59, 0.68, 0.66, 0.71, 0.62))
 
 markers <- top_markers[,c(1,2,9)] |>
   as.data.frame()
@@ -308,61 +305,5 @@ bisque.comp <- t(bisque.marker$bulk.props) |>
   as.data.frame()
 bisque.comp <- bisque.comp[,c(2,4,5)]
 
-
-TernaryPlot(
-  atip = "",
-  btip = "",
-  ctip = "",
-  alab = "CMs",
-  blab = "endothelial cells",
-  clab = "fibroblasts",
-  lab.offset = 0.16,
-  lab.col = "#000000",
-  point = "up",
-  clockwise = TRUE,
-  xlim = NULL,
-  ylim = NULL,
-  lab.cex = 1,
-  lab.font = 1,
-  tip.cex = 1,
-  tip.font = 1,
-  tip.col = "#000000",
-  isometric = TRUE,
-  atip.rotate = NULL,
-  btip.rotate = NULL,
-  ctip.rotate = NULL,
-  atip.pos = NULL,
-  btip.pos = NULL,
-  ctip.pos = NULL,
-  padding = 0.08,
-  col = "#FFFFFF",
-  grid.lines = 10,
-  grid.col = "#A9A9A9",
-  grid.lty = "solid",
-  grid.lwd = 1,
-  grid.minor.lines = 4,
-  grid.minor.col = "#D3D3D3",
-  grid.minor.lty = "solid",
-  grid.minor.lwd = 1,
-  axis.lty = "solid",
-  axis.labels = TRUE,
-  axis.cex = 0.8,
-  axis.font = 1,
-  axis.rotate = TRUE,
-  axis.tick = TRUE,
-  axis.lwd = 1,
-  ticks.lwd = 1,
-  ticks.length = 0.025,
-  axis.col = "#000000",
-  ticks.col = "#A9A9A9"
-)
-
-TernaryPoints(bisque.comp[, 1:3],
-  type = "p",
-  cex = 1.8,
-  pch = 16,
-  lwd = 1,
-  lty = "solid",
-  col = "#222222"
-)
+#TernaryPlot()
 ```
