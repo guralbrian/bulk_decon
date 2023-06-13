@@ -364,7 +364,9 @@ plotUMAP <- function(data,
                      height = NULL,
                      ncol = NULL,
                      nrow = NULL,
-                     design = NULL) {
+                     design = NULL,
+                     label.size = 4,
+                     font.size = NULL) {
   dim.plots  <- vector("list", length(dim.ft))
   feat.plots <- vector("list", length(feat.ft))
   vln.plots <- vector("list", length(vln.ft)*length(vln.groups))
@@ -374,7 +376,8 @@ plotUMAP <- function(data,
                              reduction = 'umap', 
                              group.by = dim.ft[[i]],
                              label = T,
-                             repel = T) + 
+                             repel = T,
+                             font.size = font.size) + 
                           NoLegend() + 
                           ggtitle(dim.ft[[i]])
   } 
@@ -385,7 +388,8 @@ plotUMAP <- function(data,
                                     features = feat.ft[[i]],
                                     pt.size = 0.4, 
                                     order = TRUE,
-                                    label = TRUE) + 
+                                    label = TRUE,
+                                    label.size = label.size) + 
                                     ggtitle(if(
                                       !is.null(feat.labels[[i]])){
                                         paste0("*",feat.ft[[i]],"*", ", ", feat.labels[[i]])
