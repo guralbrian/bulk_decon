@@ -377,7 +377,8 @@ plotUMAP <- function(data,
                              group.by = dim.ft[[i]],
                              label = T,
                              repel = T,
-                             font.size = font.size) + 
+                             font.size = font.size,
+                             label.size = label.size) + 
                           NoLegend() + 
                           ggtitle(dim.ft[[i]])
   } 
@@ -388,8 +389,7 @@ plotUMAP <- function(data,
                                     features = feat.ft[[i]],
                                     pt.size = 0.4, 
                                     order = TRUE,
-                                    label = TRUE,
-                                    label.size = label.size) + 
+                                    label = TRUE) + 
                                     ggtitle(if(
                                       !is.null(feat.labels[[i]])){
                                         paste0("*",feat.ft[[i]],"*", ", ", feat.labels[[i]])

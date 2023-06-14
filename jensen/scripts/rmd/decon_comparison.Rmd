@@ -300,10 +300,8 @@ ggplot(decon.melt,
 
 ```
 
-```{r bisque ternary , fig.width = 7, fig.height= 4, echo=FALSE, message=FALSE, warning=FALSE}
-bisque.comp <- t(bisque.marker$bulk.props) |>
-  as.data.frame()
-bisque.comp <- bisque.comp[,c(2,4,5)]
+```{r dwls , fig.width = 7, fig.height= 4, echo=FALSE, message=FALSE, warning=FALSE}
+library(DWLS)
 
-#TernaryPlot()
+dwls.sig <- buildSignatureMatrixUsingSeurat(sn.clust.2@assays$RNA@counts, Idents(sn.clust.2), "jensen/results/dwls")
 ```
