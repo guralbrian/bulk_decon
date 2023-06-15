@@ -260,7 +260,9 @@ do_DimPlot(sn.clust.2, reduction = "umap",group.by = "origin", label = T, repel 
 ```{r cluster2.dim, fig.width = 7, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
 # music_prop needs exprs matrix
 sn.sce <- as.SingleCellExperiment(sn.clust.2, assay = "RNA")
-bulk.es <- ExpressionSet(assayData = as.matrix(bulk))
+
+# make ExpressionSet w/o outlier 
+bulk.es <- ExpressionSet(assayData = as.matrix(bulk[,colnames(bulk) != "wt_Lx3"]))
 bulk.es <- exprs(bulk.es)
 
 
@@ -285,9 +287,11 @@ decon.melt$CellType = factor(decon.melt$CellType, levels = unique(decon.melt$Cel
 decon.melt$Prop <- as.numeric(decon.melt$Prop)
 
 # Add genotype info
-decon.melt$genotype <- "B6-WT"
-decon.melt[grepl("KO", decon.melt$Sub), 4] <- "B6-aKO"
-decon.melt[grepl("ko", decon.melt$Sub), 4] <- "B6-aKO"
+#! the genotype info assigned here reflects the accurate types
+#! genotypes were originally mislabeled when given to us
+decon.melt$genotype <- "B6-aKO"
+decon.melt[grepl("KO", decon.melt$Sub), 4] <- "B6-WT"
+decon.melt[grepl("ko", decon.melt$Sub), 4] <- "B6-WT"
 decon.melt$treatment <- "Sham"
 decon.melt[grepl("Lx", decon.melt$Sub), 5] <- "Myocardial Infarction"
 decon.melt$type <- "whole"
@@ -467,4 +471,39 @@ ggplot(decon.mi,
               size = 2) + 
         facet_zoom(ylim = c(0, 0.2))
 #+scale_y_break(c(0.2,0.7))
+```
+## DirichletReg\
+
+```{r DirichletReg, eval=FALSE, fig.height=8, fig.width=7, message=FALSE, warning=FALSE, include=FALSE}
+
+library("DirichletReg")
+library("Ternary")
+library(reshape2)
+# prep DirichletReg matrix
+dir.cols <- colnames(decon.melt)[c(1:5)]
+
+dir.mat <- decon.melt |>
+  subset(type == "whole" &
+         CellType != "B cells",
+         select = dir.cols) |>
+  dcast(Sub + genotype + treatment ~ CellType, value.var = "Prop")
+
+
+
+# Convert data to DirichletRegData object
+dir.mat$CellTypes <- DR_data(dir.mat[,c(4:7)])
+
+# Run Dirichlet regression
+model.1 <- DirichReg(CellTypes ~ treatment + genotype + treatment * genotype, data = dir.mat)
+
+model.2 <- DirichReg(CellTypes ~ treatment + genotype, data = dir.mat)
+
+# compare models, find if interaction term improves model
+anova(model.1, model.2)
+
+# Pr(>Chi) is highly significant (p = 8.573e-05), which means there's strong evidence against the null hypothesis (the simple model is better). model.1 provides a significantly better fit to the data than model.2.
+# this implies that the effect of the treatment may be different for different genotypes.
+summary(model.1)
+
+SaveH5Seurat(sn.clust.2, "jensen/data/processed/single_cell/061502023")
 ```

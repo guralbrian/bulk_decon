@@ -101,6 +101,7 @@ ggplot(decon.melt,
 
 
 ```{r bisque, eval=FALSE, fig.height=8, fig.width=7, message=FALSE, warning=FALSE, include=FALSE}
+
 library("DirichletReg")
 library("Ternary")
 
@@ -126,6 +127,8 @@ summary(lake1)
 lake2 <- update(lake1, . ~ . + I(depth^2) | . + I(depth^2) | . + I(depth^2))
 anova(lake1, lake2)
 # Blood example
+decon$Est.prop.weighted
+
 
 Bld <- BloodSamples
 Bld$Smp <- DR_data(Bld[, 1:4])
@@ -169,7 +172,7 @@ est.fractions <- decon$Est.prop.weighted[sim.samples$id,]
 est.fractions[est.fractions == 0] <- 0.05 *0.65
 aitch.vals <- data.frame(aitchison = rep(NA, dim(est.fractions)[1]))
                     
-rownames(aitch.vals) <- rownames(est.samples)
+rownames(aitch.vals) <- rownames(est.fractions)
 
 for(i in rownames(sim.fractions)){
 aitch.vals[i,] <- coda.base::dist(
@@ -214,14 +217,17 @@ plot_marker_express(sn.sce,
 
 
 # Select top 100 markers for each cellType.target
-top_markers <- marker_stats %>%
-  group_by(cellType.target) %>%
-  top_n(-500, rank_marker) %>%
+top_markers <- marker_stats |>
+  group_by(cellType.target) |>
+  top_n(-500, rank_marker) |>
+  filter(n() > 5) |>
   ungroup()
+
 ```
 
 ```{r bisque, fig.width = 7, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
-
+library(Biobase)
+library(BisqueRNA)
 
 markers <- top_markers[,c(1,2,9)] |>
   as.data.frame()
@@ -230,9 +236,8 @@ colnames(markers)[c(2,3)] <- c("cluster","avg_logFC")
 
 bulk.eset <- Biobase::ExpressionSet(assayData = as.matrix(2^bulk))
 
-bisque.marker <- MarkerBasedDecomposition(bulk.eset, markers, weighted = T)
-library(Biobase)
-library(BisqueRNA)
+bisque.marker <- MarkerBasedDecomposition(bulk.eset, markers, weighted = T, min_gene = 1)
+
 # music_prop needs exprs matrix
 sample.ids <- colnames(sn)
 
@@ -300,8 +305,9 @@ ggplot(decon.melt,
 
 ```
 
-```{r dwls , fig.width = 7, fig.height= 4, echo=FALSE, message=FALSE, warning=FALSE}
+```{r dwls, fig.width = 7, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
 library(DWLS)
-
-dwls.sig <- buildSignatureMatrixUsingSeurat(sn.clust.2@assays$RNA@counts, Idents(sn.clust.2), "jensen/results/dwls")
+start <- Sys.time()
+dwls.sig <- buildSignatureMatrixUsingSeurat(sn.clust.2@assays$RNA@counts, Idents(sn.clust.2), path = "jensen/results/dwls")
+duration <- Sys.time() - start
 ```
