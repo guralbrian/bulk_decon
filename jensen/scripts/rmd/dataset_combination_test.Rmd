@@ -9,10 +9,42 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 ## Introduction and Context\
-The aim of this analysis is to estimate the cellular composition of bulk-RNAseq reads from mouse left ventricular tissue. We'll find cell-type-specific gene expression reference profiles with snRNAseq. These two single nucleus samples are aggregates of several adult, male B6 from Christoph's post-doc.\
-\
-This document explains the workflow in the order in which the data processing occurred. You can jump to portions with the table of contents on the left.\
+The aim of this analysis is to look at the effect of incorporating additional sn/scRNAseq datasets as the reference for deconvolution. We're looking at four datasets, three of which are external (sources description and loading covered in script/general/1_jensen_load.R). 
 
+### In this workflow we:
+
+1. Load the data and generate a seurat object for each combination of datasets 
+    - always include Rau
+    - 7 combinations at time of writing
+    - stored as nested list for ease of access
+2. QC/analyze with .ClusterSeurat()
+    - filter, normalize, scale, integrate (harmony), cluster
+    - same parameters for each
+    -! consider doing basic QC before integrating
+      - SoupX for ambient RNA, doublet finder, mt filter, etc.
+3. Label and exclude clusters
+    - Cells previously individually with AUCell and markers from McKellan 2020
+      - Labelling based on bimodal distributions from all datasets integrated
+    - Exclude clusters based on:
+      - <400 cells
+      - Max standarized residual between seurat cluster and label < 80
+      - Max standarized residual < 2x that of standardized residual from unlabeled cells
+4. Deconvolute with MuSiC
+    - Automatic marker selection
+    - Deconvolution of frations and whole tissue samples
+5. Compare compositional distances
+    - Measure deconvolution performance with Aitchinson distance between:
+      - Fraction composition estimates from MuSiC outputs
+      - Simulated composition based on likely purity of our ground truths
+        - assumed to be 95% pure, fill in rest with cell types present in reference
+
+### Visuals:
+
+1. DimPlots of seurat_clusters and AUCell labels
+2. Dimplots of final clusters with labels
+3. Boxplot of Aitchinson distances by cell type and dataset
+      
+      
 ## Load data and packages\
 
 
@@ -31,7 +63,7 @@ source("jensen/scripts/functions/decon_all.R")
 bulk <- read.csv("jensen/data/processed/jensen_rau_froese_cpm", row.names = 1)
 bulk_pheno <- read.csv("jensen/data/processed/jensen_rau_froese_pheno", row.names = 1)
 
-# Single cell
+# Single cell of all datasets combined
 sn <- LoadH5Seurat("jensen/data/processed/single_cell/06152023.h5seurat")
 
 ```
@@ -62,7 +94,7 @@ for (i in 1:length(sources)) {
 combinations_df <- t(combinations_df)
 # make sure Rau appears in all
 combinations_df <- rbind(combinations_df, 
-                         rep("rau", length(combinations_df)))
+                         rep("rau", length(combinations_df))) 
 
 # make a new seurat for each combination
 # probably not a good idea
@@ -70,9 +102,9 @@ combinations_df <- rbind(combinations_df,
 # assuming 'sn' is your Seurat object
 sn.combos <- list()
 
-for (i in 1:length(combinations_df)) {
+for (i in 1:ncol(combinations_df)) {
   # extract sources from the combinations_df
-  sources <- na.omit(combinations_df[,i])
+  sources <- combinations_df[,i]
   
   # subset the Seurat object based on the 'origin' column in the meta.data
   subset_sn <- subset(sn, origin %in% sources) 
@@ -80,6 +112,9 @@ for (i in 1:length(combinations_df)) {
   # add the new Seurat object to the list
   sn.combos[[paste(sources, collapse = "_")]] <- subset_sn
 }
+
+
+
 ```
 
 
@@ -88,6 +123,7 @@ sn.combos <- lapply(sn.combos, function(seurat) {
   ClusterSeurat(seurat, max.rna.ft = 25000, max.mt.pt = 5, res = 0.03, regress.by = c("origin"))
 })
 
+sn.combos$rau <- ClusterSeurat(subset(sn, origin == "rau"), max.rna.ft = 25000, max.mt.pt = 5, res = 0.03, harmony = F)
 ```
 
 ```{r labels and clusters, echo=FALSE, fig.height=40, fig.width=12, message=FALSE, warning=FALSE, cache=T}
@@ -119,7 +155,7 @@ for(i in seq(1:length(sn.combos))*2){
 
 patchwork::wrap_plots(dim.plots,
                           ncol = 2,
-                          nrow = 7)
+                          nrow = length(sn.combos))
 
 
 ```
@@ -196,8 +232,7 @@ EstimateCellTypeProportions <- function(seurat, bulk.es, for.aitchison = F, cell
   return(decon.melt)
 }
 
-CreateSimFractions <- function(seurat, sim_samples, cell_dict, purity = 0.95) {
-  
+CreateSimFractions <- function(seurat, sim_samples, cell_dict, purity.adjustment = 1) {
   # Get the cell types
   cell_types <- levels(seurat@active.ident)
   
@@ -208,21 +243,38 @@ CreateSimFractions <- function(seurat, sim_samples, cell_dict, purity = 0.95) {
   colnames(sim_fractions) <- cell_types
   
   # Fill in the dataframe
-  for(i in rownames(sim_fractions)){
-    name1 <- sim_samples[which(sim_samples$id == i), 2]
+  for(i in 1:nrow(sim_fractions)){
+    name1 <- sim_samples[i, 2]
     major <- cell_dict[which(cell_dict$bulk.pheno == name1), 2]
-    sim_fractions[i, major] <- purity
-    sim_fractions[i, cell_types[which(cell_types != major)]] <- (1 - purity) / length(cell_types)
+    sim_fractions[i, major] <- sim_samples[i,4] * purity.adjustment
+    sim_fractions[i, cell_types[which(cell_types != major)]] <- (1 - (sim_samples[i,4] * purity.adjustment)) / length(cell_types)
   }
   
   return(sim_fractions)
+}
+
+# Function to compare estimated and simulated ("real") compositions of cell type fractions
+CalculateAitchisonDistance <- function(sim_fractions, est_fractions) {
+  ests <- est_fractions$Est.prop.weighted
+  ests <- ests[sim.samples$id,]
+  ests[ests == 0] <- 0.05 * 0.65
+  aitch_vals <- data.frame(aitchison = rep(NA, dim(ests)[1]))
+  rownames(aitch_vals) <- rownames(ests)
+  cell_types <- colnames(ests)
+  
+  for(i in rownames(sim_fractions)){
+    aitch_vals[i,] <- coda.base::dist(
+      rbind(sim_fractions[i,cell_types], ests[i,cell_types]), 
+      method = 'aitchison')[1]
+  }
+
+  return(aitch_vals)
 }
 
 ```
 \
 
 ```{r label clusters w chisq for celltypes, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE}
-
 
 sn.combos <- lapply(sn.combos, function(seurat) {AssignAndFilterClusters(seurat)})
 ```
@@ -246,21 +298,67 @@ for(i in seq(1:length(sn.combos))){
 patchwork::wrap_plots(cell.plots,
                           ncol = 2,
                           nrow = 4)
-
-
+# original line used to save the objects
+#for(i in names(sn.combos)){
+#  SaveH5Seurat(sn.combos[[i]], paste0("jensen/data/processed/single_cell/sn_combos/",paste(i)))}
 ```
 
-```{r music, fig.width = 7, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
+```{r save sn.combo, echo=FALSE, fig.height=20, fig.width=12, message=FALSE, warning=FALSE, cache=TRUE}
+# set up list of names for files
+names <- c()
+for(i in ncol(combinations_df)){
+       names[[i]] <- paste(na.omit(combinations_df[,i]), collapse = "_")
+}
+names <- c(names, "rau")
+             
+# make function for saving             
+SaveCombo <- function(sn, name){
+   SaveH5Seurat(sn, paste0("jensen/data/processed/single_cell/sn_combos/", name))
+}
+
+# Use mapply to iterate through seurat and names with SaveCombo()
+mapply(SaveCombo(), sn.combo, names)
+#for(i in names(sn.combos)){
+#  SaveH5Seurat(sn.combos[[i]], paste0("jensen/data/processed/single_cell/sn_combos/",paste(i)))
+#}
+```
+
+```{r load sn.combo, echo=FALSE, fig.height=20, fig.width=12, message=FALSE, warning=FALSE, cache=TRUE}
+# set up file path
+path <- "jensen/data/processed/single_cell/sn_combos"
+
+files <- list.files(path)
+
+LoadSeurats <- function(path, file){
+  seurat <- LoadH5Seurat(paste0(path,"/", file))
+}
+
+# takes about 3.5 minutes for 8 seurats with 25 - 45 k cells
+sn.combos <- lapply(files, function(x){LoadSeurats(path, x)} )
+
+temp <- files |>
+  as.data.frame() |>
+  mutate(sn.names = str_sub(files, start = 10L, end = -10L))
+
+sn.names <- temp$sn.names |>
+  str_split("NA_") 
+
+sn.names <- lapply(sn.names, function(x){x[x != ""] |> paste(collapse = "")})
+
+names(sn.combos) <- unlist(sn.names)
+```
+
+```{r music, echo=FALSE, fig.height=8, fig.width=7, message=FALSE, warning=FALSE}
 # make ExpressionSet w/o outlier 
 bulk.es <- ExpressionSet(assayData = as.matrix(bulk[,colnames(bulk) != "wt_Lx3"]))
 bulk.es <- exprs(bulk.es)
 
-props <- lapply(sn.combos, function(x){EstimateCellTypeProportions(x, bulk.es, for.aitchison = T)})
+props <- lapply(sn.combos, function(x){EstimateCellTypeProportions(x, bulk.es, for.aitchison = T)}) 
 
 ```
 
 
-```{r process props , fig.width = 7, fig.height= 4, echo=FALSE, message=FALSE, warning=FALSE}
+```{r process props, echo=FALSE, fig.height=4, fig.width=7, message=FALSE, warning=FALSE}
 # turn music output into graph-friendly dataframe
 library(data.table)
 decon.melt <- rbindlist(props, fill=TRUE)
@@ -305,54 +403,79 @@ decon.melt$gene_treat <- paste0(
 
 ```{r compositional distance, fig.width = 7, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
 library("coda.base")
-# make dataframe with expected compositions for each fraction (70 - 95% purity)
+
 # rows = samples , cols = proportions
-sim.samples <- bulk.pheno[which(bulk.pheno$fraction != "whole_tissue") ,c(1,3)]
+sim.samples <- bulk_pheno[which(bulk_pheno$fraction != "whole_tissue") ,c(1,3,4)]
+
+# assume that each sample differs in purity
+# cms = 0.95, ecs_rau = 0.7, ecs_froese = 0.9, fbs_rau = 0.7, fbs_froese = 0.7
+
+
 cell.dict <- data.frame(bulk.pheno = unique(sim.samples$fraction),
-                        cell.types = c("CMs", "fibroblasts", "endothelial cells"))
+                        cell.types = c("cardiomyocytes", "fibroblasts", "endothelial cells"))
 
-sim.fractions <- lapply(sn.combos, function(sn){CreateSimFractions(sn, sim.samples, cell.dict)})
+sim.samples$expected.purity <- 0.95
 
-# Function to compare estimated and simulated ("real") compositions of cell type fractions
-CalculateAitchisonDistance <- function(sim_fractions, est_fractions) {
-  ests <- est_fractions$Est.prop.weighted
-  ests <- ests[sim.samples$id,]
-  ests[ests == 0] <- 0.05 * 0.65
-  aitch_vals <- data.frame(aitchison = rep(NA, dim(ests)[1]))
-  rownames(aitch_vals) <- rownames(ests)
-  cell_types <- colnames(ests)
-  
-  for(i in rownames(sim_fractions)){
-    aitch_vals[i,] <- coda.base::dist(
-      rbind(sim_fractions[i,cell_types],ests[i,cell_types]), 
-      method = 'aitchison')[1]
-  }
+sim.samples[which(sim.samples$fraction == "Fibroblasts"),4] <- 0.9
+sim.samples[which(sim.samples$fraction == "Endothelial Cells"),4] <- 0.9
+sim.samples[which(sim.samples$fraction == "Endothelial Cells" & sim.samples$origin == "Rau"),4] <- 0.7
 
-  return(aitch_vals)
-}
+# make dataframes with expected compositions for each fraction (70 - 95% purity)
+
+sim.fractions <- lapply(sn.combos, function(sn){CreateSimFractions(sn, sim.samples, cell.dict, purity.adjustment = 1)})
 
 
-aitch_vals <- mapply(CalculateAitchisonDistance, sim.fractions, props, SIMPLIFY = FALSE)
+# Generate 20 values sampled from a normal distribution between 0.9 and 1.05
+set.seed(123) # For reproducibility
+purity_adjustments <- rnorm(20, mean = 0.95, sd = 0.05)
+purity_adjustments <- ifelse(purity_adjustments < 0.9, 0.9, purity_adjustments)
+purity_adjustments <- ifelse(purity_adjustments > 1.05, 1.05, purity_adjustments)
 
-cell.names <- bulk.pheno[which(bulk.pheno$fraction != "whole_tissue"),]
+# Use lapply to iterate over sn.combos and purity_adjustments
+sim.fractions <- lapply(sn.combos, function(sn) {
+  lapply(purity_adjustments, function(pa) {
+    CreateSimFractions(sn, sim.samples, cell.dict, purity.adjustment = pa)
+  })
+})
+
+aitch_vals <- lapply(seq_along(sim.fractions), function(i) {
+  lapply(seq_along(sim.fractions[[i]]), function(j) {
+    CalculateAitchisonDistance(sim.fractions[[i]][[j]], props[[i]])
+  })
+})
+
+names(aitch_vals) <- unlist(sn.names)
+cell.names <- bulk_pheno[which(bulk_pheno$fraction != "whole_tissue"),]
 ```
 
 ```{r compositional distance, fig.width = 12, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
-# Gather aitch_vals list into a dataframe
-df <- do.call(rbind, lapply(names(aitch_vals), function(x){
-  cbind(data.frame(type=x, aitch_vals[[x]], check.names=FALSE), id = rownames(aitch_vals[[x]]))
+# Create a new dataframe from aitch_vals
+df <- do.call(rbind, lapply(seq_along(aitch_vals), function(i){
+  do.call(rbind, lapply(seq_along(aitch_vals[[i]]), function(j){
+    if(nrow(aitch_vals[[i]][[j]]) > 0){
+      temp_df <- cbind(data.frame(type=names(aitch_vals)[i], 
+                                aitch_vals[[i]][[j]], check.names = FALSE),
+                       id = rownames(aitch_vals[[i]][[j]]))
+      temp_df
+    } else{
+      NULL
+    }
+  }))
 }))
 
 # Merge with cell.names
 df <- merge(df, cell.names, by = "id", all.x = TRUE)
 
 # Convert to a factor for ordered plotting
-df$type <- factor(df$type.x, levels = names(aitch_vals))
+df$type <- reorder(df$type.x, -df$aitchison, FUN = sum)
+df$aitchison.inverse <- df$aitchison
 
 # Plot
 ggplot(df, aes(x = type, y = aitchison)) +
-  geom_boxplot(aes(fill = fraction), width = 0.5, color = "black", outlier.shape = NA) +
-  geom_jitter(aes(color = origin, shape = fraction), width = 0.15, size = 3, alpha = 0.7) +
+  geom_boxplot(aes(fill = fraction), 
+               width = 0.5, color = "black", outlier.shape = NA) +
+  geom_point(aes(shape = fraction),
+             position = position_jitterdodge(jitter.width = 0.05, jitter.height = 0, dodge.width = 0.5), size = 2, alpha = 0.5) +
   theme(axis.text.x = element_text(color = "black", size = 15, angle = 30, vjust = 0.6),
         axis.text.y = element_text(color = "black", size = 10),
         axis.ticks.x = element_line(color = "black", size = 1),
@@ -371,6 +494,5 @@ ggplot(df, aes(x = type, y = aitchison)) +
 # they're not aligned with fraction and the colors/shapes are confusing
 # also double check that the aitch dists aren't considering factions and cell types twice
 # CMs and cardiomyocytes
-
 
 ```
