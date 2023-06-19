@@ -447,3 +447,88 @@ processCellId <- function(row_values) {
   }
   return(max_ratio_cell_type)
 }
+
+ClusterByMeta <- function(seurat.obj,
+                          sub.group,
+                          subset = T,
+                          min.rna.ft = NULL,
+                          max.rna.ft = NULL,
+                          min.rna.ct = NULL,
+                          max.mt.pt  = NULL,
+                          meta.groups = "orig.ident",
+                          regress.by = "orig.ident",
+                          harmony    = T,
+                          res        = 0.2,
+                          nfeatures  = 2000,
+                          drop.levels = FALSE,
+                          doublet_detection = T,
+                          ambient_correction = T){
+  
+  if(subset == T){
+    # Get unique origins
+    seurat.sub <- seurat.obj[
+      which(
+        seurat.obj@meta.data[[meta.group]] == sub.group),]
+    
+    # Calculate default filtering values if not provided
+    if(is.null(min.rna.ft)) min.rna.ft <- quantile(seurat.sub$nFeature_RNA, 0.05)
+    if(is.null(max.rna.ft)) max.rna.ft <- quantile(seurat.sub$nFeature_RNA, 0.95)
+    if(is.null(min.rna.ct)) min.rna.ct <- quantile(seurat.sub$nCount_RNA, 0.05)
+    if(is.null(max.mt.pt)) max.mt.pt <- quantile(seurat.sub$PercentMito, 0.95)
+    
+    # Subset the Seurat object based on the calculated thresholds
+    seurat.sub <- subset(seurat.sub, 
+                         subset = nFeature_RNA   > min.rna.ft     & 
+                           nFeature_RNA   < max.rna.ft     &
+                           nCount_RNA     > min.rna.ct     &
+                           PercentMito   <= max.mt.pt)
+    # Normalize
+    seurat.sub <- seurat.sub |>
+      NormalizeData(verbose = F) |>
+      FindVariableFeatures(verbose = F, nfeatures = nfeatures) |>
+      ScaleData(verbose = F) |>
+      RunPCA(verbose = F) 
+    print("Normalized")
+    # find elbow
+    # Determine percent of variation associated with each PC
+    pct <- seurat.sub[["pca"]]@stdev / sum(seurat.sub[["pca"]]@stdev) * 100
+    # Calculate cumulative percents for each PC
+    cumu <- cumsum(pct)
+    # Determine which PC exhibits cumulative percent greater than 90% and % variation associated with the PC as less than 5
+    co1 <- which(cumu > 90 & pct < 5)[1]
+    # Determine the difference between variation of PC and subsequent PC
+    co2 <- sort(which((pct[1:length(pct) - 1] - pct[2:length(pct)]) > 0.1), decreasing = T)[1] + 1
+    pcs <- min(co1, co2)
+    
+    # cluster
+    seurat.sub <- seurat.sub |>
+      FindNeighbors(dims = 1:pcs, reduction = "pca", verbose = F) |>
+      FindClusters(resolution = res, verbose = F) |>
+      RunUMAP(dims = 1:pcs, reduction = "pca", verbose = F)
+    print("U = MAP'd")
+    # Doublet Finder Preprocessing
+    
+    # pK identification (no ground-truth)
+    sweep.list <- paramSweep_v3(seurat.sub, PCs = 1:pcs)
+    sweep.stats <- summarizeSweep(sweep.list)
+    bcmvn <- find.pK(sweep.stats)
+    print("pK = found")
+    
+    # Optimal pK is the max of the bomodality coefficent (BCmvn) distribution
+    bcmvn.max <- bcmvn[which.max(bcmvn$BCmetric),]
+    optimal.pk <- bcmvn.max$pK
+    optimal.pk <- as.numeric(levels(optimal.pk))[optimal.pk]
+    
+    ## Homotypic doublet proportion estimate
+    annotations <- seurat.sub@meta.data$seurat_clusters
+    homotypic.prop <- modelHomotypic(annotations) 
+    nExp.poi <- round(optimal.pk * nrow(seurat.sub@meta.data)) ## Assuming 7.5% doublet formation rate - tailor for your dataset
+    nExp.poi.adj <- round(nExp.poi * (1 - homotypic.prop))
+    # run DoubletFinder
+    seurat.sub <- doubletFinder_v3(seu = seurat.sub, 
+                                   PCs = 1:pcs, 
+                                   pK = optimal.pk,
+                                   nExp = nExp.poi.adj)
+  }
+}
+

@@ -474,7 +474,7 @@ df$aitchison.inverse <- df$aitchison
 ggplot(df, aes(x = type, y = aitchison)) +
   geom_boxplot(aes(fill = fraction), 
                width = 0.5, color = "black", outlier.shape = NA) +
-  geom_point(aes(shape = fraction),
+  geom_point(aes(shape = fraction, color = origin),
              position = position_jitterdodge(jitter.width = 0.05, jitter.height = 0, dodge.width = 0.5), size = 2, alpha = 0.5) +
   theme(axis.text.x = element_text(color = "black", size = 15, angle = 30, vjust = 0.6),
         axis.text.y = element_text(color = "black", size = 10),
@@ -490,9 +490,7 @@ ggplot(df, aes(x = type, y = aitchison)) +
   scale_color_brewer(palette = "Set1") +
   scale_shape_manual(values = c(16, 17, 18)) # use different shapes for each fraction
 
-#! you left off here. You still wanted to fix the dots
-# they're not aligned with fraction and the colors/shapes are confusing
-# also double check that the aitch dists aren't considering factions and cell types twice
-# CMs and cardiomyocytes
 
+
+#write.csv(df, "jensen/results/benchmarking/fractions/dataset_combos_aitchison")
 ```
