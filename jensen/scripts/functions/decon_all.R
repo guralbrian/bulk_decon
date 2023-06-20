@@ -532,3 +532,98 @@ ClusterByMeta <- function(seurat.obj,
   }
 }
 
+
+RemoveDoublets <- function(sub_list, seurat, directory){
+  
+  sn.sub <- subset(x = seurat, subset =  orig.ident == sub_list)
+  
+  # Your existing processing code...
+  sce.sub <- as.SingleCellExperiment(sn.sub)
+  
+  # Find empty droplets ####
+  # make sce
+  sce.sub <- as.SingleCellExperiment(sn.sub)
+  
+  bcrank <- barcodeRanks(counts(sce.sub))
+  uniq <- !duplicated(bcrank$rank)
+  
+  # Now at each plot, you wrap the plot call with png(), and dev.off() to save the image
+  plot(bcrank$rank[uniq], bcrank$total[uniq], log="xy", xlab="Rank", ylab="Total UMI count", cex.lab=1.2)
+  abline(h=metadata(bcrank)$inflection, col="darkgreen", lty=2)
+  abline(h=metadata(bcrank)$knee, col="dodgerblue", lty=2)
+  legend("bottomleft", legend=c("Inflection", "Knee"), col=c("darkgreen", "dodgerblue"), lty=2, cex=1.2)
+  
+  # Save plot
+  ggsave(filename = paste0(directory,"/droplets_elbow_", sub_list, ".png"), units = "px",dpi=300, width = 1000, height = 900 )
+  print(paste0("saved elbowplot of ", sub_list))
+  
+  # set cutoff limit and consider droplets below it to be empty
+  set.seed(100)
+  limit <- metadata(bcrank)$inflection   
+  e.out <- emptyDrops(counts(sce.sub), lower=limit, test.ambient=TRUE)
+  
+  sce2 <- sce.sub[,which(e.out$FDR <= 0.001)]
+  
+  
+  # Define and remove ambient RNA ####
+  clusters <- quickCluster(sce2)
+  sce2 <- computeSumFactors(sce2, cluster=clusters)
+  
+  # evaluate ambinat RNA contamination in the empty droplets
+  amb <- metadata(e.out)$ambient[,1]
+  head(amb)
+  
+  sce2 <- logNormCounts(sce2)
+  set.seed(1000)
+  # modeling variables
+  dec.pbmc <- modelGeneVarByPoisson(sce2)
+  # calcualte top features
+  top.pbmc <- getTopHVGs(dec.pbmc, prop=0.1)
+  #
+  set.seed(1000)
+  # Evaluate PCs
+  sce2 <- denoisePCA(sce2, subset.row=top.pbmc, technical=dec.pbmc)
+  # make UMAP plot
+  sce2 <- runUMAP(sce2, dimred="PCA")
+  g <- buildSNNGraph(sce2, k=25, use.dimred = 'PCA')
+  clust <- igraph::cluster_walktrap(g)$membership
+  colLabels(sce2) <- factor(clust)
+  
+  # Save plotUMAP
+  
+  scater::plotUMAP(sce2, colour_by="label")
+  ggsave(filename = paste0(directory, "/UMAP_sce2_", sub_list, ".png"), units = "px", dpi =300, width = 1000, height = 900 )
+  
+  
+  stripped <- sce2[names(amb),]
+  out <- removeAmbience(counts(stripped), ambient= amb, groups = colLabels(stripped))
+  print(paste0("removed ambience from ", sub_list))
+  # load correccted counts into scce object
+  counts(stripped, withDimnames=FALSE) <- out
+  stripped <- logNormCounts(stripped)
+  
+  # Find Doublets ####
+  
+  dbl.dens <- computeDoubletDensity(stripped, #subset.row=top.mam, 
+                                    d=ncol(reducedDim(stripped)),subset.row=top.pbmc)
+  
+  stripped$DoubletScore <- dbl.dens
+  
+  # Save plotUMAP with DoubletScore
+  
+  scater::plotUMAP(stripped, colour_by="DoubletScore")
+  ggsave(filename = paste0(directory, "/doubletsUMAP_", sub_list, ".png"), units = "px",dpi=300, width = 1000, height = 900 )
+  
+  # Save plotColData with DoubletScore
+  plotColData(stripped, x="label", y="DoubletScore", colour_by="label")+
+    geom_hline(yintercept = quantile(colData(stripped)$DoubletScore,0.95),lty="dashed",color="red")
+  ggsave(filename = paste0(directory, "/doubletsViolin_", sub_list, ".png"), units = "px",dpi=300, width = 1000, height = 900 )
+  
+  
+  cut_off <- quantile(stripped$DoubletScore,0.95)
+  stripped$isDoublet <- c("no","yes")[factor(as.integer(stripped$DoubletScore>=cut_off),levels=c(0,1))]
+  
+  sn.clean <- as.Seurat(stripped)
+  print(paste0("reverted back to seurat: ", sub_list))
+  return(sn.clean)
+}

@@ -36,8 +36,8 @@ source("jensen/scripts/functions/decon_all.R")
 ```{r load data, include = F, cache = TRUE}
 bulk <- read.csv("jensen/data/processed/jensen_rau_froese_cpm", row.names = 1)
 bulk_pheno <- read.csv("jensen/data/processed/jensen_rau_froese_pheno", row.names = 1)
-sn_rau <- LoadH5Seurat("jensen/data/raw/b6_sn.h5seurat")
-sn_tm  <- LoadH5Seurat("jensen/data/processed/tabula_muris.h5seurat")
+sn_rau <- LoadH5Seurat("jensen/data/raw/single_cell/rau_sn.h5seurat")
+sn_tm  <- LoadH5Seurat("jensen/data/raw/single_cell/tabula_muris.h5seurat")
 ```
 \
 ```{r bulk PCA, fig.height=7, fig.width=10, include = T, echo = F, warning = F}

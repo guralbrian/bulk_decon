@@ -3,6 +3,15 @@ libs <- c("Seurat", "zellkonverter", "curl", "SeuratDisk",
 lapply(libs, require, character.only = T)
 
 #### initial data processing and organization #####
+
+# Rau internal ####
+sn.rau <- LoadH5Seurat("jensen/data/raw/rau_b6_sn.h5seurat")
+sn.rau$origin <- "rau"
+sn.rau$orig.ident <- paste0("rau_", sn.rau$orig.ident)
+sn.rau$PercentMito <- PercentageFeatureSet(sn.rau, pattern = "^mt-")
+
+SaveH5Seurat(sn.rau, "jensen/data/raw/single_cell/rau_sn.h5seurat")
+
 # Tabula Muris ####
 sn_muris <- TabulaMurisSenisDroplet(
   tissues = "Heart_and_Aorta",
@@ -22,11 +31,14 @@ for(i in colnames(colData(sn_muris))){
 
 # Tabula Muris didn't map to mitochondrial genes
 # but we need the data slot for later
-#! To publish, I'd need to remap their data
+
 sn_muris_seurat$PercentMito <- 0
 sn_muris_seurat$origin <- "tabula_muris"
+sn_muris_seurat$orig.ident <- paste0("tm_", sn_muris_seurat$mouse.id)
+sn_muris_seurat <- subset(sn_muris_seurat, tissue_free_annotation == "Heart")
 
-SaveH5Seurat(sn_muris_seurat, "jensen/data/processed/tabula_muris")
+
+SaveH5Seurat(sn_muris_seurat, "jensen/data/raw/single_cell/tabula_muris")
 
 # Wu 2021 ####
 
@@ -49,7 +61,10 @@ rownames(wu.mt) <- genes$V2
 sn.wu <- CreateSeuratObject(wu.mt)
 sn.wu$origin <- "wu"
 sn.wu$orig.ident <- "wu"
-SaveH5Seurat(sn.wu, "jensen/data/processed/single_cell/wu_2021")
+sn.wu$PercentMito <- PercentageFeatureSet(sn.wu, pattern = "^mt-")
+
+
+SaveH5Seurat(sn.wu, "jensen/data/raw/single_cell/wu_2021")
 
 
 # Martini 2019 ####
@@ -110,9 +125,12 @@ for(i in 1:length(samples.martini)){
 sn.martini <- merge(get(samples.martini[1]), get(samples.martini[2])) |>
   merge(get(samples.martini[3])) |>
   merge(get(samples.martini[4]))
+
 sn.martini$origin <- "martini"
 sn.martini$orig.ident <- paste0("martini_", sn.martini$martini.cond)
-SaveH5Seurat(sn.martini, "jensen/data/processed/single_cell/martini_2019")
+sn.martini$PercentMito <- PercentageFeatureSet(sn.martini, pattern = "^mt-")
+
+SaveH5Seurat(sn.martini, "jensen/data/raw/single_cell/martini_2019")
 
 # Froese ####
 
