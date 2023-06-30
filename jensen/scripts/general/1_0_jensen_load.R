@@ -13,6 +13,8 @@ sn.rau$PercentMito <- PercentageFeatureSet(sn.rau, pattern = "^mt-")
 SaveH5Seurat(sn.rau, "jensen/data/raw/single_cell/rau_sn.h5seurat")
 
 # Tabula Muris ####
+# raw fasta data available at
+# https://www.ncbi.nlm.nih.gov/sra?term=SRX3607046
 sn_muris <- TabulaMurisSenisDroplet(
   tissues = "Heart_and_Aorta",
   processedCounts = FALSE,
@@ -41,7 +43,8 @@ sn_muris_seurat <- subset(sn_muris_seurat, tissue_free_annotation == "Heart")
 SaveH5Seurat(sn_muris_seurat, "jensen/data/raw/single_cell/tabula_muris")
 
 # Wu 2021 ####
-
+# raw fasta available at:
+#     https://trace.ncbi.nlm.nih.gov/Traces/?view=run_browser&page_size=10&acc=SRR15248449&display=metadata
 # Import data from Wu 2021 doi.org/10.1152/physiolgenomics.00016.2021
 geo <- "GSM5471468"
 filePaths = getGEOSuppFiles("GSM5471468")
@@ -70,6 +73,7 @@ SaveH5Seurat(sn.wu, "jensen/data/raw/single_cell/wu_2021")
 # Martini 2019 ####
 
 # Import data from Martini 2019 doi.org/10.1161/CIRCULATIONAHA.119.041694
+# https://www.ncbi.nlm.nih.gov/sra/SRX5063185[accn]
 geo <- "GSE122930"
 dir <- "./jensen/data/processed/geo"
 filePaths = getGEOSuppFiles(geo, baseDir = dir)
