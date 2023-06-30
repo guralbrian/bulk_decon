@@ -1,0 +1,627 @@
+---
+title: "Doublet Removal"
+author: "Brian Gural"
+date: "6/22/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 
+
+```{r load, warning=FALSE,  include=FALSE, comment= FALSE}
+# Load libraries
+
+libs <- c("Seurat", "ggplot2", "DESeq2", "patchwork","SeuratDisk", "MuSiC", "reshape2",
+          "tidyverse", "SingleCellExperiment", "harmony", "SCpubr", 
+          "AUCell", "viridis", "gplots", "scales", "ggrepel", "gridExtra", "scCustomize",
+          "httr","matrixStats", "scran", "scuttle", "scater", "DropletUtils", "scDblFinder",
+          "ggcorrplot") # list libraries here
+
+lapply(libs, require, character.only = T)
+source("jensen/scripts/functions/decon_all.R")
+# Single cell
+
+# Load and merge original, raw files
+sn.rau <- LoadH5Seurat("jensen/data/raw/single_cell/rau_sn.h5seurat")
+sn.tm  <- LoadH5Seurat("jensen/data/raw/single_cell/tabula_muris.h5seurat")
+sn.wu  <- LoadH5Seurat("jensen/data/raw/single_cell/wu_2021.h5seurat")
+sn.mt  <- LoadH5Seurat("jensen/data/raw/single_cell/martini_2019.h5seurat")
+
+sn.old <- c(sn.rau, sn.tm, sn.wu, sn.mt)
+
+
+# Load merged data after droplet detection and ambient RNA removal 
+sn.new <- LoadH5Seurat("jensen/data/processed/single_cell/merged_datasets/no_doublets.h5seurat")
+```
+
+## Including Plots
+
+
+
+```{r cluster, echo=FALSE,warning=FALSE, include=FALSE}
+# seurat after 1_1_jensen_doublets.R and 1_2_jensen_merge.R
+# should have no doublets and less ambient RNA
+# also datasets were filtered before combining for mt percent, features, and counts,
+sn.clust.new <- sn.new |>
+    subset(isDoublet == "no") |>
+    ClusterSeurat(subset = F, res = 0.05, regress.by = c("orig.ident"))
+
+# merged seurats from 1_0_jensen_load
+# Datasets are filtered to individual samples, then filtered
+# filter each of them by quantile values
+sn.clust.old <- lapply(sn.old, function(x){FilterByQuantile(x)})
+
+# merge back together
+sn.clust.old <- Reduce(
+  f = function(x, y) {merge(x, y, merge.data = FALSE)},
+  x = sn.clust.old # list of Seurat objects 
+  )
+
+sn.clust.old <- ClusterSeurat(sn.clust.old, subset = F, res = 0.05, regress.by = c("orig.ident"))
+
+# merged seurats from 1_0_jensen_load.R 
+# uniformly filtered
+sn.clust.uniform <- Reduce(
+  f = function(x, y) {merge(x, y, merge.data = FALSE)},
+  x = sn.old) |>
+  ClusterSeurat(max.rna.ft = 10000, max.mt.pt = 5, res = 0.05, regress.by = c("orig.ident"))
+```
+
+
+```{r AUCell new, echo=FALSE,warning=FALSE, include=TRUE, fig.height = 8, fig.width = 12}
+# Annotate to cell types
+markers.broad <- read.csv("jensen/data/processed/external/mclellan_2020/mclellan_cell_markers_broad.csv")
+
+n_markers <- 15
+# get AUC value of a representative subset of cells for cell marker enrichment
+auc.new <- AssignAnnotations(sn.clust.new, markers = markers.broad, n_cores = 1, n_markers = n_markers, n_cells = 20000)
+
+# Make correlation matrix for Seurat clusters and cell correlations to cell types
+
+corrs <- model.matrix(~0 + ., data = auc.new) |>
+  cor(use = "pairwise.complete.obs") |>
+  as.data.frame()
+# keep seurat cluster names just as a number
+corrs <- corrs[colnames(corrs)[!grepl("seurat", colnames(corrs))], colnames(corrs)[grepl("seurat", colnames(corrs))]] 
+colnames(corrs) <- lapply(strsplit(colnames(corrs), "seurat"), "[[", 2)
+
+# format for plotting
+corrs <- data.matrix(corrs, rownames.force = T)
+empty_columns <- colSums(is.na(corrs) | corrs == "") == nrow(corrs)
+standardized_residuals <- corrs[, !empty_columns]
+
+heatmap.2(standardized_residuals, 
+          trace = "none", 
+          col = col_palette,
+          main = "Residuals without doublets",
+          xlab = "Seurat Clusters",
+          ylab = "Cell Types",
+          margins = c(8, 12),
+          key.title = "Correlations",
+          srtCol = 0,
+          cexRow = 1.2)
+
+sn.clust.new.1 <- AssignAndFilterClusters(sn.clust.new, res.thresh = 0.4, ratio.thresh = 1.3, min.cell = 200)
+
+#sn.clust.old.1 <- AssignAnnotations(sn.clust.old, markers = markers.broad, n_cores = 1, n_markers = 50)
+#sn.clust.uniform.1 <- AssignAnnotations(sn.clust.uniform, markers = markers.broad, n_cores = 4, n_markers = 50)
+```
+
+```{r AUCell old, echo=FALSE,warning=FALSE, include=TRUE, fig.height = 8, fig.width = 12}
+# Annotate to cell types
+
+# get AUC value of a representative subset of cells for cell marker enrichment
+auc.old <- AssignAnnotations(sn.clust.old, markers = markers.broad, n_cores = 1, n_markers = n_markers, n_cells = 20000)
+
+# Make correlation matrix for Seurat clusters and cell correlations to cell types
+
+corrs <- model.matrix(~0 + ., data = auc.old) |>
+  cor(use = "pairwise.complete.obs") |>
+  as.data.frame()
+# keep seurat cluster names just as a number
+corrs <- corrs[colnames(corrs)[!grepl("seurat", colnames(corrs))], colnames(corrs)[grepl("seurat", colnames(corrs))]] 
+colnames(corrs) <- lapply(strsplit(colnames(corrs), "seurat"), "[[", 2)
+
+# format for plotting
+corrs <- data.matrix(corrs, rownames.force = T)
+empty_columns <- colSums(is.na(corrs) | corrs == "") == nrow(corrs)
+standardized_residuals <- corrs[, !empty_columns]
+
+heatmap.2(standardized_residuals, 
+          trace = "none", 
+          col = col_palette,
+          main = "Residuals without doublets",
+          xlab = "Seurat Clusters",
+          ylab = "Cell Types",
+          margins = c(8, 12),
+          key.title = "Correlations",
+          srtCol = 0,
+          cexRow = 1.2)
+
+sn.clust.old.1 <- AssignAndFilterClusters(sn.clust.old, res.thresh = 0.4, ratio.thresh = 1.3, min.cell = 200)
+
+#sn.clust.old.1 <- AssignAnnotations(sn.clust.old, markers = markers.broad, n_cores = 1, n_markers = 50)
+#sn.clust.uniform.1 <- AssignAnnotations(sn.clust.uniform, markers = markers.broad, n_cores = 4, n_markers = 50)
+```
+
+```{r AUCell uniform, echo=FALSE, warning=FALSE, include=TRUE, fig.height = 8, fig.width = 12}
+# Annotate to cell types
+
+# get AUC value of a representative subset of cells for cell marker enrichment
+auc.uniform <- AssignAnnotations(sn.clust.uniform, markers = markers.broad, n_cores = 1, n_markers = n_markers, n_cells = 20000)
+
+# Make correlation matrix for Seurat clusters and cell correlations to cell types
+
+corrs <- model.matrix(~0 + ., data = auc.uniform) |>
+  cor(use = "pairwise.complete.obs") |>
+  as.data.frame()
+# keep seurat cluster names just as a number
+corrs <- corrs[colnames(corrs)[!grepl("seurat", colnames(corrs))], colnames(corrs)[grepl("seurat", colnames(corrs))]] 
+colnames(corrs) <- lapply(strsplit(colnames(corrs), "seurat"), "[[", 2)
+
+# format for plotting
+corrs <- data.matrix(corrs, rownames.force = T)
+empty_columns <- colSums(is.na(corrs) | corrs == "") == nrow(corrs)
+standardized_residuals <- corrs[, !empty_columns]
+
+heatmap.2(standardized_residuals, 
+          trace = "none", 
+          col = col_palette,
+          main = "Residuals without doublets",
+          xlab = "Seurat Clusters",
+          ylab = "Cell Types",
+          margins = c(8, 12),
+          key.title = "Correlations",
+          srtCol = 0,
+          cexRow = 1.2)
+
+sn.clust.uniform.1 <- AssignAndFilterClusters(sn.clust.uniform, res.thresh = 0.4, ratio.thresh = 1.3, min.cell = 200)
+
+#sn.clust.old.1 <- AssignAnnotations(sn.clust.old, markers = markers.broad, n_cores = 1, n_markers = 50)
+#sn.clust.uniform.1 <- AssignAnnotations(sn.clust.uniform, markers = markers.broad, n_cores = 4, n_markers = 50)
+```
+
+
+
+```{r deconvolute , echo=FALSE, warning=FALSE, include=T}
+
+# Load and format bulk data
+bulk <- read.csv("jensen/data/processed/jensen_rau_froese_cpm", row.names = 1)
+bulk_pheno <- read.csv("jensen/data/processed/jensen_rau_froese_pheno", row.names = 1)
+bulk.es <- ExpressionSet(assayData = as.matrix(bulk[,colnames(bulk) != "wt_Lx3"]))
+bulk.es <- exprs(bulk.es)
+
+# Load merged snRNAseq before and after doublet removal/ambient RNA cleanup
+sn.list <- c() #initialize list
+sn.list[["new_sn"]] <- sn.clust.new.1
+sn.list[["original_sn"]] <- sn.clust.old.1
+sn.list[["uniform_sn"]] <- sn.clust.uniform.1
+
+narrow.cells <- c("`endothelial cells`", "fibroblasts", "cardiomyocytes", "`B cells`")
+#cells_exclude = unique(Idents(x))[ !unique(Idents(x)) %in% narrow.cells])
+props <- lapply(sn.list, function(x){
+                  EstimateCellTypeProportions(x, bulk.es, 
+                                              for.aitchison = T)}) 
+```
+
+
+```{r aitchison , echo=FALSE, warning=FALSE, include=T}
+# rows = samples , cols = proportions
+sim.samples <- bulk_pheno[which(bulk_pheno$fraction != "whole_tissue") ,c(1,3,4)]
+
+# assume that each sample differs in purity
+# cms = 0.95, ecs_rau = 0.7, ecs_froese = 0.9, fbs_rau = 0.7, fbs_froese = 0.7
+
+cell.dict <- data.frame(bulk.pheno = unique(sim.samples$fraction),
+                        cell.types = c("cardiomyocytes", "fibroblasts", "`endothelial cells`"))
+
+sim.samples$expected.purity <- 0.95
+
+sim.samples[which(sim.samples$fraction == "Fibroblasts"),4] <- 0.85
+sim.samples[which(sim.samples$fraction == "Fibroblasts" & sim.samples$origin == "Rau"),4] <- 0.95
+sim.samples[which(sim.samples$fraction == "Endothelial Cells"), 4] <- 0.9
+sim.samples[which(sim.samples$fraction == "Endothelial Cells" & sim.samples$origin == "Rau"),4] <- 0.8
+
+
+# Generate 20 values sampled from a normal distribution between 0.9 and 1.05
+set.seed(123) # For reproducibility
+purity_adjustments <- rnorm(20, mean = 0.95, sd = 0.05)
+purity_adjustments <- ifelse(purity_adjustments < 0.9, 0.9, purity_adjustments)
+purity_adjustments <- ifelse(purity_adjustments > 1.05, 1.05, purity_adjustments)
+
+# Use lapply to iterate over sn.combos and purity_adjustments
+sim.fractions <- lapply(sn.list, function(sn) {
+  lapply(purity_adjustments, function(pa) {
+     CreateSimFractions(sn, 
+                      included.cells = unfactor(unique(Idents(sn))),
+                      #unfactor(unique(Idents(sn))[unique(Idents(sn)) %in% narrow.cells]
+                      sim.samples, cell.dict, purity.adjustment = pa)
+  })
+})
+
+
+aitch_vals <- sim.fractions |>
+              seq_along() |>
+                lapply(function(i) {
+                  lapply(seq_along(sim.fractions[[i]]), function(j) {
+                  CalculateAitchisonDistance(sim.fractions[[i]][[j]], props[[i]])})})
+
+names(aitch_vals) <- c("new_sn","original_sn", "uniform")
+
+cell.names <- bulk_pheno[which(bulk_pheno$fraction != "whole_tissue"),]
+#### Plotting ####
+
+# Create a new dataframe from aitch_vals
+df <- do.call(rbind, lapply(seq_along(aitch_vals), function(i){
+      do.call(rbind, lapply(seq_along(aitch_vals[[i]]), function(j){
+        if(nrow(aitch_vals[[i]][[j]]) > 0){
+           temp_df <- cbind(data.frame(type=names(aitch_vals)[i], 
+                                  aitch_vals[[i]][[j]], check.names = FALSE),
+                       id = rownames(aitch_vals[[i]][[j]]))
+      temp_df
+    } else{
+      NULL
+    }
+  }))
+}))
+
+# Merge with cell.names
+df <- merge(df, cell.names, by = "id", all.x = TRUE)
+df$type <- reorder(df$type.x, -df$aitchison, FUN = sum)
+```
+
+```{r plot aitchison , echo=FALSE, warning=FALSE}
+# Plot
+ggplot(df, aes(x = type, y = aitchison)) +
+  geom_boxplot(aes(fill = fraction), 
+               width = 0.5, color = "black", outlier.shape = NA) +
+  geom_point(aes(shape = fraction, color = origin),
+             position = position_jitterdodge(jitter.width = 0.05, jitter.height = 0, dodge.width = 0.5), size = 2, alpha = 0.5) +
+  theme(axis.text.x = element_text(color = "black", size = 15, angle = 30, vjust = 0.6),
+        axis.text.y = element_text(color = "black", size = 10),
+        axis.ticks.x = element_line(color = "black", size = 1),
+        panel.background = element_blank(),
+        strip.text = element_text(size = 20),
+        title = element_text(size = 20),
+        legend.text = element_text(size = 18),
+        axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+        axis.line.y = element_line(color="black", size = 0.5)) +
+  labs(x = "Cell Type", y = "Aitchison Value", fill = "Cell Fraction", color = "Origin", shape = "Cell Fraction") +
+  scale_fill_brewer(palette = "Dark2") +
+  scale_color_brewer(palette = "Set1") +
+  scale_shape_manual(values = c(16, 17, 18)) # use different shapes for each fraction
+```
+```{r plot aitchison , echo=FALSE, warning=FALSE}
+# 
+
+props.ests <- lapply(props, function(x){melt(x$Est.prop.weighted)})
+props.ests$new_sn$version <- "new"
+props.ests$original_sn$version <- "original"
+props.ests$uniform_sn$version <- "uniform"
+
+decon.melt <- rbind(props.ests$new_sn, props.ests$original_sn) |>
+  rbind(props.ests$uniform_sn)
+
+colnames(decon.melt) = c('Sub', 'CellType', 'Prop', 'Version')
+decon.melt$CellType = factor(decon.melt$CellType, levels = unique(decon.melt$CellType))
+
+decon.melt$CellType = factor(decon.melt$CellType, levels = unique(decon.melt$CellType))
+decon.melt$Prop <- as.numeric(decon.melt$Prop)
+
+# Add genotype info
+#! the genotype info assigned here reflects the accurate types
+#! genotypes were originally mislabeled when given to us
+decon.melt$genotype <- "B6-aKO"
+decon.melt[grepl("KO", decon.melt$Sub), 5] <- "B6-WT"
+decon.melt[grepl("ko", decon.melt$Sub), 5] <- "B6-WT"
+decon.melt$treatment <- "Sham"
+decon.melt[grepl("Lx", decon.melt$Sub), 6] <- "Myocardial Infarction"
+decon.melt$type <- "whole"
+decon.melt[grepl("RNA", decon.melt$Sub), 7] <- "fraction"
+decon.melt[grepl("Sham", decon.melt$Sub), 7] <- "fraction"
+
+# Add origin info
+decon.melt$origin <- "Jensen"
+decon.melt[grepl("B6", decon.melt$Sub), 8] <- "Rau"
+decon.melt[grepl("Sham", decon.melt$Sub), 8] <- "Froese"
+
+# Add fraction/CT info
+decon.melt$fraction_type <- NA
+decon.melt[grepl("CM", decon.melt$Sub), 9] <- "Cardiomyocytes"
+decon.melt[grepl("Fib", decon.melt$Sub), 9] <- "Fibroblasts"
+decon.melt[grepl("FB", decon.melt$Sub), 9] <- "Fibroblasts"
+decon.melt[grepl("Endo", decon.melt$Sub), 9] <- "Endothelial Cells"
+decon.melt[grepl("EC_", decon.melt$Sub), 9] <- "Endothelial Cells"
+
+# Add treatment by genotype to make facet wrap clear
+decon.melt$gene_treat <- NA
+decon.melt$gene_treat <- paste0(
+                          decon.melt$genotype, " x ",
+                          decon.melt$treatment)    
+```
+
+
+```{r music plot controls, fig.width = 12, fig.height= 14, echo=FALSE, message=FALSE, warning=FALSE}
+plotDecon <- function(version){decon.melt |>
+  subset(type == "fraction" & Version == version) |>
+  ggplot(aes(x=Sub, y=Prop, fill=CellType))  +
+   geom_bar(stat='identity',
+           position = "fill",
+           width = 0.8,
+           color = "black")+
+   scale_fill_brewer(name = "Cell Type",
+                    palette = "Dark2") +
+   facet_wrap(~fraction_type, 
+             scales = "free_x",
+             labeller =  label_wrap_gen(multi_line=FALSE)) +
+   ylab("Proportion") +
+   theme( axis.text.x = element_text(color = "black", size = 8, angle = 30),
+         strip.text = element_text(size = 20),
+         title = element_text(size = 20),
+         legend.text = element_text(size = 18),
+         axis.ticks.x = element_blank()) +
+   xlab("Samples (All UMI)") +
+    ggtitle(version)}
+
+fraction.plots <- lapply(unique(decon.melt$Version), function(x){plotDecon(x)})
+
+wrap_plots(fraction.plots, ncol = 1)
+
+
+```
+
+```{r music plot whole, fig.width = 12, fig.height= 18, echo=FALSE, message=FALSE, warning=FALSE}
+decon.melt |>
+  subset(type == "whole") |>
+  ggplot(aes(x=Sub, y=Prop, fill=CellType))  +
+   geom_bar(stat='identity',
+           position = "fill",
+           width = 0.5,
+           color = "black")+
+   scale_fill_brewer(name = "Cell Type",
+                    palette = "Dark2") +
+   facet_wrap(~gene_treat, 
+             scales = "free_x",
+             labeller =  label_wrap_gen(multi_line=FALSE)) +
+   ylab("Proportion") +
+   theme( axis.text.x = element_text(color = "black", size = 8, angle = 30),
+         strip.text = element_text(size = 20),
+         title = element_text(size = 20),
+         legend.text = element_text(size = 18),
+         axis.ticks.x = element_blank()) +
+   xlab("Samples (All UMI)")
+
+
+
+plotDecon <- function(version){decon.melt |>
+  subset(type == "whole" & Version == version) |>
+  ggplot(aes(x=Sub, y=Prop, fill=CellType))  +
+   geom_bar(stat='identity',
+           position = "fill",
+           width = 0.8,
+           color = "black")+
+   scale_fill_brewer(name = "Cell Type",
+                    palette = "Dark2") +
+   facet_wrap(~gene_treat, 
+             scales = "free_x",
+             labeller =  label_wrap_gen(multi_line=FALSE)) +
+   ylab("Proportion") +
+   theme( axis.text.x = element_text(color = "black", size = 8, angle = 30),
+         strip.text = element_text(size = 20),
+         title = element_text(size = 20),
+         legend.text = element_text(size = 18),
+         axis.ticks.x = element_blank()) +
+   xlab("Samples (All UMI)") +
+    ggtitle(version)}
+
+fraction.plots <- lapply(unique(decon.melt$Version), function(x){plotDecon(x)})
+
+wrap_plots(fraction.plots, ncol = 1)
+```
+```{r music plot simonson sham, fig.width = 12, fig.height= 7, echo=FALSE, message=FALSE, warning=FALSE}
+library(ggbreak)
+library(ggplot2)
+library(ggforce)
+decon.sham <- decon.melt |>
+  subset(type == "whole" & treatment == "Sham")
+decon.sham$CellType <- reorder(decon.sham$CellType, -decon.sham$Prop, FUN = sum)
+
+#colorbrewer2.org
+colors.light <- c("B6-aKO" = "#b8e186", "B6-WT" = "#f1b6da")
+colors.dark <- c("#4d9221", "#c51b7d")
+# Create a grouped bar plot
+z <- decon.sham |>
+  subset(type == "whole" & treatment == "Sham" & Version == "new") |>
+ggplot(aes(x = CellType, y = Prop, fill = genotype)) +
+  geom_bar(stat = "summary", 
+           position = position_dodge(0.9), 
+           fun = mean,
+           width = 0.9,
+           color = "black") +
+  theme(axis.text.x = element_text(color = "black", size = 15, angle = 30), # Increase size here for larger axis text
+        axis.text.y = element_text(color = "black", size = 10), # Add this line for y-axis text size
+        axis.ticks = element_blank(), # Add this line for thick black axis bars
+        legend.position = c(.95, .95),
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6), # Move legend to upper right
+        panel.background = element_blank(), # Remove background gray color
+        strip.text = element_text(size = 20),
+        title = element_text(size = 20),
+        legend.text = element_text(size = 18)) +
+  labs(x = "Cell Type", 
+       y = "Proportion", 
+       fill = "Genotype") +
+  scale_fill_brewer(palette = "Dark2") + 
+  geom_jitter(inherit.aes = T, 
+              position = position_jitterdodge(0.01, 0, 0.9),
+              size = 2) +
+  scale_y_break(c(0.08,0.92))
+
+z
+p <- decon.sham |>
+  subset(type == "whole" & treatment == "Sham" & Version == "new") |>
+ggplot(aes(x = CellType, y = Prop, fill = genotype)) +
+  geom_bar(stat = "summary", 
+           position = position_dodge(0.9), 
+           fun = mean,
+           width = 0.9,
+           color = "black") +
+  theme(axis.text.x = element_text(color = "black", size = 15, angle = 30), # Increase size here for larger axis text
+        axis.text.y = element_text(color = "black", size = 10), # Add this line for y-axis text size
+        axis.ticks = element_blank(), # Add this line for thick black axis bars
+        legend.position = c(.95, .95),
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6), # Move legend to upper right
+        panel.background = element_blank(), # Remove background gray color
+        strip.text = element_text(size = 20),
+        title = element_text(size = 20),
+        legend.text = element_text(size = 18)) +
+  labs(x = "Cell Type", 
+       y = "Proportion", 
+       fill = "Genotype") +
+  scale_fill_brewer(palette = "Dark2") + 
+  geom_jitter(inherit.aes = T, 
+              position = position_jitterdodge(0.01, 0, 0.9),
+              size = 2) +
+  facet_zoom(ylim = c(0, 0.07), zoom.data = ifelse(a <= 0.07, NA, FALSE))
+
+p
+```
+
+
+```{r music plot simonson mi, fig.width = 12, fig.height= 7, echo=FALSE, message=FALSE, warning=FALSE}
+library(ggbreak)
+library(ggplot2)
+library(ggforce)
+decon.mi <- decon.melt |>
+  subset(type == "whole" & treatment == "Myocardial Infarction" & Version == "new")
+decon.mi$CellType <- reorder(decon.mi$CellType, -decon.mi$Prop, FUN = sum)
+
+ggplot(decon.mi, 
+          aes(x = CellType, y = Prop, fill = genotype)) +
+        geom_bar(stat = "summary", 
+           position = position_dodge(0.9), 
+           fun = mean,
+           width = 0.9,
+           color = "black") +
+        theme(axis.text.x = element_text(color = "black", size = 15, angle = 30, vjust = 0.6), # Increase size here for larger axis text
+          axis.text.y = element_text(color = "black", size = 10), # Add this line for y-axis text size
+          axis.ticks.x = element_line(color = "black", size = 1), # Add this line for thick black axis bars
+          legend.position = c(.95, .95),
+          legend.justification = c("right", "top"),
+          legend.box.just = "right",
+          legend.margin = margin(6, 6, 6, 6), # Move legend to upper right
+          panel.background = element_blank(), # Remove background gray color
+          strip.text = element_text(size = 20),
+          title = element_text(size = 20),
+          legend.text = element_text(size = 18),
+          axis.line.x = element_line(colour = 'black', size=0.5, linetype='solid'),
+          axis.line.y = element_line(color="black", size = 0.5)) +
+        labs(x = "Cell Type", 
+          y = "Proportion", 
+          fill = "Genotype") +
+        scale_fill_brewer(palette = "Dark2") + 
+        geom_jitter(inherit.aes = T, 
+          position = position_jitterdodge(0.01, 0, 0.9),
+              size = 2) + 
+        facet_zoom(ylim = c(0, 0.2))
+#+scale_y_break(c(0.2,0.7))
+```
+## DirichletReg\
+
+```{r DirichletReg, eval=FALSE, fig.height=8, fig.width=7, message=FALSE, warning=FALSE, include=FALSE}
+
+library("DirichletReg")
+library("Ternary")
+library(reshape2)
+# prep DirichletReg matrix
+dir.cols <- colnames(decon.melt)[c(1:6)]
+
+dir.mat <- decon.melt |>
+  subset(type == "whole" & Version == "new",
+         select = dir.cols) |>
+  dcast(Sub + genotype + treatment ~ CellType, value.var = "Prop")
+
+
+
+# Convert data to DirichletRegData object
+dir.mat$CellTypes <- DR_data(dir.mat[,c(5:7)])
+
+# Run Dirichlet regression
+model.1 <- DirichReg(CellTypes ~ treatment + genotype + treatment * genotype, data = dir.mat)
+
+model.2 <- DirichReg(CellTypes ~ treatment + genotype, data = dir.mat)
+
+#model.3 <- DirichReg(CellTypes ~ treatment + genotype + treatment * genotype + Version, data = dir.mat)
+
+# compare models, find if interaction term improves model
+anova(model.1, model.2)
+#anova(model.3, model.1)
+
+# Pr(>Chi) is highly significant (p = 8.573e-05), which means there's strong evidence against the null hypothesis (the simple model is better). model.1 provides a significantly better fit to the data than model.2.
+# this implies that the effect of the treatment may be different for different genotypes.
+summary(model.1)
+
+SaveH5Seurat(sn.clust.new.1, "jensen/data/processed/single_cell/06282023_NoDoublets")
+```
+
+
+```{r plot expression, echo=FALSE, warning=FALSE, fig.width= 36, fig.height = 15}
+
+plotGene <- function(seurat, slot = "scale.data", gene, plot.title = T, plot.legend = T){
+ 
+ seurat |>
+  do_FeaturePlot(gene, reduction = "umap", slot = slot, 
+                 legend.position = if(plot.legend == T){"bottom"}else{"none"}, 
+                 legend.width = 2, legend.length = 25,  order = T) +
+  theme(title = element_text(size = 30),
+        legend.title = element_blank()) +
+  labs(title = if(plot.title == T){paste0(gene, ", " , names(gene))}else{" "})
+}
+
+genes.ec <- c("Cdh5", "Pecam1", "Tek", "Vwf")
+genes.fb <- c("Col1a1")
+genes.cm <- c("Myh6", "Pln", "Atp2a2", "Ryr2")
+genes.mf <- c("Lyz2", "Emr1")
+genes.vsmc <- c("Myh11", "Acta2")
+
+
+genes <- c("Pecam1", "Col1a1", "Myh6", "Lyz2")
+names(genes) <- c("Endothelial Cells", "Fibroblasts", "Cardiomyocytes", "Macrophages/B Cells")
+
+# plot new
+plots <- c()
+plots[["cell"]] <- do_DimPlot(sn.clust.new.1, reduction = "umap", label = T, repel = T, plot.title = "Flexible QC, no doublets")  +  
+                                    NoLegend() + theme(title = element_text(size = 30))
+plots.exp <- lapply(names(genes), function(x){plotGene(seurat = sn.clust.new, slot = "data", gene = genes[x], plot.legend = F)})
+            
+plots.new <- c(plots, plots.exp)
+
+# plot old
+plots <- c()
+plots[["cell"]] <- do_DimPlot(sn.clust.old.1, reduction = "umap", label = T, repel = T, plot.title = "Flexible QC, doublets")  +  
+                                    NoLegend() + theme(title = element_text(size = 30))
+plots.exp <- lapply(names(genes), function(x){plotGene(seurat = sn.clust.old, slot = "data", gene = genes[x], plot.legend = F, plot.title = F)})
+            
+plots.old <- c(plots, plots.exp)
+
+# plot uniform
+plots <- c()
+plots[["cell"]] <- do_DimPlot(sn.clust.uniform.1, reduction = "umap", label = T, repel = T, plot.title = "Uniform QC, doublets")  +  
+                                    NoLegend() + theme(title = element_text(size = 30))
+plots.exp <- lapply(names(genes), function(x){plotGene(seurat = sn.clust.uniform, slot = "data", gene = genes[x], plot.legend = T, plot.title = F)})
+            
+plots.uniform <- c(plots, plots.exp)
+
+
+
+wrap_plots(c(plots.new, plots.old, plots.uniform), 
+           ncol = length(genes)+1)
+
+```
+

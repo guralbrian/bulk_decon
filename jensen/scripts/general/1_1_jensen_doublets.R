@@ -37,11 +37,15 @@ sn <- LoadH5Seurat(file)
 # New ClusterSeurat includes SoupX and DoubletFinder
 # and considers distribution of counts and features of each origin
 sub.list <- unique(sn$orig.ident)
+
+# run doublet function
 result_list <-lapply(sub.list, RemoveDoublets, seurat = sn, directory = dir.path)
+
 result <- Reduce(
   f = function(x, y) {merge(x, y, merge.data = FALSE)},
   x = result_list # list of Seurat objects
 )
+
 print(paste0("reduced seurat list for ", dataset))
 SaveH5Seurat(result, paste0("jensen/data/processed/single_cell/no_doublets/", dataset))
 }

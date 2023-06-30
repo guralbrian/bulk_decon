@@ -627,3 +627,135 @@ RemoveDoublets <- function(sub_list, seurat, directory){
   print(paste0("reverted back to seurat: ", sub_list))
   return(sn.clean)
 }
+
+FilterByQuantile <- function(seurat.obj,
+                             min.rna.ft = NULL,
+                             max.rna.ft = NULL,
+                             min.rna.ct = NULL,
+                             max.mt.pt  = NULL){
+  
+  seurat.obj$PercentMito <- PercentageFeatureSet(seurat.obj, pattern = "^mt-")
+  # Calculate default filtering values if not provided
+  if(is.null(min.rna.ft)) min.rna.ft <- quantile(seurat.obj$nFeature_RNA, 0.05)
+  if(is.null(max.rna.ft)) max.rna.ft <- quantile(seurat.obj$nFeature_RNA, 0.95)
+  if(is.null(min.rna.ct)) min.rna.ct <- quantile(seurat.obj$nCount_RNA, 0.05)
+  if(is.null(max.mt.pt)) max.mt.pt <- quantile(seurat.obj$PercentMito, 0.95)
+  
+  # Subset the Seurat object based on the calculated thresholds
+  seurat.obj <- subset(seurat.obj, 
+                       subset = nFeature_RNA   > min.rna.ft     & 
+                         nFeature_RNA   < max.rna.ft     &
+                         nCount_RNA     > min.rna.ct     &
+                         PercentMito   <= max.mt.pt)
+}
+
+
+AssignAndFilterClusters <- function(seurat, res.thresh = 80, ratio.thresh = 2, min.cell = 400) {
+  # Create a contingency table
+  contingency_table <- table(c(seurat$BroadCellType),
+                             c(seurat$seurat_clusters), 
+                             useNA = "ifany")
+  
+  # Perform the chi-squared test
+  chi_squared_test <- chisq.test(contingency_table)
+  
+  # Calculate the standardized residuals
+  observed_frequencies <- contingency_table
+  expected_frequencies <- chi_squared_test$expected
+  standardized_residuals <- (observed_frequencies - expected_frequencies) / sqrt(expected_frequencies)
+  
+  rownames(standardized_residuals)[is.na(rownames(standardized_residuals))] <- "unlabeled"
+  
+  # Exclude clusters below specific max residual threshold
+  max <- apply(standardized_residuals, 2, max)
+  max.exclude <- max < res.thresh
+  
+  # Exclude clusters whose max residual is less than double the unlabelled residual
+  unlabel.exclude <- abs(max/standardized_residuals[nrow(standardized_residuals),]) < ratio.thresh
+  
+  # Exclude clusters with few cells 
+  bad.clusts <- table(Idents(seurat))[table(Idents(seurat)) < min.cell]
+  
+  # Get final exclusion list
+  all.exclude <- unlabel.exclude | unlabel.exclude
+  
+  # Find the index of the largest value in each column of the standardized_residuals
+  max.indices <- apply(standardized_residuals, 2, which.max)
+  
+  max.indices[all.exclude] <- NA
+  
+  # Get the corresponding BroadCellType for each Seurat cluster
+  assigned.cell.types <- rownames(standardized_residuals)[max.indices] 
+  
+  # Rename the clusters
+  names(assigned.cell.types) <- levels(seurat)
+  seurat <- RenameIdents(seurat, assigned.cell.types)
+  
+  # Remove very small clusters 
+  bad.clusts <- names(table(Idents(seurat)))[table(Idents(seurat)) < min.cell]
+  Idents(seurat)[which(Idents(seurat) %in% bad.clusts)] <- NA
+  
+  return(seurat)
+}
+
+EstimateCellTypeProportions <- function(seurat, bulk.es, for.aitchison = F, cells_exclude = c("unlabeled", "NA")) {
+  
+  # Convert to SingleCellExperiment
+  seurat_sce <- as.SingleCellExperiment(seurat, assay = "RNA")
+  
+  # Exclude specified clusters
+  cells <- levels(Idents(seurat))
+  cells <- cells[!(cells %in% cells_exclude) & !is.na(cells)]
+  
+  # Use MuSiC to estimate cell type proportions
+  decon <- music_prop(bulk.mtx = 2^bulk.es, sc.sce = seurat_sce, markers = NULL,
+                      clusters = "ident", samples = "orig.ident",
+                      select.ct = cells)
+  if(for.aitchison == T){
+    return(decon)
+  }
+  # Turn MuSiC output into graph-friendly dataframe
+  decon.melt = reshape2::melt(decon$Est.prop.weighted)
+  colnames(decon.melt) = c('Sub', 'CellType', 'Prop')
+  decon.melt$combination <- paste(unique(seurat$origin), collapse = "_")
+  return(decon.melt)
+}
+
+CreateSimFractions <- function(seurat, sim_samples, cell_dict, purity.adjustment = 1) {
+  # Get the cell types
+  cell_types <- levels(seurat@active.ident)
+  
+  # Initialize the sim.fractions dataframe
+  sim_fractions <- matrix(nrow = nrow(sim_samples), ncol = length(cell_types)) %>%
+    as.data.frame()
+  row.names(sim_fractions) <- sim_samples$id
+  colnames(sim_fractions) <- cell_types
+  
+  # Fill in the dataframe
+  for(i in 1:nrow(sim_fractions)){
+    name1 <- sim_samples[i, 2]
+    major <- cell_dict[which(cell_dict$bulk.pheno == name1), 2]
+    sim_fractions[i, major] <- sim_samples[i,4] * purity.adjustment
+    sim_fractions[i, cell_types[which(cell_types != major)]] <- (1 - (sim_samples[i,4] * purity.adjustment)) / length(cell_types)
+  }
+  
+  return(sim_fractions)
+}
+
+# Function to compare estimated and simulated ("real") compositions of cell type fractions
+CalculateAitchisonDistance <- function(sim_fractions, est_fractions) {
+  ests <- est_fractions$Est.prop.weighted
+  ests <- ests[sim.samples$id,]
+  ests[ests == 0] <- 0.05 * 0.65
+  aitch_vals <- data.frame(aitchison = rep(NA, dim(ests)[1]))
+  rownames(aitch_vals) <- rownames(ests)
+  cell_types <- colnames(ests)
+  
+  for(i in rownames(sim_fractions)){
+    aitch_vals[i,] <- coda.base::dist(
+      rbind(sim_fractions[i,cell_types], ests[i,cell_types]), 
+      method = 'aitchison')[1]
+  }
+  
+  return(aitch_vals)
+}

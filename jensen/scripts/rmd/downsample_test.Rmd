@@ -480,7 +480,7 @@ library("DirichletReg")
 library("Ternary")
 library(reshape2)
 # prep DirichletReg matrix
-dir.cols <- colnames(decon.melt)[c(1:5)]
+dir.cols <- colnames(decon.melt)[c(1:3,5,6)]
 
 dir.mat <- decon.melt |>
   subset(type == "whole" &
@@ -491,7 +491,7 @@ dir.mat <- decon.melt |>
 
 
 # Convert data to DirichletRegData object
-dir.mat$CellTypes <- DR_data(dir.mat[,c(4:7)])
+dir.mat$CellTypes <- DR_data(dir.mat[,c(4:6)])
 
 # Run Dirichlet regression
 model.1 <- DirichReg(CellTypes ~ treatment + genotype + treatment * genotype, data = dir.mat)
