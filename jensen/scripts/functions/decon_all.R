@@ -85,6 +85,7 @@ ClusterSeurat <- function(seurat.obj,
                           res        = 0.2,
                           nfeatures  = 2000,
                           drop.levels = FALSE){
+  set.seed(100)
   if(subset == T){
     seurat.obj <- subset(seurat.obj, 
                          subset = nFeature_RNA   > min.rna.ft     & 
@@ -429,6 +430,7 @@ mitoProps <- function(data,
 
 # Create a function to process a single row (cell ID) from auc.val
 processCellId <- function(row_values) {
+  row_values <- auc.val[1,]
   # Filter the columns with values greater than 0
   filtered_values <- row_values[row_values > 0]
   # Calculate the ratio between the value in auc.val and the corresponding cell type's threshold value from selectedThresholds
@@ -463,7 +465,7 @@ ClusterByMeta <- function(seurat.obj,
                           drop.levels = FALSE,
                           doublet_detection = T,
                           ambient_correction = T){
-  
+  set.seed(100)
   if(subset == T){
     # Get unique origins
     seurat.sub <- seurat.obj[
@@ -483,6 +485,7 @@ ClusterByMeta <- function(seurat.obj,
                            nCount_RNA     > min.rna.ct     &
                            PercentMito   <= max.mt.pt)
     # Normalize
+    set.seed(100)
     seurat.sub <- seurat.sub |>
       NormalizeData(verbose = F) |>
       FindVariableFeatures(verbose = F, nfeatures = nfeatures) |>
@@ -501,6 +504,7 @@ ClusterByMeta <- function(seurat.obj,
     pcs <- min(co1, co2)
     
     # cluster
+    set.seed(100)
     seurat.sub <- seurat.sub |>
       FindNeighbors(dims = 1:pcs, reduction = "pca", verbose = F) |>
       FindClusters(resolution = res, verbose = F) |>
@@ -537,10 +541,8 @@ RemoveDoublets <- function(sub_list, seurat, directory){
   
   sn.sub <- subset(x = seurat, subset =  orig.ident == sub_list)
   
-  # Your existing processing code...
-  sce.sub <- as.SingleCellExperiment(sn.sub)
   
-  # Find empty droplets ####
+  # Find empty droplets 
   # make sce
   sce.sub <- as.SingleCellExperiment(sn.sub)
   
@@ -565,7 +567,7 @@ RemoveDoublets <- function(sub_list, seurat, directory){
   sce2 <- sce.sub[,which(e.out$FDR <= 0.001)]
   
   
-  # Define and remove ambient RNA ####
+  # Define and remove ambient RNA 
   clusters <- quickCluster(sce2)
   sce2 <- computeSumFactors(sce2, cluster=clusters)
   
@@ -632,14 +634,15 @@ FilterByQuantile <- function(seurat.obj,
                              min.rna.ft = NULL,
                              max.rna.ft = NULL,
                              min.rna.ct = NULL,
-                             max.mt.pt  = NULL){
+                             max.mt.pt  = NULL, 
+                             pt.remove = 0.1){
   
   seurat.obj$PercentMito <- PercentageFeatureSet(seurat.obj, pattern = "^mt-")
   # Calculate default filtering values if not provided
-  if(is.null(min.rna.ft)) min.rna.ft <- quantile(seurat.obj$nFeature_RNA, 0.05)
-  if(is.null(max.rna.ft)) max.rna.ft <- quantile(seurat.obj$nFeature_RNA, 0.95)
-  if(is.null(min.rna.ct)) min.rna.ct <- quantile(seurat.obj$nCount_RNA, 0.05)
-  if(is.null(max.mt.pt)) max.mt.pt <- quantile(seurat.obj$PercentMito, 0.95)
+  if(is.null(min.rna.ft)) min.rna.ft <- quantile(seurat.obj$nFeature_RNA, pt.remove)
+  if(is.null(max.rna.ft)) max.rna.ft <- quantile(seurat.obj$nFeature_RNA, 1-pt.remove)
+  if(is.null(min.rna.ct)) min.rna.ct <- quantile(seurat.obj$nCount_RNA, pt.remove)
+  if(is.null(max.mt.pt)) max.mt.pt <- quantile(seurat.obj$PercentMito, 1-pt.remove)
   
   # Subset the Seurat object based on the calculated thresholds
   seurat.obj <- subset(seurat.obj, 
@@ -650,51 +653,32 @@ FilterByQuantile <- function(seurat.obj,
 }
 
 
-AssignAndFilterClusters <- function(seurat, res.thresh = 80, ratio.thresh = 2, min.cell = 400) {
-  # Create a contingency table
-  contingency_table <- table(c(seurat$BroadCellType),
-                             c(seurat$seurat_clusters), 
-                             useNA = "ifany")
-  
-  # Perform the chi-squared test
-  chi_squared_test <- chisq.test(contingency_table)
-  
-  # Calculate the standardized residuals
-  observed_frequencies <- contingency_table
-  expected_frequencies <- chi_squared_test$expected
-  standardized_residuals <- (observed_frequencies - expected_frequencies) / sqrt(expected_frequencies)
-  
-  rownames(standardized_residuals)[is.na(rownames(standardized_residuals))] <- "unlabeled"
-  
+AssignAndFilterClusters <- function(seurat, res.thresh = 0.4, ratio.thresh = 2, min.cell = 400) {
   # Exclude clusters below specific max residual threshold
   max <- apply(standardized_residuals, 2, max)
   max.exclude <- max < res.thresh
-  
-  # Exclude clusters whose max residual is less than double the unlabelled residual
-  unlabel.exclude <- abs(max/standardized_residuals[nrow(standardized_residuals),]) < ratio.thresh
   
   # Exclude clusters with few cells 
   bad.clusts <- table(Idents(seurat))[table(Idents(seurat)) < min.cell]
   
   # Get final exclusion list
-  all.exclude <- unlabel.exclude | unlabel.exclude
-  
+  all.exclude <- max.exclude 
+  max.exclude[is.na(max.exclude)] <- TRUE
   # Find the index of the largest value in each column of the standardized_residuals
   max.indices <- apply(standardized_residuals, 2, which.max)
   
-  max.indices[all.exclude] <- NA
+  max.indices[max.exclude] <- NA
   
   # Get the corresponding BroadCellType for each Seurat cluster
-  assigned.cell.types <- rownames(standardized_residuals)[max.indices] 
-  
+  assigned.cell.types <- rownames(standardized_residuals)[max.indices]
+  assigned.cell.types[!is.na(assigned.cell.types)] <- make.unique(assigned.cell.types[!is.na(assigned.cell.types)], sep = "_")
   # Rename the clusters
-  names(assigned.cell.types) <- levels(seurat)
+  names(assigned.cell.types) <- names(max.indices)
   seurat <- RenameIdents(seurat, assigned.cell.types)
   
   # Remove very small clusters 
   bad.clusts <- names(table(Idents(seurat)))[table(Idents(seurat)) < min.cell]
   Idents(seurat)[which(Idents(seurat) %in% bad.clusts)] <- NA
-  
   return(seurat)
 }
 
@@ -708,6 +692,7 @@ EstimateCellTypeProportions <- function(seurat, bulk.es, for.aitchison = F, cell
   cells <- cells[!(cells %in% cells_exclude) & !is.na(cells)]
   
   # Use MuSiC to estimate cell type proportions
+  set.seed(100)
   decon <- music_prop(bulk.mtx = 2^bulk.es, sc.sce = seurat_sce, markers = NULL,
                       clusters = "ident", samples = "orig.ident",
                       select.ct = cells)
@@ -721,9 +706,10 @@ EstimateCellTypeProportions <- function(seurat, bulk.es, for.aitchison = F, cell
   return(decon.melt)
 }
 
-CreateSimFractions <- function(seurat, sim_samples, cell_dict, purity.adjustment = 1) {
+CreateSimFractions <- function(seurat, sim_samples, cell_dict, purity.adjustment = 1, included.cells = NULL) {
+  set.seed(100)
   # Get the cell types
-  cell_types <- levels(seurat@active.ident)
+  cell_types <- included.cells
   
   # Initialize the sim.fractions dataframe
   sim_fractions <- matrix(nrow = nrow(sim_samples), ncol = length(cell_types)) %>%
@@ -758,4 +744,55 @@ CalculateAitchisonDistance <- function(sim_fractions, est_fractions) {
   }
   
   return(aitch_vals)
+}
+
+
+MakeContingency <- function(metadata_1 = sn.clust.new$BroadCellType, 
+                            metadata_2 = sn.clust.new$seurat_clusters,
+                            na.arg = "no"){
+  cont_tbl <- table(metadata_1, metadata_2, useNA = na.arg)
+  # Perform the chi-squared test
+  chi_squared_test <- chisq.test(cont_tbl)
+  
+  # Calculate the standardized residuals
+  obs_freq <- cont_tbl
+  exp_freq <- chi_squared_test$expected
+  standardized_residuals <- (obs_freq - exp_freq) / sqrt(exp_freq)
+  
+  return(standardized_residuals)
+}
+
+
+AssignAnnotations <- function(seurat, markers, n_markers = 5, n_cores = 1, n_cells = 1000){
+  seurat <- seurat[,sample(names(seurat$seurat_clusters), n_cells)]
+  markers.sub <- markers %>%
+    group_by(cluster) %>%
+    top_n(n_markers, gene) |>
+    as.data.frame()
+  # Split 'markers' into separate data frames for each unique subcluster
+  subclusters <- split(markers.sub, markers.sub$cluster)
+  # Extract the gene names from each subcluster data frame
+  subcluster_genes <- lapply(subclusters, function(x) x$gene)
+  # Create a list with named elements corresponding to each subcluster
+  geneSets <- setNames(subcluster_genes, names(subclusters))
+  # make expression matrix of single cell
+  my.expr <-  seurat@assays$RNA@counts
+  # Find  AUC for each cell by each type
+  cells_AUC <- AUCell_run(my.expr, geneSets, BPPARAM = if(!is.null(n_cores)){BiocParallel::MulticoreParam(n_cores)})
+  
+  cells_assignment <- AUCell_exploreThresholds(cells_AUC, plotHist=F, assign=TRUE, nCores = n_cores)
+  
+  comments <- lapply(names(cells_assignment), function(cell_type){cells_assignment[[cell_type]]$aucThr$comment})
+  good_cells <- names(cells_assignment)[comments == ""]
+  # get the thresholds and report when/how they're passdd
+  selectedThresholds <- getThresholdSelected(cells_assignment)
+  
+  auc.val <- cells_AUC@assays@data@listData$AUC |>
+    t()|>
+    as.data.frame() 
+  auc.val <- auc.val[,good_cells]
+  auc.val$seurat <- seurat$seurat_clusters[rownames(auc.val)]
+  
+  return(auc.val)
+  
 }
