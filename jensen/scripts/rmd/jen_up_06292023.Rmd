@@ -1,365 +1,526 @@
 ---
-title: "Jensen-Rau Meeting"
+title: "AHA BCVS GTEx"
 author: "Brian Gural"
-date: "5/10/2023"
-output:
-  html_document:
-    toc: true
-    toc_float: true
+date: "7/3/2023"
+output: html_document
 ---
 
-
-
-
-```{r setup, include=FALSE, warning = FALSE}
+```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-## Introduction and Context\
-The aim of this analysis is to estimate the cellular composition of bulk-RNAseq reads from mouse left ventricular tissue. We'll find cell-type-specific gene expression reference profiles with snRNAseq. These two single nucleus samples are aggregates of several adult, male B6 from Christoph's post-doc.\
-\
-This document explains the workflow in the order in which the data processing occurred. You can jump to portions with the table of contents on the left.\
 
-## Load data and packages\
+## Project Goals\
+Estimate cellular composition in mammalian hearts. I’m using sn/scRNAseq as a reference for deconvolution of bulk RNAseq. We’re interested in alpha-1 adrenergic receptor as a mediator of heart failure (HF). In analysis I’m going to estimate composition in bulk RNAseq from wild type and KO mice with and without HF. I’m using a combination of sn/sc references. One of these is from Christoph, but all of the others are publically available.
+### Jensen Collab\
+They're interested in alpha-1 adronergic receptor as a mediator of heart failure (HF). He asked me to estimate composition of his bulk RNAseq from wild type and KO mice with and without HF. I'm using a combination of sn/sc references. One of these is from Christoph, but all of the others are publically available.
+
+### Overview of Workflow:
+This top bit is largely for my own organization, feel free to skip it as it includes a lot of technical stuff I was trying to show a peer.
+
+1. Load the data and save it 
+    - Currently four sources totalling to ~70k droplets
+    - Data downloaded as GSM from GEO
+    - QC'd post-10x prior to receiving
+2. QC and filtering
+    - Remove doublets and ambient RNA with dropletUtils 
+      - ? I would need the raw matricies from SRA to do this correctly?
+    - Filter each dataset by quantiles of counts, features, and mitocondrial gene percent
+3. Merge datasets and cluster
+    - Integrate with Harmony
+      - Currently correcting by dataset origin
+4. Label and exclude clusters
+    - Use AUC and known markers to annotate cells
+      - Labelling based on bimodal distributions from all datasets integrated
+      - Using AUCell and markers from McKellan 2020
+    - Downsampling cell to save time (currently 10K out of 33K)
+    - Label clusters with cell types
+      - Correlate scores of cells to assigned clusters
+    - Exclude clusters based on:
+      - <200 cells
+      - Corr between seurat cluster and label > 0.4
+5. Deconvolute with MuSiC
+    - Automatic marker selection
+    - Deconvolution of fractions and whole tissue samples
+6. Compare compositional distances
+    - Measure deconvolution performance with Aitchinson distance between:
+      - Fraction composition estimates from MuSiC outputs
+      - Simulated composition based on likely purity of our ground truths
+    - Model compositional shifts with Dirichlet regression
+      
+
+### Comparisons I've tried
+
+1. Effect of downsampling UMI per droplet to 5K
+    - Asking if variation in average counts by dataset effects results
+    - Not much difference
+    - Run before doublet/ambient removal
+2. Results with permutations of every dataset
+    - More datasets generally perform better on fraction deconvolution 
+    - Run before doublet/ambient removal
+3. Effect of doublet/ambient RNA removal and flexible filtering of datasets
+    - Flexible filtering is better
+    - Doublet removal doesn't do all that much
 
 
-```{r load libs, message=FALSE, warning=FALSE, cache=FALSE, include=F}
+
+```{r load libs, message=FALSE, warning=FALSE, cache=TRUE, include=F}
 # load libraries
 libs <- c("Seurat", "ggplot2", "DESeq2", "patchwork","SeuratDisk", "MuSiC", "reshape2",
           "tidyverse", "SingleCellExperiment","harmony", "SCpubr","shiny", 
           "AUCell", "viridis", "gplots", "scales", "ggrepel", "gridExtra", "scCustomize",
-          "httr","readxl","matrixStats", "TabulaMurisSenisData") # list libraries here
+          "httr","readxl","matrixStats", "TabulaMurisSenisData", "ggforce") # list libraries here
 lapply(libs, require, character.only = T)
 source("jensen/scripts/functions/decon_all.R")
 ```
 
-
-```{r load data, include = F, cache = TRUE}
+```{r load data, message=FALSE, warning=FALSE, cache=TRUE, include=TRUE}
+# bulk
 bulk <- read.csv("jensen/data/processed/jensen_rau_froese_cpm", row.names = 1)
 bulk_pheno <- read.csv("jensen/data/processed/jensen_rau_froese_pheno", row.names = 1)
-sn_rau <- LoadH5Seurat("jensen/data/raw/single_cell/rau_sn.h5seurat")
-sn_tm  <- LoadH5Seurat("jensen/data/raw/single_cell/tabula_muris.h5seurat")
+
+# Single cell of all datasets combined
+sn <- LoadH5Seurat("jensen/data/processed/single_cell/06282023_NoDoublets.h5seurat")
+print(sn)
 ```
-\
-```{r bulk PCA, fig.height=7, fig.width=10, include = T, echo = F, warning = F}
-# Perform PCA on the log-transformed, normalized counts
-pca <- prcomp(t(bulk), center = TRUE, scale. = TRUE)
 
-# Extract the first two principal components
-pca_df <- as.data.frame(pca$x[, 1:2])
-colnames(pca_df) <- c("PC1", "PC2")
+```{r cluster, echo=FALSE,warning=FALSE, cache=TRUE, include=TRUE}
+# seurat after 1_1_jensen_doublets.R and 1_2_jensen_merge.R
+# should have no doublets and less ambient RNA
+# also datasets were filtered before combining for mt percent, features, and counts,
+sn.clust <- sn |>
+    subset(isDoublet == "no") |>
+    ClusterSeurat(subset = F, res = 0.05, regress.by = c("origin"))
 
-# Add sample names to the PCA data frame
-pca_df$Sample <- rownames(pca_df)
+```
 
-# Merge PCA data frame with phenotype data
-pca_df <- merge(pca_df, bulk_pheno, by.x = "Sample", by.y = "id")
+```{r cluster dimplots, echo=FALSE,warning=FALSE, include=TRUE, fig.width= 12, fig.height=18}
+plots <- c()
+# seurat after 1_1_jensen_doublets.R and 1_2_jensen_merge.R
+plots[["dim.clust"]] <- do_DimPlot(sn.clust, label = T, repel = T) + NoLegend()
+plots[["dim.origin"]] <- do_DimPlot(sn.clust, group.by = "origin", label = T, repel = T) + NoLegend()
 
-# Create the PCA plot using ggplot2 with color and shape based on genotype and treatment
-pca_plot <- ggplot(pca_df, aes(x = PC1, y = PC2, label = Sample, color = fraction, shape = origin)) +
-  geom_point(size = 5)+
-  geom_text_repel(size = 4, force = 10) +
-  scale_color_brewer(palette = "Dark2") +
+# Convert your table to a data frame and reset row names
+df <- as.data.frame(table(sn.clust$origin, sn.clust$seurat_clusters))
+colnames(df) <- c("origin", "cluster", "count")
+
+# Convert data frame from wide format to long format
+
+# Convert cluster to factor for ordered x-axis
+df$cluster <- factor(df$cluster, levels = unique(df$cluster))
+
+# Create the bar plot
+plots[["bar.clust.orig"]] <- ggplot(df, aes(x = cluster, y = count, fill = origin)) +
+  geom_bar(stat = "identity") +
   theme_minimal() +
-  theme(
-    text = element_text(size = 16),
-    title = element_text(size = 20),
-    legend.text = element_text(size = 14)
-  ) +
-  labs(title = "PCA plot of cell fractions and bulk",
-       x = paste0("PC1 (", percent(pca$sdev[1]^2 / sum(pca$sdev^2)), " variance)"),
-       y = paste0("PC2 (", percent(pca$sdev[2]^2 / sum(pca$sdev^2)), " variance)"))
-pca_plot
+  labs(x = "Cluster", y = "Count", fill = "Origin", 
+       title = "Count of Origins by Cluster") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
+plots[["bar.umi"]] <- VlnPlot(sn.clust, group.by = "origin", features = "nCount_RNA", log = T) 
+
+plots[["feat.count"]] <- do_FeaturePlot(sn.clust, features = "nCount_RNA") 
+plots[["feat.features"]] <- do_FeaturePlot(sn.clust, features = "nFeature_RNA") 
+plots[["feat.mito"]] <- do_FeaturePlot(sn.clust, features = "PercentMito") 
+plots[["feat.doub"]] <- do_FeaturePlot(sn.clust, features = "DoubletScore") 
+
+
+wrap_plots(plots, ncol = 2)
 ```
 
-## Clustering nuclei\
+These plots show how distinct and segregated some of our datasets are. It’s important to note that Wu and Martini both are specifically enriched for immune cells. And Tabula Muris is deficient in cardiomyoctes generally. These clusters aren’t yet annotated, but keep that in mind when we assign cell-types to these clusters later. I’m still concerned about the limited overlap in cells in clusters 0 and 2. I’d like to find more sc/sn datasets that overlap between the clusters so we can better integrate the data.
 
-```{r cluster1, echo=TRUE, message=FALSE, warning=FALSE, cache = TRUE}
-sn_all$origin <- as.factor(sn_all$origin)
-sn.clust.1 <- ClusterSeurat(sn_all, max.rna.ft = 4000,
-                            max.mt.pt = 1, res = 0.05, regress.by = c("orig.ident"))
-```
-
-```{r cluster.1 data, echo=TRUE}
-sn.clust.1
-```
-\
-Now, we can visualize our data plotted on UMAPs. The top two plots are showing us how our clustering decided to group the nuclei and the right is how well we integrated our two samples.\
-\
-The lower two feature plots are showing percent mitocondrial RNA and number of transcripts counted in each nuclei. High mitocondrial gene content indicates cytoplasmic contamination, which would confound deconvolution methods.\
-```{r cluster1.dim, echo=FALSE, fig.height=14, fig.width=10, message=FALSE, warning=FALSE, cache=T}
-# standard visuals for clusters and mitocondrial contaminants
-dim.ft  <- c("seurat_clusters", "origin", "orig.ident")
-feat.ft <- c("PercentMito", "nCount_RNA")
-vln.ft <- c("PercentMito")
-vln.groups <- c("seurat_clusters")
-
-plotUMAP(data = sn.clust.1,
-         dim.ft = dim.ft,
-         feat.ft = feat.ft,
-         nrow = 3, 
-         ncol = 2)
-
-```
-
-### Removing mitocondrial clusters\
-We're going to look at how many nuclei in each cluster contain more than 3% mitocondrial RNA. We'll set a cutoff off 20% of nuclei within a cluster and repeat the clustering without those nuclei. After I remove that cluster, I still set a mitocondrial gene percent cutoff at 2% for the reclustering, since the initial clustering and MT% threshold largely serve to bait highly cytoplasmic nuclei together.\ 
-
-```{r remove mito cluster 1, eval=FALSE, fig.align='center', message=FALSE, warning=FALSE, cache=TRUE, include=FALSE}
-# select bad clusters/cells
-bad.clust <- mitoProps(sn.clust.1,
-                  cutoff = 1) 
-bad.clust.names <- as.numeric(names(bad.clust[bad.clust > 20]))
-bad.cells <- WhichCells(sn.clust.1, 
-                        idents = levels(sn.clust.1)[bad.clust.names]) # sets a 20% cutoff
-
-sn.clust.2 <- subset(sn.clust.1, cells = bad.cells, invert = T)
+I’d also like to note that I’ve run the pipeline in two additional ways to check things. I tried each combination of datasets (8 total if Rau is included every time) and also downsampled the counts to 5k (to check if the difference in the “Counts by origin” plot effect things). For the former, more datasets improve the results (I’ll include a plot from this analysis in an email) and for the later, there isn’t any notable difference when using more uniform counts between the datasets.
 
 
-# redo QC with removed cells 
-sn.clust.2 <- ClusterSeurat(sn.clust.2, max.rna.ft = 4000,
-                          max.mt.pt = 5, res = 0.4)
-```
-\
-
-```{r no mito dim, eval=FALSE, fig.height=12, fig.width=10, message=FALSE, warning=FALSE, cache=TRUE, include=FALSE}
-# standard visuals for clusters and mitocondrial contaminants
-
-
-dim.ft  <- c("seurat_clusters", "origin")
-feat.ft <- c("PercentMito", "nCount_RNA")
-
-plotUMAP(data = sn.clust.2,
-         dim.ft = dim.ft,
-         feat.ft = feat.ft,
-         nrow = 2, 
-         ncol = 2)
-
-```
-
-
-## Defining cell types\
-To annotate the clusters with actual cell types, I've  decided to  reference existing mouse single cell datasets.\
-McLellan 2020 (DOI: 10.1161/CIRCULATIONAHA.119.045115) has a reasonably accessible list of marker genes for their clusters. They repeated their clustering, yielding both a broad and fine classification. So we'll be doing the process twice.\
-
-
-```{r load broad markers, echo=F, fig.height=10, fig.width=8, message=FALSE, warning=FALSE, cache = T, cache=T}
-# load markers
-sn.clust.2 <- sn.clust.1
+```{r AUCell markers, echo=FALSE,warning=FALSE, include=TRUE, fig.height = 8, fig.width = 12}
+# Annotate to cell types
 markers.broad <- read.csv("jensen/data/processed/external/mclellan_2020/mclellan_cell_markers_broad.csv")
+head(markers.broad)
 ```
 
-\
-```{r broad.cell.types AUC, echo=FALSE, fig.height=4, fig.width=7, message=FALSE, warning=FALSE, cache=TRUE}
-# Split 'markers' into separate data frames for each unique subcluster
-subclusters <- split(markers.broad, markers.broad$cluster)
-# Extract the gene names from each subcluster data frame
-subcluster_genes <- lapply(subclusters, function(x) x$gene)
-# Create a list with named elements corresponding to each subcluster
-geneSets <- setNames(subcluster_genes, names(subclusters))
-# make expression matrix of single cell
-my.expr <-  sn.clust.2@assays$RNA@counts
-# Find  AUC for each cell by each type
-cells_AUC <- AUCell_run(my.expr, geneSets)
-cells_assignment <- AUCell_exploreThresholds(cells_AUC, plotHist=F, assign=TRUE)
+As we talked about last time, AUCell assigns an AUC score (think enrichment) for each cell based on expression and cell types with clear bimodal distributions are retained. The second part, retaining only cell-types with distinct groups, is a change from the last workflow that has been very helpful. Here’s how those AUC distributions look for the cell types we retained:
 
-# get the thresholds and report when/how they're passdd
-selectedThresholds <- getThresholdSelected(cells_assignment)
+```{r AUCell plot, echo=FALSE,warning=FALSE, include=TRUE, fig.height = 8, fig.width = 12}
+# Annotate to cell types
+n_markers <- 50
+n_cells <- 3000
 
-auc.val <- cells_AUC@assays@data@listData$AUC |>
-              as.data.frame() |>
-              t()
+  seurat <- sn.clust
+  seurat <- seurat[,sample(names(seurat$seurat_clusters), n_cells)]
+  markers.sub <- markers.broad %>%
+    group_by(cluster) %>%
+    top_n(n_markers, gene) |>
+    as.data.frame()
+  # Split 'markers' into separate data frames for each unique subcluster
+  subclusters <- split(markers.sub, markers.sub$cluster)
+  # Extract the gene names from each subcluster data frame
+  subcluster_genes <- lapply(subclusters, function(x) x$gene)
+  # Create a list with named elements corresponding to each subcluster
+  geneSets <- setNames(subcluster_genes, names(subclusters))
+  # make expression matrix of single cell
+  my.expr <-  seurat@assays$RNA@counts
+  # Find  AUC for each cell by each type
+  cells_AUC <- AUCell_run(my.expr, geneSets)
+  
+  cells_assignment <- AUCell_exploreThresholds(cells_AUC, plotHist=F, assign=TRUE)
+  
+  comments <- lapply(names(cells_assignment), function(cell_type){cells_assignment[[cell_type]]$aucThr$comment})
+  good_cells <- names(cells_assignment)[comments == ""]
+  # get the thresholds and report when/how they're passdd
+  selectedThresholds <- getThresholdSelected(cells_assignment)
+  
+  auc.val <- cells_AUC@assays@data@listData$AUC |>
+    t()|>
+    as.data.frame() 
+  auc.val <- auc.val[,good_cells]
+  auc.val$seurat <- seurat$seurat_clusters[rownames(auc.val)]
 
-# Apply process_cell_id function to each row of auc.val using lapply()
-broad_cell_types_list <- lapply(1:nrow(auc.val), function(i) processCellId(auc.val[i, ]))
+  
+# plot 
+  
+cell_type <- good_cells[1]
+plotAUC <- function(cell_type, auc.df, thresholds){
+threshold <- thresholds[[cell_type]]
+# Create the histogam
+ggplot(auc.df, aes(x = !!sym(cell_type))) +
+  geom_histogram(aes(fill = !!sym(cell_type) > threshold), binwidth = 0.01, stat = "bin") +
+  scale_fill_manual(values = c("TRUE" = "#D95F02", "FALSE" = "#1B9E77"), guide = FALSE) +
+  geom_vline(aes(xintercept = threshold), linetype="dashed", color = "black") +
+  theme_minimal() +
+  theme(title = element_text(size = 25),
+        axis.text = element_text(size = 20)) +
+  labs(x = "Value", y = "Count", title = cell_type, subtitle = paste0("Threshold: ", round(threshold, 3))) 
+}
 
-# Convert the list to a data frame
-broad.cell.types <- data.frame(BroadCellType = unlist(broad_cell_types_list), stringsAsFactors = FALSE)
-rownames(broad.cell.types) <- rownames(auc.val)
 
-sn.clust.2 <- AddMetaData(sn.clust.2, broad.cell.types)
+plots.auc <- lapply(good_cells, function(x){plotAUC(cell_type = x, auc.df = auc.val, thresholds = selectedThresholds)})
+ 
+wrap_plots(plots.auc, ncol = 2)
 ```
 
-```{r fine.cell.types, echo=FALSE, fig.height=4, fig.width=7, message=FALSE, warning=FALSE, cache=T}
-# load markers
-markers.fine <- read.csv("jensen/data/processed/external/mclellan_2020/mclellen_cell_markers.csv")
+```{r AUCell heatmap, echo=FALSE,warning=FALSE, include=TRUE, fig.height = 8, fig.width = 12}
+# Make correlation matrix for Seurat clusters and cell correlations to cell types
 
-# Split 'markers' into separate data frames for each unique subcluster
-subclusters <- split(markers.fine, markers.fine$subcluster)
-# Extract the gene names from each subcluster data frame
-subcluster_genes <- lapply(subclusters, function(x) x$gene)
-# Create a list with named elements corresponding to each subcluster
-geneSets <- setNames(subcluster_genes, names(subclusters))
-# make expression matrix of single cell
-my.expr <-  sn.clust.2@assays$RNA@counts
-# Find  AUC for each cell by each type
-cells_AUC <- AUCell_run(my.expr, geneSets)
-cells_assignment <- AUCell_exploreThresholds(cells_AUC, plotHist=F, assign=TRUE)
+corrs <- model.matrix(~0 + ., data = auc.val) |>
+  cor(use = "pairwise.complete.obs") |>
+  as.data.frame()
+# keep seurat cluster names just as a number
+corrs <- corrs[colnames(corrs)[!grepl("seurat", colnames(corrs))], colnames(corrs)[grepl("seurat", colnames(corrs))]] 
+colnames(corrs) <- lapply(strsplit(colnames(corrs), "seurat"), "[[", 2)
 
-# get the thresholds and report when/how they're passdd
-selectedThresholds <- getThresholdSelected(cells_assignment)
+# format for plotting
+corrs <- data.matrix(corrs, rownames.force = T)
+empty_columns <- colSums(is.na(corrs) | corrs == "") == nrow(corrs)
+standardized_residuals <- corrs[, !empty_columns]
 
-auc.val <- cells_AUC@assays@data@listData$AUC |>
-              as.data.frame() |>
-              t()
-
-# Apply process_cell_id function to each row of auc.val using lapply()
-fine_cell_types_list <- lapply(1:nrow(auc.val), function(i) processCellId(auc.val[i, ]))
-
-# Convert the list to a data frame
-fine.cell.types <- data.frame(FineCellType = unlist(fine_cell_types_list), stringsAsFactors = FALSE)
-rownames(fine.cell.types) <- rownames(auc.val)
-
-sn.clust.2 <- AddMetaData(sn.clust.2, fine.cell.types)
-```
-
-### Label Clusters\
-
-```{r dim broad/fine, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE,}
-# standard visuals for clusters and mitocondrial contaminants
-dim.ft  <- c("BroadCellType", "FineCellType")
-plotUMAP(data = sn.clust.2,
-         dim.ft = dim.ft,
-         feat.ft = NULL,
-         nrow = 1, 
-         ncol = 2)
-
-```
-\
-And these are the clusters we found earlier, for reference:\
-\
-```{r dim broad/fine ref, echo=FALSE, fig.height=6, fig.width=5, message=FALSE, warning=FALSE,fig.align = 'center'}
-# standard visuals for clusters and mitocondrial contaminants
-dim.ft  <- c("seurat_clusters")
-plotUMAP(data = sn.clust.2,
-         dim.ft = dim.ft,
-         feat.ft = NULL,
-         nrow = 1, 
-         ncol = 1)
-
-```
-\
-
-### Defining Seurat clusters\
-
-
-```{r heatmap for all celltypes, echo=FALSE, fig.height=12, fig.width=10, message=FALSE, warning=FALSE, eval=T}
-# Create a contingency table
-contingency_table <- table(c(sn.clust.2$BroadCellType,sn.clust.2$FineCellType),
-                           c(sn.clust.2$seurat_clusters,sn.clust.2$seurat_clusters))
-
-# Perform the chi-squared test
-chi_squared_test <- chisq.test(contingency_table)
-
-# Calculate the standardized residuals
-observed_frequencies <- contingency_table
-expected_frequencies <- chi_squared_test$expected
-standardized_residuals <- (observed_frequencies - expected_frequencies) / sqrt(expected_frequencies)
-
-
-col_palette <- viridis(25)
-# Create a heatmap of the standardized residuals
 heatmap.2(standardized_residuals, 
           trace = "none", 
-          col = col_palette,
-          main = "Residuals, All Cell Types",
+          col = viridis(8),
+          main = "Correlation coeffiecients between cell-types and clusters",
           xlab = "Seurat Clusters",
-          ylab = "All Cell Types",
+          ylab = "Cell Types",
           margins = c(8, 12),
-          key.title = "Standardized Residuals",
+          key.title = "Correlations",
           srtCol = 0,
           cexRow = 1.2)
 
-```
-\
-
-```{r label clusters w chisq for celltypes, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE}
-# Find the index of the largest value in each column of the normalized_contingency_table
-max.indices <- apply(standardized_residuals, 2, which.max)
-# Get the corresponding BroadCellType for each Seurat cluster
-assigned.cell.types <- rownames(standardized_residuals)[max.indices] |>
-                          make.unique()
-
-#rename the clusters
-names(assigned.cell.types) <- levels(sn.clust.2)
-sn.clust.2 <- RenameIdents(sn.clust.2, assigned.cell.types)
-#SaveH5Seurat(sn.clust.2, "jensen/data/processed/single_cell/05102023")
+sn.clust <- AssignAndFilterClusters(sn.clust, res.thresh = 0.4, ratio.thresh = 1.3, min.cell = 200)
 
 ```
 
-Here's what our final clusters and labels look like: \
-```{r final cluster labels, echo=FALSE, fig.height=7, fig.width=10, message=FALSE, warning=FALSE}
-do_DimPlot(sn.clust.2, reduction = "umap", label = T, repel = T) + NoLegend()
+We set a threshold (0.4 in this case) and assign cell types based on that. Here’s how our final labels look, along with some canonical markers to confirm our annotations:
+
+```{r Cluster Assignments, echo=FALSE,warning=FALSE, include=TRUE, fig.height = 8, fig.width = 12}
+plotGene <- function(seurat, slot = "scale.data", gene, plot.title = T, plot.legend = T){
+ 
+ seurat |>
+  do_FeaturePlot(gene, reduction = "umap", slot = slot, 
+                 legend.position = if(plot.legend == T){"bottom"}else{"none"}, 
+                 legend.width = 2, legend.length = 25,  order = T) +
+  theme(title = element_text(size = 30),
+        legend.title = element_blank()) +
+  labs(title = if(plot.title == T){paste0(gene, ", " , names(gene))}else{" "})
+}
+
+genes <- c("Pecam1", "Col1a1", "Myh6", "Cd19")
+names(genes) <- c("Endothelial Cells", "Fibroblasts", "Cardiomyocytes", "Macrophages/B Cells")
+
+# plot new
+plots <- c()
+plots[["cell"]] <- do_DimPlot(sn.clust, reduction = "umap", label = T, repel = T, plot.title = "Flexible QC, no doublets")  +  
+                                    NoLegend() + theme(title = element_text(size = 30))
+plots.exp <- lapply(names(genes), function(x){plotGene(seurat = sn.clust, slot = "data", gene = genes[x], plot.legend = F)})
+            
+plots.new <- c(plots, plots.exp)
+
+
+wrap_plots(plots.new, 
+           ncol = 3)
 ```
-```{r final cluster labels, echo=FALSE, fig.height=7, fig.width=10, message=FALSE, warning=FALSE}
-do_DimPlot(sn.clust.2, reduction = "umap",group.by = "orig.ident", label = T, repel = T) + NoLegend()
-```
 
-## MuSiC and composition estimates\
+The ambient expression of markers in clusters dominated by the Rau dataset make me think that there is still ambient RNA (RNA from cells that broke open during handling and are present in most droplets). I’ll just need to go back to the raw dataset, remap it, and apply some newer methods. It would just take a bit of time and I didn’t want to delay providing an update.
 
+## Deconvolution
+### Composition estimates on pure cell fractions
 
-```{r cluster2.dim, fig.width = 7, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
-# music_prop needs exprs matrix
-sn.sce <- as.SingleCellExperiment(sn.clust.2, assay = "RNA")
-bulk.es <- ExpressionSet(assayData = as.matrix(bulk))
+Experimentally purified, bulk sequenced cell types have been used as a ground truth. This is how I’ve been testing accuracy of the methods. Specifically, I’ve been trying to minimize the Aitchison distance, a measure of composition distance that is apparently widely used in fields like geology, ecology, and microbiome research. The plot I mentioned about dataset combinations uses that as a metric.
+
+The fractions are from Christoph and a publicly available dataset, which is why you can see two distinct groups in the endothelial cell graph.
+
+```{r deconvolute , echo=FALSE, warning=FALSE, include=T}
+
+# Load and format bulk data
+bulk <- read.csv("jensen/data/processed/jensen_rau_froese_cpm", row.names = 1)
+bulk_pheno <- read.csv("jensen/data/processed/jensen_rau_froese_pheno", row.names = 1)
+bulk.es <- ExpressionSet(assayData = as.matrix(bulk[,colnames(bulk) != "wt_Lx3"]))
+#bulk.es <- ExpressionSet(assayData = as.matrix(bulk))
 bulk.es <- exprs(bulk.es)
-# estimate bulk composition with music
-# Find the index of the specified cell type
-labels <- standardized_residuals |>
-  as.data.frame() |>
-  group_by(Var2) |>
-  summarise(Value = max(Freq))
 
-good_labels <- labels[which(labels$Value > 40), 1]
-cell_types <-levels(Idents(sn.clust.2))[good_labels$Var2]
-# Access the cell type using the index
+# Load merged snRNAseq before and after doublet removal/ambient RNA cleanup
+sn.list <- c() #initialize list
+sn.list[["new_sn"]] <- sn.clust
 
-decon <- music_prop(bulk.mtx = 2^bulk.es, sc.sce = sn.sce, markers = NULL,
-                    clusters = "ident", samples = "orig.ident",
-                    select.ct = cell_types)
+narrow.cells <- levels(sn.clust)
+#cells_exclude = unique(Idents(x))[ !unique(Idents(x)) %in% narrow.cells])
+props <- lapply(sn.list, function(x){
+                  EstimateCellTypeProportions(x, bulk.es, 
+                                              for.aitchison = T)}) 
 ```
 
+```{r plot aitchison , echo=FALSE, warning=FALSE}
+# 
 
-```{r cluster2.feat , fig.width = 7, fig.height= 4, echo=FALSE, message=FALSE, warning=FALSE}
-# turn music output into graph-friendly dataframe
-# also adds ratios of nuclei clusters from subject-matched samples
-decon.melt = melt(decon$Est.prop.weighted)
-colnames(decon.melt) = c('Sub', 'CellType', 'Prop')
+props.ests <- lapply(props, function(x){melt(x$Est.prop.weighted)})
+props.ests$new_sn$version <- "new"
+decon.melt <- props.ests$new_sn
+
+colnames(decon.melt) = c('Sub', 'CellType', 'Prop', 'Version')
 decon.melt$CellType = factor(decon.melt$CellType, levels = unique(decon.melt$CellType))
 
 decon.melt$CellType = factor(decon.melt$CellType, levels = unique(decon.melt$CellType))
 decon.melt$Prop <- as.numeric(decon.melt$Prop)
 
-decon.melt$genotype <- "wt"
-decon.melt[grepl("A", decon.melt$Sub), 4] <- "ko"
-decon.melt$treatment <- "control"
-decon.melt[grepl("Lx", decon.melt$Sub), 5] <- "mi"
+# Add genotype info
+#! the genotype info assigned here reflects the accurate types
+#! genotypes were originally mislabeled when given to us
+decon.melt$genotype <- "B6-WT"
+decon.melt[grepl("KO", decon.melt$Sub), 5] <- "B6-aKO"
+decon.melt[grepl("ko", decon.melt$Sub), 5] <- "B6-aKO"
+decon.melt$treatment <- "Sham"
+decon.melt[grepl("Lx", decon.melt$Sub), 6] <- "Myocardial Infarction"
 decon.melt$type <- "whole"
-decon.melt[grepl("RNA", decon.melt$Sub), 6] <- "fraction"
+decon.melt[grepl("RNA", decon.melt$Sub), 7] <- "fraction"
+decon.melt[grepl("Sham", decon.melt$Sub), 7] <- "fraction"
 
+# Add origin info
 decon.melt$origin <- "Jensen"
-decon.melt[grepl("B6", decon.melt$Sub), 4] <- "Rau"
-decon.melt[grepl("Sham", decon.melt$Sub), 4] <- "Froese"
+decon.melt[grepl("B6", decon.melt$Sub), 8] <- "Rau"
+decon.melt[grepl("Sham", decon.melt$Sub), 8] <- "Froese"
 
+# Add fraction/CT info
+decon.melt$fraction_type <- NA
+decon.melt[grepl("CM", decon.melt$Sub), 9] <- "Cardiomyocytes"
+decon.melt[grepl("Fib", decon.melt$Sub), 9] <- "Fibroblasts"
+decon.melt[grepl("FB", decon.melt$Sub), 9] <- "Fibroblasts"
+decon.melt[grepl("Endo", decon.melt$Sub), 9] <- "Endothelial Cells"
+decon.melt[grepl("EC_", decon.melt$Sub), 9] <- "Endothelial Cells"
+
+# Add treatment by genotype to make facet wrap clear
+decon.melt$gene_treat <- NA
+decon.melt$gene_treat <- paste0(
+                          decon.melt$genotype, " x ",
+                          decon.melt$treatment)    
 ```
 
-```{r music plot controls, fig.width = 12, fig.height= 7, echo=FALSE, message=FALSE, warning=FALSE}
-ggplot(decon.melt,
-       aes(x=Sub, y=Prop, fill=CellType))  +
-  geom_bar(stat='identity',
+```{r music plot controls, fig.width = 12, fig.height= 6, echo=FALSE, message=FALSE, warning=FALSE}
+plotDecon <- function(version){decon.melt |>
+  subset(type == "fraction" & Version == version) |>
+  ggplot(aes(x=Sub, y=Prop, fill=CellType))  +
+   geom_bar(stat='identity',
            position = "fill",
-           width = 0.5,
+           width = 0.8,
            color = "black")+
-  scale_fill_viridis_d(name = "Cell Type")+
-  facet_wrap(~genotype, 
+   scale_fill_brewer(name = "Cell Type",
+                    palette = "Dark2") +
+   facet_wrap(~fraction_type, 
              scales = "free_x",
              labeller =  label_wrap_gen(multi_line=FALSE)) +
-  ylab("Proportion") +
-  theme( axis.text.x = element_text(color = "black", size = 15, angle = 30),
+   ylab("Proportion") +
+   theme_minimal() +
+   theme( axis.text.x = element_blank(),
          strip.text = element_text(size = 20),
          title = element_text(size = 20),
          legend.text = element_text(size = 18),
          axis.ticks.x = element_blank()) +
-  xlab("Samples (5% mitocondrial threshold in reference)")
+   xlab("Samples")
+}
+fraction.plots <- lapply(unique(decon.melt$Version), function(x){plotDecon(x)})
+
+wrap_plots(fraction.plots, ncol = 1)
+
 
 ```
+
+## Composition estimates in Jensen data
+
+Here’s the actual results you’re intereted in. The KO vs. WT labels were based on the ‘id’ column of the file you gave me (labels include WT5, AKO5, Ako_Lx1, wt_Lx1, and Ako_Lx4), rather than the ‘condition’ column (labels include: WT.sham, KO.sham, WT.MI, KO.MI, and WT.outlier). Just let me know if I got this right, since I know you had mentioned that they were switched.
+
+```{r music plot whole, fig.width = 12, fig.height= 6, echo=FALSE, message=FALSE, warning=FALSE}
+decon.melt |>
+  subset(type == "whole") |>
+  ggplot(aes(x=Sub, y=Prop, fill=CellType))  +
+   geom_bar(stat='identity',
+           position = "fill",
+           width = 0.8,
+           color = "black")+
+   scale_fill_brewer(name = "Cell Type",
+                    palette = "Dark2") +
+   facet_wrap(~gene_treat, 
+             scales = "free_x",
+             labeller =  label_wrap_gen(multi_line=FALSE)) +
+   ylab("Proportion") +
+   theme_minimal() +
+   theme( axis.text.x = element_blank(),
+         strip.text = element_text(size = 20),
+         title = element_text(size = 20),
+         legend.text = element_text(size = 18),
+         axis.ticks.x = element_blank()) +
+   xlab("Samples")
+
+```
+
+I also made a different way to visualize these results, split by condition. This way might work better if we want to assign significance values:
+
+```{r music plot sham, fig.width = 12, fig.height= 7, echo=FALSE, message=FALSE, warning=FALSE}
+
+decon.sham <- decon.melt |>
+  subset(type == "whole" & treatment == "Sham")
+decon.sham$CellType <- reorder(decon.sham$CellType, -decon.sham$Prop, FUN = sum)
+
+decon.sham <- decon.sham %>%
+  group_by(CellType) %>%
+  filter(mean(Prop) >= 0.001) %>%
+  ungroup()
+
+p <- decon.sham |>
+  subset(type == "whole" & treatment == "Sham" & Version == "new") |>
+ggplot(aes(x = CellType, y = Prop, fill = genotype)) +
+  geom_bar(stat = "summary", 
+           position = position_dodge(0.9), 
+           fun = mean,
+           width = 0.9,
+           color = "black") +
+  theme(axis.text.x = element_text(color = "black", size = 15, angle =15), # Increase size here for larger axis text
+        axis.text.y = element_text(color = "black", size = 10), # Add this line for y-axis text size
+        axis.ticks = element_blank(), # Add this line for thick black axis bars
+        legend.position = c(.95, .95),
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6), # Move legend to upper right
+        panel.background = element_blank(), # Remove background gray color
+        strip.text = element_text(size = 20),
+        title = element_text(size = 20),
+        legend.text = element_text(size = 18)) +
+  labs(x = "Cell Type", 
+       y = "Proportion", 
+       fill = "Genotype") +
+  scale_fill_brewer(palette = "Dark2") + 
+  geom_jitter(inherit.aes = T, 
+              position = position_jitterdodge(0.01, 0, 0.9),
+              size = 2) +
+  facet_zoom(ylim = c(0, 0.2), zoom.data = ifelse(a <= 0.2, NA, FALSE)) +
+  ggtitle("WT vs KO at baseline (sham surgery")
+
+p
+
+
+decon.mi <- decon.melt |>
+  subset(type == "whole" & treatment == "Myocardial Infarction")
+decon.mi$CellType <- reorder(decon.mi$CellType, -decon.mi$Prop, FUN = sum)
+
+decon.mi <- decon.mi %>%
+  group_by(CellType) %>%
+  filter(mean(Prop) >= 0.001) %>%
+  ungroup()
+
+
+decon.mi |>
+  subset(type == "whole" & treatment == "Myocardial Infarction" & Version == "new") |>
+ggplot(aes(x = CellType, y = Prop, fill = genotype)) +
+  geom_bar(stat = "summary", 
+           position = position_dodge(0.9), 
+           fun = mean,
+           width = 0.9,
+           color = "black") +
+  theme(axis.text.x = element_text(color = "black", size = 15, angle =15), # Increase size here for larger axis text
+        axis.text.y = element_text(color = "black", size = 10), # Add this line for y-axis text size
+        axis.ticks = element_blank(), # Add this line for thick black axis bars
+        legend.position = c(.95, .95),
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6), # Move legend to upper right
+        panel.background = element_blank(), # Remove background gray color
+        strip.text = element_text(size = 20),
+        title = element_text(size = 20),
+        legend.text = element_text(size = 18)) +
+  labs(x = "Cell Type", 
+       y = "Proportion", 
+       fill = "Genotype") +
+  scale_fill_brewer(palette = "Dark2") + 
+  geom_jitter(inherit.aes = T, 
+              position = position_jitterdodge(0.01, 0, 0.9),
+              size = 2) +
+  facet_zoom(ylim = c(0, 0.2), zoom.data = ifelse(a <= 0.2, NA, FALSE)) +
+  ggtitle("WT vs KO during myocardial infarction")
+
+
+```
+
+## Using DirichletReg to model compositional changes
+
+For the statistics, I’m using the DirichletReg package. It uses a linear model, but instead of a normal distribution, it uses a Dirichlet distribution. I had to talk with Mike Love for an hour and read a chapter from a textbook on compositional statistics to even vaguely understand how that works. I’m going to show the code for this and I’ll talk about it here too. Basically, I’m making two different models to compare the compositional changes. Model.2 assumes that changes are based on the effect of treatment, whereas model.1 also includes the interaction of geneotype and treatment. The ANOVA I’m doing between them has a value for Pr(>Chi), which is highly significant. Our null hypothesis is, “The simple model (model.2) is better”, so the high significance for Pr(>Chi) is telling use that the null hypothesis isn’t true, that the interaction model (model.1) better describes what we’re seeing.
+
+I’m also including the summary of model.1, which covers which factors are signficant for each cell type.
+
+```{r dirichlet, fig.width = 12, fig.height= 6, echo=TRUE, message=TRUE, warning=FALSE}
+library("DirichletReg")
+# prep DirichletReg matrix
+dir.cols <- colnames(decon.melt)[c(1:6)]
+
+decon.dir <- decon.melt %>%
+  group_by(CellType) %>%
+  filter(mean(Prop) >= 0.01) %>%
+  ungroup()
+
+
+dir.mat <- decon.dir |>
+  subset(type == "whole" & Version == "new",
+         select = dir.cols) |>
+  dcast(Sub + genotype + treatment ~ CellType, value.var = "Prop")
+
+# Convert data to DirichletRegData object
+dir.mat$CellTypes <- DR_data(dir.mat[,c(4:length(dir.mat))])
+
+# Run Dirichlet regression
+model.1 <- DirichReg(CellTypes ~ treatment + genotype + treatment * genotype, data = dir.mat)
+
+model.2 <- DirichReg(CellTypes ~ treatment + genotype, data = dir.mat)
+
+# compare models, find if interaction term improves model
+anova(model.1, model.2)
+
+
+# Pr(>Chi) is highly significant (p =  0.005655), which means there's strong evidence against the null hypothesis (the simple model is better). model.1 provides a significantly better fit to the data than model.2.
+# this implies that the effect of the treatment may be different for different genotypes.
+summary(model.1)
+```
+
+### Outro Notes
+
+A lot has changed since the last analysis we covered. Back then, we saw more of a rainbow of cell types in the deconvolution. But now it’s ~90% cardiomyocytes. I think that this new estimate is more trustworthy. The heart is majority CM by volume. Our test is really asking what proportion of RNA is coming from each cell type, so it makes sense that most of the RNA is coming from CMs. This is an intrinsic limitation of this type of analysis in this system. Deconvolution methods struggle with narrow cell proportions, and we’re trying to look at changes in 10 - 15% of RNA.
+
+Still, these results illustrate the effect of your KO. Alsom I think that we can use them as co-factors in a revised DE analysis. Here’s a paper that illustrates how compositional differences can wildly change DE results if not accounted for (Figure 4).
+
+As far as next steps, I’d still like to download the raw data for each of my references and map them myself. This would help me account for ambient RNA, doublets, and ensure it’s all as standardized as it can be. However, I don’t want to hold up the work on your end. Since we’re limited to mostly seeing changes in fibroblast content, basic stains for fibrosis might be enough.
+
+Let me know if anything is unclear or if you want to meet to talk about things. Again, thanks for the fun problem!
