@@ -682,7 +682,7 @@ AssignAndFilterClusters <- function(seurat, res.thresh = 0.4, ratio.thresh = 2, 
   return(seurat)
 }
 
-EstimateCellTypeProportions <- function(seurat, bulk.es, for.aitchison = F, cells_exclude = c("unlabeled", "NA")) {
+EstimateCellTypeProportions <- function(seurat, bulk.es, for.aitchison = F,sn.individuals, cells_exclude = c("unlabeled", "NA"), bulk.log2 = T, marker = NULL) {
   
   # Convert to SingleCellExperiment
   seurat_sce <- as.SingleCellExperiment(seurat, assay = "RNA")
@@ -693,8 +693,11 @@ EstimateCellTypeProportions <- function(seurat, bulk.es, for.aitchison = F, cell
   
   # Use MuSiC to estimate cell type proportions
   set.seed(100)
-  decon <- music_prop(bulk.mtx = 2^bulk.es, sc.sce = seurat_sce, markers = NULL,
-                      clusters = "ident", samples = "orig.ident",
+  if(bulk.log2 == T){
+    bulk.es <- 2^bulk.es
+  }
+  decon <- music_prop(bulk.mtx = bulk.es, sc.sce = seurat_sce, markers = marker,
+                      clusters = "ident", samples = sn.individuals,
                       select.ct = cells)
   if(for.aitchison == T){
     return(decon)
@@ -702,7 +705,7 @@ EstimateCellTypeProportions <- function(seurat, bulk.es, for.aitchison = F, cell
   # Turn MuSiC output into graph-friendly dataframe
   decon.melt = reshape2::melt(decon$Est.prop.weighted)
   colnames(decon.melt) = c('Sub', 'CellType', 'Prop')
-  decon.melt$combination <- paste(unique(seurat$origin), collapse = "_")
+  #decon.melt$combination <- paste(unique(seurat$origin), collapse = "_")
   return(decon.melt)
 }
 
