@@ -284,7 +284,8 @@ narrow.cells <- levels(sn.clust)
 #cells_exclude = unique(Idents(x))[ !unique(Idents(x)) %in% narrow.cells])
 props <- lapply(sn.list, function(x){
                   EstimateCellTypeProportions(x, bulk.es, 
-                                              for.aitchison = T)}) 
+                                              for.aitchison = T,
+                                              sn.individuals = "orig.ident")}) 
 ```
 
 ```{r plot aitchison , echo=FALSE, warning=FALSE}
@@ -505,6 +506,7 @@ dir.mat$CellTypes <- DR_data(dir.mat[,c(4:length(dir.mat))])
 model.1 <- DirichReg(CellTypes ~ treatment + genotype + treatment * genotype, data = dir.mat)
 
 model.2 <- DirichReg(CellTypes ~ treatment + genotype, data = dir.mat)
+model.3 <- DirichReg(CellTypes ~ treatment * genotype, data = dir.mat, model = "alternative", base = 4)
 
 # compare models, find if interaction term improves model
 anova(model.1, model.2)
@@ -512,7 +514,7 @@ anova(model.1, model.2)
 
 # Pr(>Chi) is highly significant (p =  0.005655), which means there's strong evidence against the null hypothesis (the simple model is better). model.1 provides a significantly better fit to the data than model.2.
 # this implies that the effect of the treatment may be different for different genotypes.
-summary(model.1)
+summary(model.3)
 ```
 
 ### Outro Notes

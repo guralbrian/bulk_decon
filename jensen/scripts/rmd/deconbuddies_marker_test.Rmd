@@ -181,6 +181,15 @@ sn.clust <- AssignAndFilterClusters(sn.clust, res.thresh = 0.3, ratio.thresh = 1
 
 ```
 
+```{r merge immune, echo=FALSE,warning=FALSE, include=TRUE, fig.height = 8, fig.width = 12}
+
+cells.merge.immune <- levels(sn.clust)
+names(cells.merge.immune) <- cells.merge.immune
+cells.merge.immune[cells.merge.immune == "`B cells`" | cells.merge.immune == "granulocytes"] <- "immune"
+sn.clust <- RenameIdents(sn.clust, cells.merge.immune)
+
+```
+
 
 We set a threshold (0.4 in this case) and assign cell types based on that. Here’s how our final labels look, along with some canonical markers to confirm our annotations:
 
@@ -211,7 +220,6 @@ plots.new <- c(plots, plots.exp)
 wrap_plots(plots.new, 
            ncol = 3)
 ```
-
 ## Bisque\
 ```{r DeconvoBuddies Find markers, fig.width = 7, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
 # find markers
@@ -220,7 +228,7 @@ library(BisqueRNA)
 
 n_cells <- 10000
 cells <- sample(colnames(sn.clust), n_cells, replace = FALSE)
-
+sn.clust$ident <- Idents(sn.clust)
 seurat <- sn.clust 
 seurat$annots <- Idents(seurat)
 seurat$annots[is.na(seurat$annots)] <- "unlabeled"
@@ -240,7 +248,7 @@ rownames(sn.sce) <- gene_names
 
 # 
 ratios <- get_mean_ratio2(sn.sce, cellType_col = "ident")
-fc <- findMarkers_1vAll(sn.sce, cellType_col = "ident", mod = "~orig.ident")
+fc <- findMarkers_1vAll(sn.sce, cellType_col = "ident", mod = "~origin")
 marker_stats <- left_join(ratios, fc, by = c("gene", "cellType.target"))
 
 # narrow markers
@@ -249,13 +257,73 @@ marker_stats2 <- marker_stats |>
     group_by(cellType.target) |>
     mutate(rank_ratio = row_number())
 
-marker_genes <- marker_stats2 %>%
-    filter(rank_ratio <= 25) %>%
-    pull(gene)
+marker_genes <- marker_stats2 |>
+                filter(rank_ratio <= 50) |> 
+                group_by(cellType.target) |>
+                arrange(-logFC, .by_group = T)|>
+                slice_head(n = 15) |>
+                pull(gene)
 
 
+top_markers <- marker_stats2 |>
+                filter(rank_ratio <= 75) |> 
+                group_by(cellType.target) |>
+                arrange(-logFC, .by_group = T)
+
+write.csv(top_markers, "jensen/results/estimates/deconbuddies_marker_test_07102023_markers")
 
 ```
+
+```{r immune markers, fig.width = 40, fig.height= 30, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Screening 
+
+plotGene <- function(seurat, slot = "scale.data", gene, plot.title = T, plot.legend = T){
+  
+  seurat |>
+    do_FeaturePlot(gene, reduction = "umap", slot = slot, 
+                   legend.position = if(plot.legend == T){"bottom"}else{"none"}, 
+                   legend.width = 2, legend.length = 25,  order = F) +
+    theme(title = element_text(size = 22),
+          legend.title = element_blank()) +
+    labs(title = if(plot.title == T){paste0(gene, ", " , names(gene))}else{" "})
+}
+
+markers <- read.csv("jensen/results/estimates/deconbuddies_marker_test_07102023_markers", row.names = 1)
+
+immune_markers <- markers |>
+                  group_by(cellType.target) |>
+                  subset(cellType.target == "immune") |>
+                  arrange(-logFC)|>
+                  slice_head(n = 10)
+
+genes <- immune_markers$gene
+names(genes) <- c(immune_markers$anno_ratio)
+
+
+fib_markers <- markers |>
+                  group_by(cellType.target) |>
+                  subset(cellType.target == "fibroblasts") |>
+                  arrange(-logFC)|>
+                  slice_head(n = 10)
+    
+
+genes.fib <- fib_markers$gene
+names(genes.fib) <- c(fib_markers$anno_ratio)
+
+genes <- c(genes, genes.fib)
+
+# plot new
+plots <- c()
+plots[["cell"]] <- do_DimPlot(sn.clust, reduction = "umap", label = T, repel = T, plot.title = "Flexible QC, no doublets")  +  
+  NoLegend() + theme(title = element_text(size = 22))
+plots.exp <- lapply(names(genes), function(x){plotGene(seurat = sn.clust, slot = "data", gene = genes[x], plot.legend = F)})
+
+
+wrap_plots(plots.exp, 
+           ncol = 5)
+```
+
 
 
 ```{r bisque huuki, fig.width = 7, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
@@ -328,10 +396,11 @@ bulk.es.exp <- ExpressionSet(assayData = as.matrix(all_bulk)) |>
 
 # Run with all genes and with just subset genes
 props.music.markers <- EstimateCellTypeProportions(sn.clust, bulk.es.exp, for.aitchison = F, bulk.log2 = F,
-                                                   sn.individuals = "orig.ident", marker = marker_genes, cells_exclude = "endocardium") 
+                                                   sn.individuals = "orig.ident", marker = marker_genes, cells_exclude = NULL) #"endocardium") 
 props.music.all <- EstimateCellTypeProportions(sn.clust, bulk.es.exp, for.aitchison = F, 
-                                               sn.individuals = "orig.ident", bulk.log2 = F, marker = NULL, cells_exclude = "endocardium")
+                                               sn.individuals = "orig.ident", bulk.log2 = F, marker = NULL, cells_exclude = NULL) #"endocardium") 
 ```
+
 
 ```{r prep phenos , fig.width = 14, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
 # make one melted DF
@@ -341,8 +410,7 @@ props.bisque$version <- "bisque"
 props.music.all$version <- "music.all"
 props.music.markers$version <- "music.markers"
 
-decon.melt <- rbind(props.bisque, props.music.all) |>
-              rbind(props.music.markers)
+decon.melt <- rbind(props.music.markers, props.music.all) #|> rbind(props.bisque)
 # turn music output into graph-friendly dataframe
 decon.melt$CellType = factor(decon.melt$CellType, levels = unique(decon.melt$CellType))
 decon.melt$Sub = factor(decon.melt$Sub, levels = unique(decon.melt$Sub))
@@ -442,8 +510,7 @@ plotDeconWhole <- function(x){decon.melt |>
              labeller =  label_wrap_gen(multi_line=FALSE)) +
    ylab("Proportion") +
    theme_minimal() +
-   theme( axis.text.x = element_blank(),
-         strip.text = element_text(size = 20),
+   theme(strip.text = element_text(size = 20),
          title = element_text(size = 20),
          legend.text = element_text(size = 18),
          axis.ticks.x = element_blank()) +
@@ -454,7 +521,6 @@ plotDeconWhole <- function(x){decon.melt |>
 versions <- decon.melt$version |>
               unique()
 
-versions <- c("music.all", "music.markers")
 fraction.plots <- lapply(versions, function(x){plotDeconWhole(x)})
 
 wrap_plots(fraction.plots, ncol = 1)
@@ -462,6 +528,7 @@ wrap_plots(fraction.plots, ncol = 1)
 ```
 
 ```{r music plot sham, fig.width = 12, fig.height= 12, echo=FALSE, message=FALSE, warning=FALSE}
+
 decon.melt$CellType <- reorder(decon.melt$CellType, -decon.melt$Prop, FUN = sum)
 
 plots <- c()
@@ -495,11 +562,9 @@ ggplot(aes(x = CellType, y = Prop, fill = genotype)) +
   ggtitle("WT vs KO at baseline (sham surgery)")
 
 
-p
-
 
 plots[[2]] <- decon.melt |>
-  subset(type == "whole" & treatment == "Myocardial Infarction" & version == "music.markers") |>
+  subset(type == "whole" & treatment == "Myocardial Infarction" & version == "music.markers" ) |>
 ggplot(aes(x = CellType, y = Prop, fill = genotype)) +
   geom_bar(stat = "summary", 
            position = position_dodge(0.9), 
@@ -527,7 +592,6 @@ ggplot(aes(x = CellType, y = Prop, fill = genotype)) +
   facet_zoom(ylim = c(0, 0.2), zoom.data = ifelse(a <= 0.3, NA, FALSE)) +
   ggtitle("WT vs KO during myocardial infarction")
 
-q
 wrap_plots(plots, ncol = 1)
 ```
 
@@ -536,25 +600,44 @@ library("DirichletReg")
 # prep DirichletReg matrix
 dir.cols <- colnames(decon.melt)[c(1:3,5,6)]
 
+decon.melt$Prop <- decon.melt$Prop + 0.0001
 dir.mat <- decon.melt |>
   subset(type == "whole" & version == "music.markers",
          select = dir.cols) |>
   dcast(Sub + genotype + treatment ~ CellType, value.var = "Prop")
 
 # Convert data to DirichletRegData object
-dir.mat$CellTypes <- DR_data(dir.mat[,c(4:length(dir.mat))])
+dir.mat$CellTypes <- DR_data(dir.mat[,c(4:length(dir.mat))], base = 3)
 
+dir.mat$genotype   <- as.factor(dir.mat$genotype) |>
+                        relevel(ref = "B6-WT") 
+
+dir.mat$treatment <- as.factor(dir.mat$treatment) |>
+                        relevel(ref = "Sham") 
 # Run Dirichlet regression
-model.1 <- DirichReg(CellTypes ~ treatment + genotype + treatment * genotype, data = dir.mat)
+model.1 <- DirichReg(CellTypes ~ treatment * genotype, data = dir.mat)
 
-model.2 <- DirichReg(CellTypes ~ treatment + genotype, data = dir.mat)
+model.2 <- DirichReg(CellTypes ~ treatment * genotype, data = dir.mat, model = "alternative", base = 1)
 
+model.3 <- DirichReg(CellTypes ~ treatment * genotype, data = dir.mat, model = "alternative", base = 2)
+
+model.4 <- DirichReg(CellTypes ~ treatment * genotype, data = dir.mat, model = "alternative", base = 3)
+
+model.5 <- DirichReg(CellTypes ~ treatment * genotype, data = dir.mat, model = "alternative", base = 4)
 # compare models, find if interaction term improves model
-anova(model.1, model.2)
+
+anova(model.2, model.1)
+
+anova(model.1,model.2,model.3,model.4,model.5 )
 
 # Pr(>Chi) is highly significant (p = 2.804e-07), which means there's strong evidence against the null hypothesis (the simple model is better). model.1 provides a significantly better fit to the data than model.2.
 # this implies that the effect of the treatment may be different for different genotypes.
 summary(model.1)
+summary(model.2)
+summary(model.3)
+summary(model.4)
+summary(model.5)
 
-write.csv(decon.melt, "jensen/results/estimates/deconbuddies_marker_test_07072023")
+# model.5 uses the endocardium as reference and is able to assign significance of the gene x treatment interaction to all of the other cell types
+#write.csv(decon.melt, "jensen/results/estimates/deconbuddies_marker_test_07102023")
 ```
