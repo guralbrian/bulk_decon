@@ -475,3 +475,23 @@ AssignAndFilterClusters <- function(seurat, res.thresh = 0.4, ratio.thresh = 2, 
   Idents(seurat)[which(Idents(seurat) %in% bad.clusts)] <- NA
   return(seurat)
 }
+
+FilterByQuantile <- function(seurat.obj,
+                             min.rna.ft = NULL,
+                             max.rna.ft = NULL,
+                             min.rna.ct = NULL,
+                             max.mt.pt  = NULL, 
+                             pt.remove = 0.1){
+  # Calculate default filtering values if not provided
+  if(is.null(min.rna.ft)) min.rna.ft <- quantile(seurat.obj$nFeature_RNA, pt.remove)
+  if(is.null(max.rna.ft)) max.rna.ft <- quantile(seurat.obj$nFeature_RNA, 1-pt.remove)
+  if(is.null(min.rna.ct)) min.rna.ct <- quantile(seurat.obj$nCount_RNA, pt.remove)
+  if(is.null(max.mt.pt)) max.mt.pt <- quantile(seurat.obj$PercentMito, 1-pt.remove)
+  
+  # Subset the Seurat object based on the calculated thresholds
+  seurat.obj <- subset(seurat.obj, 
+                       subset = nFeature_RNA   > min.rna.ft     & 
+                         nFeature_RNA   < max.rna.ft     &
+                         nCount_RNA     > min.rna.ct     &
+                         PercentMito   <= max.mt.pt)
+}

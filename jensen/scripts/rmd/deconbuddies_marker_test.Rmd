@@ -270,7 +270,7 @@ top_markers <- marker_stats2 |>
                 group_by(cellType.target) |>
                 arrange(-logFC, .by_group = T)
 
-write.csv(top_markers, "jensen/results/estimates/deconbuddies_marker_test_07102023_markers")
+#write.csv(top_markers, "jensen/results/estimates/deconbuddies_marker_test_07102023_markers")
 
 ```
 
