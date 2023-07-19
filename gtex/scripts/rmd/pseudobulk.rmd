@@ -59,7 +59,7 @@ cell.types <- unique(Idents(sn.all))
 # Sum expression by cell type in the seurat
 GetCellProfile <- function(seurat, cell.type){
   cell.ids  <- Idents(seurat)[which(Idents(seurat) == cell.type)] |>
-             names()
+                      names()
   cell.type.profile <- rowSums(seurat@assays$RNA@counts[,cell.ids]) |>
     as.numeric() 
   assign(as.character(cell.type), cell.type.profile)
@@ -145,7 +145,7 @@ cell.combos <- parLapply(cl, 1:length(cell.types), function(x)
 time.par <- start - Sys.time()
 
 stopCluster(cl)
-#Time difference of -17.77441 secsfor 8 combos
+#Time difference of -17.77441 secs for 8 combos
 
 library(tidyr)
 library(tibble)
@@ -170,8 +170,8 @@ result <- paste(as.character(combos.test[1,]), indices, sep = "_")
 colnames(combos.test) <- result
 combos.test <- combos.test[-1,]
 
-write.csv(combos.test, "gtex/data/processed/internal/pseudobulk/all_cells_n50.csv")
-save(even.perms, file = "gtex/data/processed/internal/pseudobulk/all_cells_n50_answers")
+#write.csv(combos.test, "gtex/data/processed/internal/pseudobulk/all_cells_n50.csv")
+#save(even.perms, file = "gtex/data/processed/internal/pseudobulk/all_cells_n50_answers")
 
 ```
 
@@ -500,7 +500,7 @@ split_df <- split(comp.corr, comp.corr$origin)
 
 # Calculate correlations for each subset
 correlations <- lapply(split_df, function(df) {
-  sapply(df[ , -which(names(df) %in% c("aitchison", "origin"))], function(x) cor(x, df$aitchison))
+                        sapply(df[ , -which(names(df) %in% c("aitchison", "origin"))], function(x) cor(x, df$aitchison))
 })
 
 # Convert the list to a dataframe

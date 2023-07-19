@@ -1,5 +1,5 @@
 library(dplyr)
-libs <- libs <- c("Seurat", "zellkonverter", "curl", "SeuratDisk", "tidyverse", "Matrix", "data.table")
+libs <- c("Seurat", "zellkonverter", "curl", "SeuratDisk", "tidyverse", "Matrix", "data.table")
 lapply(libs, require, character.only = T)
 setwd("/proj/raulab/users/brian/r_projects/gtex")
 
@@ -44,14 +44,9 @@ gtex.bk <- gtex.bk[,-1] |>
   summarise(across(everything(), sum)) |>
   as.data.frame()
 
-# rename columns to match Participant.ID in gtex.sn
-names <- colnames(gtex.bk)[grepl("GTEX", colnames(gtex.bk))] |>
-  strsplit(colnames(gtex.bk), split = "[.]") |>
-  lapply('[', 2) 
+names <- gsub("[.]", "-", colnames(gtex.bk))
 
-names <- paste0("GTEX-", names)
-
-colnames(gtex.bk)  <- c("gene", names)
+colnames(gtex.bk)  <- c("gene", names[-1])
 
 write.csv(gtex.bk, "gtex/data/processed/internal/gtex_lv_counts_summed.csv")
 

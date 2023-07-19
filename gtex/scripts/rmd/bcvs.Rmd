@@ -33,9 +33,11 @@ bulk <- read.csv("gtex/data/processed/internal/gtex_lv_counts_summed.csv", check
 
 # Single cell of all datasets combined
 sn.gtex <- LoadH5Seurat("gtex/data/processed/internal/sn_gtex_lv_match.h5seurat")
+sn.gtex$origin <- "gtex"
 sn.sim <- LoadH5Seurat("gtex/data/raw/external/single_cell/simonson_2023/simonson2023_raw.h5seurat")
+sn.sim$origin <- "simonson"
 
-sn.all <- merge(sn, sim.sn)
+sn.all <- merge(sn.gtex, sn.sim)
 ```
 
 ```{r cluster, echo=FALSE,warning=FALSE, cache=TRUE, include=TRUE}
@@ -44,8 +46,7 @@ sn.all <- merge(sn, sim.sn)
 # also datasets were filtered before combining for mt percent, features, and counts,
 sn.clust <- sn.all |>
     FilterByQuantile() |>
-    ClusterSeurat(subset = F, res = 0.05, regress.by = c("Participant.ID"))
-
+    ClusterSeurat(subset = F, res = 0.05, regress.by = c("origin"))
 
 ```
 
@@ -160,6 +161,8 @@ plots.new <- c(plots, plots.exp)
 
 wrap_plots(plots.new, 
            ncol = 3)
+
+#SaveH5Seurat(sn.labeled, "gtex/data/processed/external/single_cell/sim_gtex", overwrite = T)
 ```
 
 ### Manually find markers via DeconvoBuddies
@@ -201,12 +204,16 @@ marker_stats2 <- marker_stats |>
 
 # Subset for markers in top 50 rank ratio, get top 15 by logFC
 marker_genes <- marker_stats2 |>
-                filter(rank_ratio <= 75) |> 
+                filter(rank_ratio <= 25) |>
                 group_by(cellType.target) |>
                 arrange(-std.logFC, .by_group = T)|>
-                slice_head(n = 25) |>
+                slice_head(n = 15) |>
                 pull(gene)
 
+
+marker_genes <- marker_stats2 |>
+                filter(ratio >= 2 & std.logFC >= 1.2) |>
+                pull(gene)
 # Select top 75 by rank per cell type for reference
 top_markers <- marker_stats2 |>
                 filter(rank_ratio <= 75) |> 
@@ -274,7 +281,7 @@ colnames(props.bisque) <- c('Sub', 'CellType', 'Prop', "version")
 
 ```{r MuSiC marker genes, echo=FALSE, warning=FALSE, include=T}
 bulk.es <- exprs(bulk.es)
-props.music <- EstimateCellTypeProportions(sn.labeled, bulk.es, for.aitchison = T, sn.individuals = "Participant.ID", marker = marker_genes)$Est.prop.weighted |>
+props.music <- EstimateCellTypeProportions(sn.labeled, bulk.es, for.aitchison = T, sn.individuals = "Participant.ID", marker = marker_genes, cells_exclude = "Myocyte (cardiac, cytoplasmic)")$Est.prop.weighted |>
                   melt()
 colnames(props.music) <- c('Sub', 'CellType', 'Prop')
 props.music$version <- "music"
@@ -284,7 +291,7 @@ props.music$version <- "music"
 
 bulk.es <- ExpressionSet(assayData = as.matrix(bulk.qc))
 bulk.es <- exprs(bulk.es)
-props.music.all <- EstimateCellTypeProportions(sn.labeled, bulk.es, for.aitchison = T, sn.individuals = "Participant.ID", marker = rownames(bulk.qc))$Est.prop.weighted |>
+props.music.all <- EstimateCellTypeProportions(sn.labeled, bulk.es, for.aitchison = T, sn.individuals = "Participant.ID", marker = rownames(bulk.qc), cells_exclude = "Myocyte (cardiac, cytoplasmic)")$Est.prop.weighted |>
                   melt()
 colnames(props.music.all) <- c('Sub', 'CellType', 'Prop')
 props.music.all$version <- "music.all"
@@ -292,8 +299,7 @@ props.music.all$version <- "music.all"
 
 ```{r plot aitchison , echo=FALSE, warning=FALSE}
 # Format deconvolution df
-decon.melt <- rbind(props.music, props.bisque) |>
-              rbind(props.music.all)
+decon.melt <- rbind(props.music, props.music.all)
 
 # Type formatting
 decon.melt$CellType <- factor(decon.melt$CellType, levels = unique(decon.melt$CellType))
@@ -305,7 +311,7 @@ decon.melt$version <- factor(decon.melt$version, levels = unique(decon.melt$vers
 
 ### Composition in whole panel, by method
 
-```{r plot gtex all, fig.width = 12, fig.height= 18, echo=FALSE, message=FALSE, warning=FALSE}
+```{r plot gtex all, fig.width = 12, fig.height= 10, echo=FALSE, message=FALSE, warning=FALSE}
 library(forcats)
 # Find the CellType with the largest average Prop
 getRank <- function(versions){
@@ -321,7 +327,6 @@ rank <- decon.ref$Sub[order(decon.ref$Prop)]
 
 rank.music <- getRank("music")
 rank.music.all <- getRank("music.all")
-rank.bisque <- getRank("bisque")
 
 # Plot composition of every bulk sample, per decon method
 # 
@@ -351,7 +356,6 @@ plotGtexAll <- function(versions, ranks =  rank.music){
 plots.all <- c()
 plots.all[["music"]] <- plotGtexAll("music", rank.music)
 plots.all[["music.all"]] <- plotGtexAll("music.all", rank.music.all)
-plots.all[["bisque"]] <- plotGtexAll("bisque", rank.bisque)
 
 wrap_plots(plots.all, ncol = 1)
 ```
@@ -359,6 +363,28 @@ wrap_plots(plots.all, ncol = 1)
 
 ```{r gtex pheno, fig.width = 12, fig.height= 6, echo=FALSE, message=FALSE, warning=FALSE}
 pheno <- read.table(gzfile("gtex/data/raw/phenotypes/phs000424.v9.pht002742.v9.p2.c1.GTEx_Subject_Phenotypes.GRU.txt.gz"),sep="\t", fill = T, header = T)
+
+pheno_2743 <- read.table(gzfile("gtex/data/raw/phenotypes/phs000424.v9.pht002743.v9.p2.c1.GTEx_Sample_Attributes.GRU.txt.gz"),sep="\t", fill = T, header = T)
+pheno_2743 <- pheno_2743[grepl("GTEX", pheno_2743$SAMPID), ]
+subs <- lapply(strsplit(pheno_2743$SAMPID, "-"),"[[", 2)|>
+                   unlist()
+
+subs <- paste0("GTEX-",  subs)
+
+pheno_2743$subs <- subs
+pheno_2743 <- pheno_2743[which(pheno_2743$SAMPID %in% colnames(bulk)),] |>
+                subset(SMMTRLTP == "RNA:Total RNA" & SMTSD == "Heart - Left Ventricle")
+
+
+
+bulk.matches <- bulk[,colnames(bulk)[which(colnames(bulk) %in% pheno_2743$SAMPID)]]
+
+
+
+#table(colnames(bulk) %in% pheno_2743$SAMPID)
+
+#table(colnames(bulk) %in% pheno$SUBJID)
+#pheno_2743[!pheno_2743$subs %in% pheno$SUBJID,]
 
 # Select ID and basic pheno columns
 
@@ -374,7 +400,7 @@ basic.cols <- which(colnames(pheno) %in% basic.phenotypes)
 ### Table of phenotypes here: ncbi.nlm.nih.gov/projects/gap/cgi-bin/dataset.cgi?study_id=phs000424.v7.p2&pht=2742
 
 heart.disease <- c("MHHRTATT", 'MHHRTDIS', 'MHHRTDISB', 'MHHTN')
-hd.cols <- which(colnames(pheno) %in% heart_disease)
+hd.cols <- which(colnames(pheno) %in% heart_disease )
 
 
 # Subset to fewer phenotypes & subjects in our bulk
