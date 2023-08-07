@@ -11,21 +11,23 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## R Markdown
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
 ```{r load libs, message=FALSE, echo = T, warning=FALSE, results= 'hide', cache=FALSE, include=T}
-# load libraries
+# List libraries
 libs <- c("Seurat", "ggplot2", "patchwork", "SeuratDisk","reshape2", "tidyverse",
           "SCpubr","shiny", "ggrepel", "gridExtra", "scCustomize", "httr", 
           "scales", "dplyr", "DeconvoBuddies", "readr", "SingleCellExperiment",
-          "SummarizedExperiment", "Biobase", "ggmagnify", "stringr") # list libraries here
+          "SummarizedExperiment", "Biobase", "ggmagnify", "stringr", "MuSiC",
+          "ggforce", "DirichletReg", "readxl") # list libraries here
+# Require all of them
 lapply(libs, require, character.only = T)
+
+# Also load in-house functions
 source("jensen/scripts/functions/decon_all.R")
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
 ```{r load data, message=FALSE, echo = T, warning=FALSE, cache=FALSE, include=T}
 # Script used to produce this can be found at jensen/scripts/rmd/by_date/07192023_1.rmd
 sn <- LoadH5Seurat("jensen/data/processed/single_cell/merged_datasets/07192023/07192023_1.h5seurat")
@@ -35,7 +37,7 @@ bulk <- read_csv("jensen/data/processed/jensen_rau_froese_cpm") |>
   column_to_rownames(var = "...1")
 
 # Load and format bulk data
-jensen_bulk <- readxl::read_xlsx("jensen/data/raw/jensen_counts_correct.xlsx")[,-c(20,21)] %>%
+jensen_bulk <- readxl::read_xlsx("jensen/data/raw/jensen_counts_correct.xlsx")[,-c(20,21)] |>
   as.data.frame()
 colnames(jensen_bulk)[c(20,21)] <- c("WT MI", "KO MI")
 
@@ -51,11 +53,11 @@ seurat <- sn
 seurat$annots <- Idents(seurat)
 
 # Subset Seurat object and convert to SummarizedExperiment
-seurat <- seurat %>%
+seurat <- seurat |>
   subset(cells = cells, features = rownames(seurat)[rownames(seurat) %in% rownames(bulk)])
 
-sn.sce <- seurat %>%
-  as.SingleCellExperiment(assay = "RNA") %>%
+sn.sce <- seurat |>
+  as.SingleCellExperiment(assay = "RNA") |>
   as("SummarizedExperiment")
 
 # Add gene names
@@ -66,23 +68,25 @@ ratios <- get_mean_ratio2(sn.sce, cellType_col = "ident")
 fc <- findMarkers_1vAll(sn.sce, cellType_col = "ident", mod = "~origin")
 
 # Subset markers based on rank_ratio and logFC
-marker_genes <- ratios %>%
-  left_join(fc, by = c("gene", "cellType.target")) %>%
-  filter(gene %in% rownames(sn)) %>%
-  group_by(cellType.target) %>%
-  mutate(rank_ratio = row_number()) %>%
-  filter(rank_ratio <= 50) %>% 
-  arrange(desc(logFC), .by_group = TRUE) %>%
-  slice_head(n = 15) %>%
+marker_genes <- ratios  |> 
+  left_join(fc, by = c("gene", "cellType.target")) |>
+  filter(gene %in% rownames(sn)) |>
+  group_by(cellType.target) |>
+  mutate(rank_ratio = row_number()) |>
+  filter(rank_ratio <= 50) |> 
+  arrange(desc(logFC), .by_group = TRUE) |>
+  slice_head(n = 15) |>
   pull(gene)
 
+rm(seurat)
+gc()
 ```
 
 ```{r deconvolute music , echo=FALSE, warning=FALSE, include=T}
 # Prep bulk matrix as ExpressionSet
-bulk.es.exp <- bulk %>%
+bulk.es.exp <- bulk |> 
   as.matrix() %>%
-  ExpressionSet(assayData = .) %>%
+  ExpressionSet(assayData = .) |> 
   exprs()
 
 # Run MuSiC with subset genes
@@ -92,11 +96,10 @@ decon.melt <- EstimateCellTypeProportions(sn, bulk.es.exp, for.aitchison = FALSE
 ```
 
 ```{r prep phenos , fig.width = 14, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
-phenotypes_real <- jensen_bulk %>%
-  slice(1) %>%
+phenotypes_real <- jensen_bulk[1,] |> 
   pivot_longer(cols = -c(1:5), 
                names_to = "gene_treat", 
-               values_to = "id") %>%
+               values_to = "id") |>
   mutate(gene_treat = str_remove(gene_treat, "\\..*")) |>
   select(gene_treat, id)
 
@@ -146,104 +149,21 @@ decon.melt <- decon.melt |>
 
 ```
 
-
-
-```{r music plot controls, fig.width = 12, fig.height= 5, echo=FALSE, message=FALSE, warning=FALSE}
-library(RColorBrewer)
-pal <- brewer.pal(length(unique(decon.melt$CellType)), "Dark2")
-
-names(pal) <- unique(decon.melt$CellType)
-
-
-plotDeconFractions <- function(props, title){props |>
-  subset(type == "fraction") |>
-  ggplot(aes(x=Sub, y=Prop, fill=CellType))  +
-   geom_bar(stat='identity',
-           position = "fill",
-           width = 0.8,
-           color = "black")+
-   scale_fill_manual(name = "Cell Type",
-                    values = pal) +
-   facet_wrap(~fraction_type, 
-             scales = "free_x",
-             labeller =  label_wrap_gen(multi_line=FALSE)) +
-   ylab("Proportion") +
-   theme_minimal() +
-   theme( axis.text.x = element_blank(),
-         strip.text = element_text(size = 20),
-         title = element_text(size = 20),
-         legend.text = element_text(size = 18),
-         axis.ticks.x = element_blank()) +
-   xlab("Samples") +
-    ggtitle(title)
-}
-
-fraction.plots <- plotDeconFractions(decon.melt, title = NULL)
-
-fraction.plots
-
-
-```
-
-
-
-```{r music plot sham, fig.width = 10, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
-library(ggmagnify)
-decon.melt$CellType <- reorder(decon.melt$CellType, -decon.melt$Prop, FUN = sum)
-
-# Setting the levels
-decon.melt$gene_treat <- factor(decon.melt$gene_treat, 
-                                        levels = c('WT sham', 'WT MI', 'KO sham', 'KO MI'))
-
-# Defining custom color palette
-my_palette <- c('#78c679', '#006d2c', '#d95f0e', '#993404')
-
-plot <- decon.melt |>
-  subset(type == "whole" & version == "music.markers") |>
-  ggplot(aes(x = as.numeric(CellType), y = Prop, fill = gene_treat)) +
-  geom_bar(stat = "summary", 
-           position = position_dodge(0.9), 
-           fun = mean,
-           width = 0.9,
-           color = "black") +
-  theme(axis.text.x = element_text(color = "black", size = 15, angle =15),
-        axis.text.y = element_text(color = "black", size = 10),
-        axis.ticks = element_blank(),
-        legend.position = c(0.8, 0.4),
-        legend.justification = c("right", "top"),
-        legend.box.just = "right",
-        legend.margin = margin(6, 6, 6, 6),
-        panel.background = element_blank(),
-        strip.text = element_text(size = 20),
-        title = element_text(size = 20),
-        legend.text = element_text(size = 18)) +
-  labs(x = "Cell Type", 
-       y = "Proportion", 
-       fill = "Genotype-Treatment") +
-  scale_fill_manual(values = my_palette) +  # using custom palette
-  geom_jitter(inherit.aes = T, 
-              position = position_jitterdodge(0.01, 0, 0.9),
-              size = 2) +
-  scale_x_continuous(
-    breaks = 1:length(levels(decon.melt$CellType)),
-    label = levels(decon.melt$CellType)) +
-  facet_zoom(xy = CellType != "cardiomyocytes", horizontal = F) +
-  ggtitle("WT vs KO - Sham surgery and myocardial infarction")
-
-plot
-
-```
-
 ```{r music plot sham, fig.width = 19, fig.height= 9, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Reorder the factor levels of CellType so that they are ordered by sum of their values accross groups
 decon.melt$CellType <- reorder(decon.melt$CellType, -decon.melt$Prop, FUN = sum)
 
 # Setting the levels
 decon.melt$gene_treat <- factor(decon.melt$gene_treat, 
                                         levels = c('WT sham', 'WT MI', 'KO sham', 'KO MI'))
 
+#! These colors are hard to read when printed, should be lighter
+#! Or the dots from geom_jitter need to be bigger/brighter
+
 my_palette <- c('#78c679', '#006d2c', '#d95f0e', '#993404')
 
-plot <- decon.melt |>
+plot.jen.sample <- decon.melt |>
   subset(type == "whole") |>
   ggplot(aes(x = as.numeric(CellType), y = Prop, fill = gene_treat)) +
   geom_bar(stat = "summary", 
@@ -277,27 +197,29 @@ plot <- decon.melt |>
   scale_x_continuous(
     breaks = 1:length(levels(decon.melt$CellType)),
     label = levels(decon.melt$CellType)) +
-  geom_magnify(from = c(1.5,2.5,0,0.22), to = c(2.3,4,0.35,0.8), 
+  geom_magnify(from = c(2.55,3.45,0,0.2), to = c(1.7,4,0.33,0.8), 
                    shape = "rect", shadow = TRUE) 
 
-plot
+plot.jen.sample
 ```
 
 ```{r bcvs.fractions, fig.width = 16, fig.height= 4, echo=FALSE, message=FALSE, warning=FALSE}
-bcvs.fractions <- decon.melt |>
-  subset(type == "fraction" & version == "music.markers") |>
+
+# Plot the samples which are purified, bulk sequenced cell types
+plot.fractions <- decon.melt |>
+  subset(type == "fraction") |>
   ggplot(aes(x=Sub, y=Prop, fill=CellType))  +
    geom_bar(stat='identity',
            position = "fill",
            width = 0.8,
            color = "black")+
-      scale_fill_manual(values = pal)  +
+   scale_fill_manual(values = pal)  +
    facet_wrap(~fraction_type, 
-             scales = "free_x",
-             labeller =  label_wrap_gen(multi_line=FALSE)) +
+           scales = "free_x",
+           labeller =  label_wrap_gen(multi_line=FALSE)) +
    ylab("Proportion") +
    theme_minimal() +
-theme(axis.text.x = element_blank(),
+   theme(axis.text.x = element_blank(),
         axis.text.y = element_text(color = "black", size = 20),
         axis.ticks = element_blank(),
         strip.text = element_text(size = 30),
@@ -306,24 +228,33 @@ theme(axis.text.x = element_blank(),
         panel.background = element_blank(),
         panel.grid = element_blank()) +
    xlab("Sample replicates") 
-bcvs.fractions
+
+plot.fractions
 
 ```
 
 
 
 ```{r dirichlet, fig.width = 12, fig.height= 6, echo=TRUE, message=TRUE, warning=FALSE}
-library("DirichletReg")
-# prep DirichletReg matrix
 
+## Prep DirichletReg matrix
+
+# Add small value to remove zeros
 decon.melt$Prop <- decon.melt$Prop + 0.0001
+
+# Make model matrix
 dir.mat <- decon.melt |>
   subset(type == "whole",
          select = c("Sub", "CellType", "Prop", "genotype", "treatment")) |>
   dcast(Sub + genotype + treatment ~ CellType, value.var = "Prop")
 
+
+### TEMP ###
+
+############
+
 # Convert data to DirichletRegData object
-dir.mat$CellTypes <- DR_data(dir.mat[,c(4:length(dir.mat))], base = 3)
+dir.mat$CellTypes <- DR_data(dir.mat[,c(4:length(dir.mat))])
 
 dir.mat$genotype   <- as.factor(dir.mat$genotype) |>
                         relevel(ref = "WT") 
@@ -331,16 +262,29 @@ dir.mat$genotype   <- as.factor(dir.mat$genotype) |>
 dir.mat$treatment <- as.factor(dir.mat$treatment) |>
                         relevel(ref = "sham") 
 # Run Dirichlet regression
-model.1 <- DirichReg(CellTypes ~ treatment * genotype, data = dir.mat, model = "alternative", base = 3)
+model.1 <- DirichReg(CellTypes ~ treatment * genotype, data = dir.mat, model = "alternative", base = 5)
+model.2 <- DirichReg(CellTypes ~ treatment * genotype, data = dir.mat, model = "common")
+
 # compare models, find if interaction term improves model
 
 summary(model.1)
+model.1$sub.comp
 
 ```
+
 
 ```{r sig bars, fig.width = 8.7, fig.height= 10.5, echo=FALSE, message=FALSE, warning=FALSE}
 library(tidyverse)
 
+# !needs the pr and z value columns!
+df <- data.frame(CellType = rep(c("Cardimyocytes", "Fibroblasts", 
+                                  "Endothelial Cells", "Immune cells"),
+                                times =1, each = 4),
+                 Variable = rep(c("Intercept", "treatmentMI", 
+                                  "genotypeKO", "treatmentMI:genotypeKO"),
+                                times = 4),
+                 coefficients = model.1$coefficients[-length(model.1$se)],
+                 std_err = model.1$se[-length(model.1$se)])
 # Create a data frame with the required information
 df <- data.frame(
     CellType = c(
@@ -363,22 +307,6 @@ df <- data.frame(
 print(df)
 
 
-
-df.old <- tribble(
-    ~CellType, ~Variable, ~Estimate, ~StdError, ~zvalue, ~Pr,
-    "cardiomyocytes", "Myocardial Infarction", 0.6422, 0.2988, 2.149, "0.0316",
-    "cardiomyocytes", "a1-AR KO", 0.4120, 0.2785, 1.479, "0.1390",
-    "cardiomyocytes", "Myocardial Infarction and a1-AR KO", 0.8439, 0.5359, 1.575, "0.1153",
-    "fibroblasts", "Myocardial Infarction", 1.4881, 0.3284, 4.531, "5.86e-06",
-    "fibroblasts", "a1-AR KO", 0.4088, 0.3219, 1.270, "0.2042",
-    "fibroblasts", "Myocardial Infarction and a1-AR KO", 1.3095, 0.5676, 2.307, "0.0211",
-    "`endothelial cells`", "Myocardial Infarction", 0.4787, 0.3170, 1.510, "0.1310",
-    "`endothelial cells`", "a1-AR KO", 0.4702, 0.2954, 1.592, "0.1115",
-    "`endothelial cells`", "Myocardial Infarction and a1-AR KO", 0.9770, 0.5554, 1.759, "0.0785",
-    "immune", "Myocardial Infarction", -0.007682, 0.703607, -0.011, "0.9913",
-    "immune", "a1-AR KO", 0.527435, 0.660438, 0.799, "0.4245",
-    "immune", "Myocardial Infarction and a1-AR KO", 2.434731, 0.993562, 2.451, "0.0143"
-)
 
 # Add a column for significance labels
 df <- df |>
@@ -431,12 +359,11 @@ err.plot
 
 ```
 
-```{r deseq, fig.width = 12, fig.height= 6, echo=TRUE, message=TRUE, warning=FALSE}
+```{r deseq pre, fig.width = 12, fig.height= 6, echo=TRUE, message=TRUE, warning=FALSE}
 library(makeunique)
 jensen_bulk <- read_xlsx("jensen/data/raw/jensen_counts_correct.xlsx")[-1,-c(1:4,20,21)] |>
                as.data.frame()
 colnames(jensen_bulk) <- c("gene", make_unique(unlist(phenotypes_real$gene_treat)))
-colnames(jensen_bulk)[c(16,17)] <- c("WT MI (4)", "KO MI (4)")
 
 phenotypes_real$de_id <- colnames(jensen_bulk)[-1]
 
@@ -453,22 +380,28 @@ jensen_bulk <- make.names.jensen_bulk(jensen_bulk)
 # Now set the row names
 row.names(jensen_bulk) <- jensen_bulk$gene
 
-# Load necessary packages
-library(DESeq2)
-library(ggplot2)
-library(pheatmap)
+write.csv(jensen_bulk, "jensen/results/deseq2_08032023/bulk_data")
 
-# Assuming your raw count data is in the 'jensen_bulk' data frame
-# with genes in the first column and samples in the rest
-row.names(jensen_bulk) <- jensen_bulk$gene
+write.csv(dir.mat$CellTypes, "jensen/results/deseq2_08032023/comp_data")
+
+```
+
+```{r deseq pre, fig.width = 12, fig.height= 6, echo=TRUE, message=TRUE, warning=FALSE}
+
+# Prepare for DESeq2
 count_data <- jensen_bulk[,-1]
-count_data <- mutate_all(count_data, function(x) round(as.numeric(as.character(x)), digits = 0))
-# Prepare your sample's information
+
+count_data <- mutate_all(count_data, function(x) round(as.numeric(as.character(x)), digits = 0)) # round to integers
+
+# Prepare sample information
 sample_info <- data.frame(
   row.names = colnames(count_data),
-  genotype = lapply(strsplit(colnames(count_data), " "),  "[[", 1) |> unlist() ,
-  treatment = lapply(strsplit(colnames(count_data), " "),  "[[", 2) |> unlist()
+  genotype =  lapply(strsplit(colnames(count_data), " "),  "[[", 1) |> unlist() |> as.factor() ,
+  treatment = lapply(strsplit(colnames(count_data), " "),  "[[", 2) |> unlist() |> as.factor()
 )
+
+sample_info$genotype <- relevel(sample_info$genotype, ref = "WT")
+sample_info$treatment <- relevel(sample_info$treatment, ref = "sham")
 
 # Make sure the sample information matches the count data
 all(rownames(sample_info) == colnames(count_data))
@@ -483,22 +416,10 @@ dds <- DESeqDataSetFromMatrix(
 # Run the DESeq pipeline
 dds <- DESeq(dds)
 
-
-# Generate a heatmap of sample-to-sample distances
-sample_dist <- dist(t(assay(rlog(dds))))
-pheatmap(sample_dist)
-
-# Create a PCA plot
-plotPCA(rlog(dds), intgroup = c("genotype", "treatment"))
+resultsNames(dds)
 
 # Run the differential expression analysis
-res <- results(dds)
-
-# Generate a volcano plot
-with(res, plot(log2FoldChange, -log10(pvalue), pch = 20, main = "Volcano plot", xlab = "Log2 Fold Change", ylab = "-Log10 p-value"))
-# Highlighting the points that pass the thresholds for significance
-with(subset(res, padj<0.05 & abs(log2FoldChange)>1), points(log2FoldChange, -log10(pvalue), pch = 20, col = "red"))
-
+res <- results(dds, name="genotypeKO.treatmentMI")
 
 ```
 
@@ -508,19 +429,22 @@ colnames(sample_info_comp)[5] <- "endothelial_cells"
 # Make sure the sample information matches the count data
 all(rownames(sample_info_comp) == colnames(count_data))
 
-# Create a DESeqDataSet
+# Create DESeqDataSet w/ variable compositions in design
 dds_composition  <- DESeqDataSetFromMatrix(
   countData = count_data,
   colData = sample_info_comp,
-  design = ~ genotype + treatment + genotype:treatment + cardiomyocytes + fibroblasts + immune #endothelial_cells + endocardium # include interaction term
+  design = ~ genotype + treatment + genotype:treatment + cardiomyocytes + fibroblasts + immune 
 )
 
-# Run the DESeq pipeline
+# Run 
 dds_composition <- DESeq(dds_composition)
 
-# Extract results
-res_composition <- results(dds_composition)
+# Get interaction results
+res_composition <- results(dds_composition, name = "genotypeKO.treatmentMI")
 
+```
+
+```{r compare deseq outs}
 # Compare results
 comparison <- merge(as.data.frame(res), as.data.frame(res_composition), by = "row.names", suffixes = c(".no_comp", ".comp"))
 
@@ -684,3 +608,4 @@ wrap_plots(plots.up,
 wrap_plots(plots.down, 
            ncol = 6)
 ```
+
