@@ -9,6 +9,12 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+# Introduction 
+
+Having highly correlated variables in the design leads to unstable estimates of coefficients which will be reflected in large standard errors - Mike Love
+
+This Rmd is meant to test the effect of different representations of composition in DESeq2 models. I've made simulated bulk RNAseq datasets of from range of cell type proportions, using snRNAseq as a gene expression profile reference. The null hypothesis is that compositional differences will not result in false positives between samples. The alternative hypothesis is that there will be differences and the can be accounted for with covariates which represent the composition.
+
 ```{r load libs, message=FALSE, echo = F, warning=FALSE, results= 'hide', cache=FALSE, include=T}
 # List libraries
 libs <- c("Seurat", "ggplot2", "patchwork", "SeuratDisk","reshape2", "tidyverse",
@@ -29,7 +35,7 @@ sn <- LoadH5Seurat("jensen/data/processed/single_cell/merged_datasets/07192023/0
 ## R Markdown
 
 
-```{r functions}
+```{r cell profiles}
 
 # Sum expression of each cell type cluster in the seurat
 GetCellProfile <- function(seurat, cell.type){
@@ -57,6 +63,10 @@ row.names(cell.expr.prof) <- row.names(sn)
 gene.probs <- prop.table(cell.expr.prof, 2) |>
   as.data.frame()
 
+
+```
+
+```{r pseudobulk functions}
 # Make function to take in a named list of proportions, then multiply by the ratio
 # then multiply it all by umi target
 # then add noise
@@ -95,13 +105,13 @@ MakePseudoBulk <- function(ratios, profiles, umi_target, noise) {
   
   return(counts)
 }
-```
 
-```{r make pb ratios}
-simulate_ratios <- function(cell_types, step_range) {
+# Function to make named lists of cell type ratios
+
+simulate_ratios <- function(cell_types, step_range, max_pt, samp_reps) {
   
   # Define the range for proportions
-  proportions <- rep(seq(1/length(cell_types), 0.4, by = step_range), each = 5)
+  proportions <- rep(seq(1/length(cell_types), max_pt, by = step_range), each = samp_reps)
   
   # Create combinations of cell.types and proportions
   combinations <- expand.grid(cell = cell_types, prop = proportions, stringsAsFactors = FALSE)
@@ -128,8 +138,17 @@ simulate_ratios <- function(cell_types, step_range) {
   return(ratio_lists)
 }
 
-# Test
-cell.ratios <- simulate_ratios(cell.types, step_range = 0.02) |>
+```
+
+```{r make pb ratios}
+
+step.range <- 0.05
+max.pt <- 0.3
+samp.reps <- 5
+
+cell.ratios <- simulate_ratios(cell.types,max_pt = max.pt, 
+                               step_range = step.range, 
+                               samp_reps = samp.reps) |>
                t()
 rownames(cell.ratios) <- paste0("mix_", seq(1:nrow(cell.ratios)))
 
@@ -138,9 +157,9 @@ rownames(cell.ratios) <- paste0("mix_", seq(1:nrow(cell.ratios)))
 
 ```{r make pseudobulk}
 # Function to make a list of cell type ratios
-
+umi.target <- 3*10^7
 # take each row of cell.ratios and put it into MakePseudoBulk 
-pb.comps <- sapply(1:nrow(cell.ratios), function(x){MakePseudoBulk(cell.ratios[x,], gene.probs, 1000000, 0.7)})
+pb.comps <- sapply(1:nrow(cell.ratios), function(x){MakePseudoBulk(cell.ratios[x,], gene.probs, umi.target, 0.7)})
 colnames(pb.comps) <- rownames(cell.ratios)
 
 
@@ -157,25 +176,21 @@ cell.ratios.ref <- as.data.frame(cell.ratios.ref)
 cell.ratios.ref$pct.diff <- "ref"
 cell.ratios.ref$major.type <- NA
 
+ref.pt <- 1/nrow(cell.ratios.ref)
+dif.pt <- max.pt - ref.pt
+levels.pt <- as.numeric(samp.reps*dif.pt/step.range)
 
 cell.ratios <- as.data.frame(cell.ratios)
-cell.ratios$pct.diff <- rep(seq(0, 20,2), each = 25)
-cell.ratios$major.type <- c(rep(NA, 25), rep(as.character(cell.types), times = 10*5))
+cell.ratios$pct.diff <- as.numeric(rep(seq(0, dif.pt*100, step.range*100), each = 25))
+cell.ratios$major.type <- c(rep(NA, 25), rep(as.character(cell.types), times = as.integer(levels.pt+1))) # this is broken somehow. Using levels.pt gives n-1, but hardcoding the value of levels.pt works
 
-
-## repeat above code but with equal proportions
-## join in matrix
-## make design matrix with compositions
-## Run DESeq2
-## Get rate of DE 
-## Repeat DESeq2 with raw compositions, PCA, and CLR
 
 ```
 
 ```{r deseq prep}
 
 cur.ratios <- cell.ratios |>
-              subset(pct.diff == 10 & major.type == "fibroblasts")
+              subset(pct.diff == 10)
 cur.pb <- pb.comps |> 
           as.data.frame() |> 
           select(rownames(cur.ratios))

@@ -28,6 +28,10 @@ sn <- LoadH5Seurat("jensen/data/processed/single_cell/merged_datasets/07192023/0
 ```
 ## R Markdown
 
+Having highly correlated variables in the design leads to unstable estimates of coefficients which will be reflected in large standard errors - Mike Love
+
+This Rmd is meant to test the effect of different representations of composition in DESeq2 models. I've made simulated bulk RNAseq datasets of from range of cell type proportions, using snRNAseq as a gene expression profile reference. The null hypothesis is that compositional differences will not result in false positives between samples. The alternative hypothesis is that there will be differences and the can be accounted for with covariates which represent the composition.
+
 
 ```{r cell profiles, include=F}
 
@@ -100,59 +104,82 @@ MakePseudoBulk <- function(ratios, profiles, umi_target, noise) {
   return(counts)
 }
 
-# Function to make named lists of cell type ratios
 
-simulate_ratios <- function(cell_types, step_range, max_pt, samp_reps) {
+# Function to make a data frame of cell type ratios
+simulate_ratios <- function(major_cell, changing_cell, major_prop, changing_prop, 
+                            cell_types, range, step_size, n, changing_range, major_range,
+                            immune_norm
+                            ) {
+  # get values for major cell type
+  major_props <- sample(seq(major_prop - major_range, major_prop + major_range, 0.0001), n, replace = T)
+  
+  # get values for changing cell type
+  changing_props <- sample(seq(changing_prop - changing_range, changing_prop + changing_range, 0.0001), n, replace = T) 
+  # Set major cell type and proportion
+  minor <- cell_types[!(cell_types %in% c(major_cell, changing_cell))]
+  
   
   # Define the range for proportions
-  proportions <- rep(seq(1/length(cell_types), max_pt, by = step_range), each = samp_reps)
+  minor_props <- rep((1-major_props-changing_props)/length(minor), length(minor)) |>
+                 matrix(ncol = length(minor)) |>
+                 as.data.frame()
+  colnames(minor_props) <- minor
+
+  combos <- c(major_props, changing_props) |>
+            matrix(ncol = 2) |>
+            as.data.frame()
+  colnames(combos) <- c(major_cell, changing_cell)
   
-  # Create combinations of cell.types and proportions
-  combinations <- expand.grid(cell = cell_types, prop = proportions, stringsAsFactors = FALSE)
+  props <- cbind(combos, minor_props)
+  props$pct.change <- changing_props - changing_prop
+  rownames(props) <- paste0("mix_", 1:nrow(props))
   
-  # Function to generate a single ratio list for a given cell and prop
-  generate_ratio <- function(cell, prop, all_types) {
-    n <- length(all_types)
-    remaining_prop <- (1 - prop) / (n - 1)
-    
-    # Create the named list
-    ratio_list <- setNames(rep(remaining_prop, n), all_types)
-    ratio_list[cell] <- prop
-    
-    return(ratio_list)
-  }
+  props[,3] <- props[,3] * sample(rnorm(1000, immune_norm, 0.01), 1000)
+  props[,4] <- props[,4] * sample(rnorm(1000, 1, 0.01), 1000)
   
-  # Apply the function to each combination
-  ratio_lists <- apply(combinations, 1, function(row) {
-    generate_ratio(row['cell'], as.numeric(row['prop']), cell_types)
-  })
+  props[,1:5]  <- props[,1:5]/rowSums(props[,1:5])
   
-  # Naming the lists
-  names(ratio_lists) <- paste(combinations$cell, sprintf("%.2f", combinations$prop), sep = "_")
-  return(ratio_lists)
+  return(props)
 }
+
+
+
 ```
 
 ```{r make pb ratios}
-# Set distance between percent change steps
-step.range <- 0.01
 
-# max percent of a single cell type in the mixture
-max.pt <- 0.4
+major.cell <- "cardiomyocytes"
+changing.cell <- "fibroblasts"
+major.prop <- 0.75
+changing.prop <- 0.1
+changing_range = 0.08
+immune_norm <- 1
+major_range = 0.08
+n = 100
 
-# Replicates of each major cell/percent
-samp.reps <- 20
+healthy.ratios <- simulate_ratios(major_cell = major.cell, changing_cell = changing.cell, 
+                major_prop = major.prop, changing_prop = changing.prop, 
+                cell_types = cell.types, range = range, step_size = step.size, n = n,
+                major_range = major_range, changing_range = changing_range,
+                immune_norm = immune_norm)
 
-cell.ratios <- simulate_ratios(cell.types,max_pt = max.pt, 
-                               step_range = step.range, 
-                               samp_reps = samp.reps) |>
-               t()
-rownames(cell.ratios) <- paste0("mix_", seq(1:nrow(cell.ratios)))
+rownames(healthy.ratios) <- paste0(rownames(healthy.ratios), "_heal")
 
+major.cell <- "cardiomyocytes"
+changing.cell <- "fibroblasts"
+major.prop <- 0.65
+changing.prop <- 0.18
+changing_range = 0.04
+major_range = 0.04
+immune_norm <- 1.5
+n = 100
 
-ref.group.size <- samp.reps*length(cell.types)
-ratios.sample <- cell.ratios[sample(rownames(cell.ratios)[ref.group.size:nrow(cell.ratios)], nrow(cell.ratios)/2),] |>
-                 as.data.frame()
+sick.ratios <- simulate_ratios(major_cell = major.cell, changing_cell = changing.cell, 
+                major_prop = major.prop, changing_prop = changing.prop, 
+                cell_types = cell.types, range = range, step_size = step.size, n = n,
+                major_range = major_range, changing_range = changing_range, 
+                immune_norm = immune_norm)
+rownames(sick.ratios) <- paste0(rownames(sick.ratios), "_sick")
 
 ```
 
@@ -161,119 +188,94 @@ ratios.sample <- cell.ratios[sample(rownames(cell.ratios)[ref.group.size:nrow(ce
 # Function to make a list of cell type ratios
 umi.target <- 3*10^7
 # take each row of cell.ratios and put it into MakePseudoBulk 
-pb.comps <- sapply(1:nrow(ratios.sample), function(x){MakePseudoBulk(ratios.sample[x,], gene.probs, umi.target, 0.7)})
-colnames(pb.comps) <- rownames(ratios.sample)
+pb.heal <- sapply(1:nrow(healthy.ratios), function(x){MakePseudoBulk(healthy.ratios[x,-6], gene.probs, umi.target, 10)}) |>
+   as.data.frame()
+colnames(pb.heal) <- rownames(healthy.ratios)
+healthy.ratios$status <- "healthy"
+```
 
-
-# Make replicates of even ratio pseudobulk
-cell.ratios.ref <- cell.ratios[1:ref.group.size,]
-rownames(cell.ratios.ref) <- paste0("ref_", rownames(cell.ratios)[1:ref.group.size])
-pb.refs <- sapply(1:nrow(cell.ratios.ref), function(x){MakePseudoBulk(cell.ratios.ref[x,], gene.probs, umi.target, 0.7)})
-colnames(pb.refs) <- rownames(cell.ratios.ref)
+```{r make pseudobulk sick}
+# Function to make a list of cell type ratios
+umi.target <- 3*10^7
+# take each row of cell.ratios and put it into MakePseudoBulk 
+pb.sick <- sapply(1:nrow(sick.ratios), function(x){MakePseudoBulk(sick.ratios[x,-6], gene.probs, umi.target, 10)}) |>
+   as.data.frame()
+colnames(pb.sick) <- rownames(sick.ratios)
+sick.ratios$status <- "sick"
 ```
 
 
 ```{r merge pb}
+pb.comps <- cbind(pb.heal, pb.sick)
 
-ref.pt <- 1/ncol(cell.ratios.ref)
-# Merge datasets
-cell.ratios.ref <- as.data.frame(cell.ratios.ref)
-cell.ratios.ref$pct.diff <- 0
-cell.ratios.ref$major.type <- NA
-cell.ratios.ref$type <- "ref"
-
-
-dif.pt <- max.pt - ref.pt
-levels.pt <- as.numeric(samp.reps*dif.pt/step.range)
-
-# Make columns for major cell types and percent difference from refence
-cell.ratios <- as.data.frame(cell.ratios)
-cell.ratios$pct.diff <- as.numeric(rep(seq(0, dif.pt*100, step.range*100), each = ref.group.size))
-cell.ratios$major.type <- c(rep(NA, ref.group.size), rep(as.character(cell.types), times = as.integer(levels.pt))) # this is broken somehow. Using levels.pt gives n-1, but hardcoding the value of levels.pt works
-
+ratios <- rbind(sick.ratios, healthy.ratios)
 # add sample ids as a column
+
 cell.ratios$id <- rownames(cell.ratios)
-ratios.sample$id <- rownames(ratios.sample)
-cell.ratios.ref$id <- rownames(cell.ratios.ref)
-
-
-# add major cell type and percents info to sampled ratios dataframe
-ratios.sample.temp <- cell.ratios |>
-        select(pct.diff, major.type, id) |>
-        right_join(ratios.sample, by = "id")
 
 ```
 
 ```{r comp vars prep}
 # Make clr comp
 library(compositions)
-clr.sample <- clr(ratios.sample.temp[4:ncol(ratios.sample.temp)])
+clr.sample <- clr(ratios[,as.character(cell.types)])
 colnames(clr.sample) <- paste0("clr.", colnames(clr.sample))
 
-# Make clr for reference
-clr.ref <- clr(cell.ratios.ref[,cell.types])
-colnames(clr.ref) <- paste0("clr.", colnames(clr.ref))
-
 # Make PCA comp
-pca.sample <- prcomp(t(rbind(ratios.sample.temp[,as.character(cell.types)], 
-                             cell.ratios.ref[,as.character(cell.types)])))
+pca.sample <- prcomp(t(ratios[,as.character(cell.types)]))$rotation |>
+              as.data.frame()
 
-# Separate out PCA for reference and compostionally varied samples
-pca.ref <- pca.sample$rotation[rownames(cell.ratios.ref),]
-pca.sample <- pca.sample$rotation[rownames(ratios.sample.temp),]
+pca.sample$status <- ratios$status
+pca.sample$fb <- ratios$fibroblasts
+pca.sample$cm <- ratios$cardiomyocytes
 
-plot(pca.sample)
+ggplot(pca.sample, aes(x = PC1, y = PC2, color = cm, size = fb)) +
+  geom_point()
 
 
 # add this info back to proportion dfs 
-ratios.sample <- cbind(ratios.sample.temp, clr.sample) |>
+ratios <- cbind(ratios, clr.sample) |>
                  cbind(pca.sample)
-ratios.sample$type <- "test"
-
-ratios.ref <- cbind(cell.ratios.ref, clr.ref) |>
-                 cbind(pca.ref)
-ratios.ref$major.type <- rep(cell.types, samp.reps)
 
 ```
 
 
 ```{r make deseq2 df }
 # make df with clr, pca, and raw compositions
-
-ratios <- rbind(ratios.sample, ratios.ref)
-ratios$major.type <- as.factor(ratios$major.type)
-
-counts <- cbind(pb.refs, pb.comps) |>
-          as.data.frame()
-
-counts.small <- counts[1:100,]
+counts <- pb.comps 
+counts.small <- counts[sample(rownames(counts), 1000),]
 ```
 
 ```{r deseq2 model comparison improvement}
 
 models <- list(
-  no_composition  = ~ pct.diff + major.type,
-  raw_composition = ~ pct.diff + cardiomyocytes + fibroblasts + endocardium + immune,
-  clr_composition = ~ pct.diff + clr.cardiomyocytes + clr.fibroblasts + clr.endocardium + clr.immune,
-  pca_composition = ~ pct.diff + PC1  
+  no_composition  = ~ status,
+  raw_composition = ~ status + cardiomyocytes + fibroblasts,
+  clr_composition = ~ status + clr.cardiomyocytes + clr.fibroblasts,
+  pca_composition = ~ status + PC1 + PC2 
 )
 
 ```
 
 ```{r deseq prep}
 # Prepare sample information
-sample_info <- data.frame(
-  row.names = ratios$id,
-  pct.diff =  as.factor(ratios$pct.diff),
-  major.type = ratios$major.type
+sample_info <- ratios[colnames(counts),]
+
+
+dds <- DESeqDataSetFromMatrix(
+  countData = counts.small,
+  colData = sample_info,
+  design = models
 )
+lapply()
+dds <- DESeq(dds)
+dds.raw <- results(dds, name = resultsNames(dds)[2]) |>
+                subset(padj < 0.05) |>
+                nrow() |>
+                unlist()
+```
 
-sample_info <- cbind(sample_info, ratios[,c(as.character(cell.types), colnames(clr.sample),colnames(pca.sample))])
-
-sample_info <- sample_info[colnames(counts),] |>
-                na.omit()
-
-
+```{r old deseq function}
 TestModels <- function(model){
 # Create a DESeqDataSet
 dds <- DESeqDataSetFromMatrix(
@@ -282,31 +284,33 @@ dds <- DESeqDataSetFromMatrix(
   design = model
 )
 
-
 # Run the DESeq pipeline
 dds <- DESeq(dds)
 
 # Run the differential expression analysis
 
-genes  <- lapply(2:11, function(percent){results(dds, name = resultsNames(dds)[percent]) |>
+genes  <- results(dds, name = resultsNames(dds)[2]) |>
                 subset(padj < 0.05) |>
-                nrow()}) |>
+                nrow() |>
                 unlist()
 return(genes)
 }
+
+
+lapply(models, function(x){TestModels(x)})
+
 ```
 
 ```{r paralellized DESeq2}
 library(BiocParallel)
-register(MulticoreParam(workers = 4))
 
 counts <- counts[,rownames(sample_info)]
-counts.small <- counts[1:100,]
 start <- Sys.time()
 results <- lapply(models, function(x){TestModels(x)})
 end <- start - Sys.time()
 
 ```
+
 
 ```{r apply for deseq, include = F}
 
