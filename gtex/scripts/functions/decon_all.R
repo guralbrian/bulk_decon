@@ -81,21 +81,19 @@ ClusterSeurat <- function(seurat.obj,
                           min.rna.ft = 200,
                           max.rna.ft = 2500,
                           min.rna.ct = 800,
-                          max.mt.pt  = 0.01,
-                          max.rb.pt  = 0.05,
-                          scrublet_score = 0.4,
+                          max.mt.pt  = 0.05,
+                          regress.by = "orig.ident",
                           harmony    = T,
-                          regress.by = "Participant.ID",
                           res        = 0.2,
-                          nfeatures  = 2000){
+                          nfeatures  = 2000,
+                          drop.levels = FALSE){
+  set.seed(100)
   if(subset == T){
     seurat.obj <- subset(seurat.obj, 
                          subset = nFeature_RNA   > min.rna.ft     & 
-                                  nFeature_RNA   < max.rna.ft     &
-                                  nCount_RNA     > min.rna.ct     & 
-                                 scrublet_score <= scrublet_score &
-                                  PercentRibo   <= max.rb.pt      &
-                                  PercentMito   <= max.mt.pt)
+                           nFeature_RNA   < max.rna.ft     &
+                           nCount_RNA     > min.rna.ct     &
+                           PercentMito   <= max.mt.pt)
   }
   seurat.obj <- seurat.obj |>
     NormalizeData(verbose = F) |>
@@ -104,22 +102,25 @@ ClusterSeurat <- function(seurat.obj,
     RunPCA(verbose = F) 
   
   if(harmony == T){
-    seurat.obj@meta.data[[regress.by]] <- droplevels(seurat.obj@meta.data[[regress.by]]) 
+    if(drop.levels ==T){
+      seurat.obj@meta.data[[regress.by]] <- droplevels(seurat.obj@meta.data[[regress.by]]) 
+    }
     seurat.obj <- RunHarmony(seurat.obj, 
                              group.by.vars = regress.by,
-                             verbose = F)
+                             verbose = F,
+                             project.dim = F)
   }
   
   # find elbow
-    # Determine percent of variation associated with each PC
-    pct <- seurat.obj[["pca"]]@stdev / sum(seurat.obj[["pca"]]@stdev) * 100
-    # Calculate cumulative percents for each PC
-    cumu <- cumsum(pct)
-    # Determine which PC exhibits cumulative percent greater than 90% and % variation associated with the PC as less than 5
-    co1 <- which(cumu > 90 & pct < 5)[1]
-    # Determine the difference between variation of PC and subsequent PC
-    co2 <- sort(which((pct[1:length(pct) - 1] - pct[2:length(pct)]) > 0.1), decreasing = T)[1] + 1
-    pcs <- min(co1, co2)
+  # Determine percent of variation associated with each PC
+  pct <- seurat.obj[["pca"]]@stdev / sum(seurat.obj[["pca"]]@stdev) * 100
+  # Calculate cumulative percents for each PC
+  cumu <- cumsum(pct)
+  # Determine which PC exhibits cumulative percent greater than 90% and % variation associated with the PC as less than 5
+  co1 <- which(cumu > 90 & pct < 5)[1]
+  # Determine the difference between variation of PC and subsequent PC
+  co2 <- sort(which((pct[1:length(pct) - 1] - pct[2:length(pct)]) > 0.1), decreasing = T)[1] + 1
+  pcs <- min(co1, co2)
   
   if(harmony == T){
     seurat.obj <- seurat.obj |>
@@ -416,3 +417,81 @@ mitoProps <- function(data,
 }
 
 # you need to finish the last part of this ratio loop to name the output 
+
+EstimateCellTypeProportions <- function(seurat, bulk.es, for.aitchison = F, sn.individuals, cells_exclude = c("unlabeled", "NA"), markers = NULL, bulk.log2 = F) {
+  
+  # Convert to SingleCellExperiment
+  seurat_sce <- as.SingleCellExperiment(seurat, assay = "RNA")
+  
+  # Exclude specified clusters
+  cells <- levels(Idents(seurat))
+  cells <- cells[!(cells %in% cells_exclude) & !is.na(cells)]
+  
+  # Use MuSiC to estimate cell type proportions
+  set.seed(100)
+  if(bulk.log2 == T){
+    bulk.es <- 2^bulk.es
+  }
+  decon <- music_prop(bulk.mtx = bulk.es, sc.sce = seurat_sce, markers = markers,
+                      clusters = "ident", samples = sn.individuals,
+                      select.ct = cells,
+                      verbose = F)
+  if(for.aitchison == T){
+    return(decon)
+  }
+  # Turn MuSiC output into graph-friendly dataframe
+  decon.melt = reshape2::melt(decon$Est.prop.weighted)
+  colnames(decon.melt) = c('Sub', 'CellType', 'Prop')
+  #decon.melt$combination <- paste(unique(seurat$origin), collapse = "_")
+  return(decon.melt)
+}
+
+
+AssignAndFilterClusters <- function(seurat, res.thresh = 0.4, ratio.thresh = 2, min.cell = 400) {
+  # Exclude clusters below specific max residual threshold
+  max <- apply(standardized_residuals, 2, max)
+  max.exclude <- max < res.thresh
+  
+  # Exclude clusters with few cells 
+  bad.clusts <- table(Idents(seurat))[table(Idents(seurat)) < min.cell]
+  
+  # Get final exclusion list
+  all.exclude <- max.exclude 
+  max.exclude[is.na(max.exclude)] <- TRUE
+  # Find the index of the largest value in each column of the standardized_residuals
+  max.indices <- apply(standardized_residuals, 2, which.max)
+  
+  max.indices[max.exclude] <- NA
+  
+  # Get the corresponding BroadCellType for each Seurat cluster
+  assigned.cell.types <- rownames(standardized_residuals)[max.indices]
+  assigned.cell.types[!is.na(assigned.cell.types)] <- make.unique(assigned.cell.types[!is.na(assigned.cell.types)], sep = "_")
+  # Rename the clusters
+  names(assigned.cell.types) <- names(max.indices)
+  seurat <- RenameIdents(seurat, assigned.cell.types)
+  
+  # Remove very small clusters 
+  bad.clusts <- names(table(Idents(seurat)))[table(Idents(seurat)) < min.cell]
+  Idents(seurat)[which(Idents(seurat) %in% bad.clusts)] <- NA
+  return(seurat)
+}
+
+FilterByQuantile <- function(seurat.obj,
+                             min.rna.ft = NULL,
+                             max.rna.ft = NULL,
+                             min.rna.ct = NULL,
+                             max.mt.pt  = NULL, 
+                             pt.remove = 0.1){
+  # Calculate default filtering values if not provided
+  if(is.null(min.rna.ft)) min.rna.ft <- quantile(seurat.obj$nFeature_RNA, pt.remove)
+  if(is.null(max.rna.ft)) max.rna.ft <- quantile(seurat.obj$nFeature_RNA, 1-pt.remove)
+  if(is.null(min.rna.ct)) min.rna.ct <- quantile(seurat.obj$nCount_RNA, pt.remove)
+  if(is.null(max.mt.pt)) max.mt.pt <- quantile(seurat.obj$PercentMito, 1-pt.remove)
+  
+  # Subset the Seurat object based on the calculated thresholds
+  seurat.obj <- subset(seurat.obj, 
+                       subset = nFeature_RNA   > min.rna.ft     & 
+                         nFeature_RNA   < max.rna.ft     &
+                         nCount_RNA     > min.rna.ct     &
+                         PercentMito   <= max.mt.pt)
+}

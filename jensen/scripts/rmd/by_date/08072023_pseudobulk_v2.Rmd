@@ -1,0 +1,514 @@
+---
+title: "PseudoBulk V2"
+author: "Brian Gural"
+date: "2023-08-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r load libs, message=FALSE, echo = F, warning=FALSE, results= 'hide', cache=FALSE, include=F}
+# List libraries
+libs <- c("Seurat", "ggplot2", "patchwork", "SeuratDisk","reshape2", "tidyverse",
+          "SCpubr","shiny", "ggrepel", "gridExtra", "scCustomize", "httr", 
+          "scales", "dplyr", "DeconvoBuddies", "readr", "SingleCellExperiment",
+          "SummarizedExperiment", "Biobase", "ggmagnify", "stringr", "MuSiC",
+          "ggforce", "DirichletReg", "readxl", "viridis", "DESeq2") # list libraries here
+# Require all of them
+lapply(libs, require, character.only = T)
+
+# Also load in-house functions
+source("jensen/scripts/functions/decon_all.R")
+```
+
+```{r load data, cache = TRUE, echo=FALSE, message=F, include = F}
+sn <- LoadH5Seurat("jensen/data/processed/single_cell/merged_datasets/07192023/07192023_1.h5seurat")
+```
+## R Markdown
+
+
+```{r cell profiles, include=F}
+
+# Sum expression of each cell type cluster in the seurat
+GetCellProfile <- function(seurat, cell.type){
+  cell.ids  <- Idents(seurat)[which(Idents(seurat) == cell.type)] |>
+    names() # Get the cell.ids that are the cell type of interest
+  cell.type.profile <- rowSums(seurat@assays$RNA@counts[,cell.ids]) |>
+    as.numeric()  # sum expression of cells with those ids
+  assign(as.character(cell.type), cell.type.profile) # name the profile with the cell type
+  return(get(as.character(cell.type)))
+}
+
+
+cell.types <- unique(Idents(sn))
+# Make matrix of expression profiles 
+# Each col should be a cell type
+# Each row should be a gene
+cell.expr.prof <- sapply(cell.types, function(x){GetCellProfile(sn, x)}, USE.NAMES = T)
+colnames(cell.expr.prof) <- cell.types
+row.names(cell.expr.prof) <- row.names(sn) 
+
+
+# This defines the probability of which gene a single UMI will be, by cell type
+# each cell will contain the probability of a random UMI from that cell type/column to be that gene/row
+# Could be simultaneous with prior step
+gene.probs <- sweep(cell.expr.prof,2,colSums(cell.expr.prof),`/`) |>
+              as.data.frame()
+
+```
+
+```{r make pb functions, include = F}
+
+# Make function to take in a named list of proportions, then multiply by the ratio
+# then multiply it all by umi target
+# then add noise
+# then round to integers
+
+MakePseudoBulk <- function(ratios, profiles, umi_target, noise) {
+  ratio.format <- as.vector(ratios)
+  names(ratio.format) <- names(ratios)
+  # Ensure ratios is a named list or named vector
+  if (!is.list(ratio.format) && !is.vector(ratio.format)) {
+    stop("ratios must be a named list or named vector")
+  }
+  if (!all(names(ratio.format) %in% colnames(profiles))) {
+    stop("All names in ratios must be present as columns in profiles")
+  }
+
+  # Modify columns by multiplying with ratios and adding noise
+  profiles.use <- profiles |>
+    select(all_of(names(ratio.format))) |>
+    mutate(across(all_of(names(ratio.format)), 
+                  ~ jitter(.x * ratio.format[[as.character(cur_column())]], factor = noise)))
+    #rnorm(n()) adds Gaussian noise to each column. Generates random numbers from a normal distribution with a standard deviation of noise.
+  profiles.use[profiles.use < 0 ] <- 0
+  # Compute mean of all columns
+  mean_column <- profiles.use |>
+    rowMeans()
+
+  # Normalize the result to sum to 1
+  mean_column_norm <- mean_column / sum(mean_column)
+  counts <- mean_column_norm * umi_target
+  counts <- counts |>
+    round() |>
+    as.integer()
+  
+  names(counts) <- row.names(profiles)
+  
+  return(counts)
+}
+
+# Function to make named lists of cell type ratios
+
+simulate_ratios <- function(cell_types, step_range, max_pt, samp_reps) {
+  
+  # Define the range for proportions
+  proportions <- rep(seq(1/length(cell_types), max_pt, by = step_range), each = samp_reps)
+  
+  # Create combinations of cell.types and proportions
+  combinations <- expand.grid(cell = cell_types, prop = proportions, stringsAsFactors = FALSE)
+  
+  # Function to generate a single ratio list for a given cell and prop
+  generate_ratio <- function(cell, prop, all_types) {
+    n <- length(all_types)
+    remaining_prop <- (1 - prop) / (n - 1)
+    
+    # Create the named list
+    ratio_list <- setNames(rep(remaining_prop, n), all_types)
+    ratio_list[cell] <- prop
+    
+    return(ratio_list)
+  }
+  
+  # Apply the function to each combination
+  ratio_lists <- apply(combinations, 1, function(row) {
+    generate_ratio(row['cell'], as.numeric(row['prop']), cell_types)
+  })
+  
+  # Naming the lists
+  names(ratio_lists) <- paste(combinations$cell, sprintf("%.2f", combinations$prop), sep = "_")
+  return(ratio_lists)
+}
+```
+
+```{r make pb ratios}
+# Set distance between percent change steps
+step.range <- 0.01
+
+# max percent of a single cell type in the mixture
+max.pt <- 0.4
+
+# Replicates of each major cell/percent
+samp.reps <- 20
+
+cell.ratios <- simulate_ratios(cell.types,max_pt = max.pt, 
+                               step_range = step.range, 
+                               samp_reps = samp.reps) |>
+               t()
+rownames(cell.ratios) <- paste0("mix_", seq(1:nrow(cell.ratios)))
+
+
+ref.group.size <- samp.reps*length(cell.types)
+ratios.sample <- cell.ratios[sample(rownames(cell.ratios)[ref.group.size:nrow(cell.ratios)], nrow(cell.ratios)/2),] |>
+                 as.data.frame()
+
+```
+
+
+```{r make pseudobulk}
+# Function to make a list of cell type ratios
+umi.target <- 3*10^7
+# take each row of cell.ratios and put it into MakePseudoBulk 
+pb.comps <- sapply(1:nrow(ratios.sample), function(x){MakePseudoBulk(ratios.sample[x,], gene.probs, umi.target, 0.7)})
+colnames(pb.comps) <- rownames(ratios.sample)
+
+
+# Make replicates of even ratio pseudobulk
+cell.ratios.ref <- cell.ratios[1:ref.group.size,]
+rownames(cell.ratios.ref) <- paste0("ref_", rownames(cell.ratios)[1:ref.group.size])
+pb.refs <- sapply(1:nrow(cell.ratios.ref), function(x){MakePseudoBulk(cell.ratios.ref[x,], gene.probs, umi.target, 0.7)})
+colnames(pb.refs) <- rownames(cell.ratios.ref)
+```
+
+
+```{r merge pb}
+
+ref.pt <- 1/ncol(cell.ratios.ref)
+# Merge datasets
+cell.ratios.ref <- as.data.frame(cell.ratios.ref)
+cell.ratios.ref$pct.diff <- 0
+cell.ratios.ref$major.type <- NA
+cell.ratios.ref$type <- "ref"
+
+
+dif.pt <- max.pt - ref.pt
+levels.pt <- as.numeric(samp.reps*dif.pt/step.range)
+
+# Make columns for major cell types and percent difference from refence
+cell.ratios <- as.data.frame(cell.ratios)
+cell.ratios$pct.diff <- as.numeric(rep(seq(0, dif.pt*100, step.range*100), each = ref.group.size))
+cell.ratios$major.type <- c(rep(NA, ref.group.size), rep(as.character(cell.types), times = as.integer(levels.pt))) # this is broken somehow. Using levels.pt gives n-1, but hardcoding the value of levels.pt works
+
+# add sample ids as a column
+cell.ratios$id <- rownames(cell.ratios)
+ratios.sample$id <- rownames(ratios.sample)
+cell.ratios.ref$id <- rownames(cell.ratios.ref)
+
+
+# add major cell type and percents info to sampled ratios dataframe
+ratios.sample.temp <- cell.ratios |>
+        select(pct.diff, major.type, id) |>
+        right_join(ratios.sample, by = "id")
+
+```
+
+```{r comp vars prep}
+# Make clr comp
+library(compositions)
+clr.sample <- clr(ratios.sample.temp[4:ncol(ratios.sample.temp)])
+colnames(clr.sample) <- paste0("clr.", colnames(clr.sample))
+
+# Make clr for reference
+clr.ref <- clr(cell.ratios.ref[,cell.types])
+colnames(clr.ref) <- paste0("clr.", colnames(clr.ref))
+
+# Make PCA comp
+pca.sample <- prcomp(t(rbind(ratios.sample.temp[,as.character(cell.types)], 
+                             cell.ratios.ref[,as.character(cell.types)])))
+
+# Separate out PCA for reference and compostionally varied samples
+pca.ref <- pca.sample$rotation[rownames(cell.ratios.ref),]
+pca.sample <- pca.sample$rotation[rownames(ratios.sample.temp),]
+
+plot(pca.sample)
+
+
+# add this info back to proportion dfs 
+ratios.sample <- cbind(ratios.sample.temp, clr.sample) |>
+                 cbind(pca.sample)
+ratios.sample$type <- "test"
+
+ratios.ref <- cbind(cell.ratios.ref, clr.ref) |>
+                 cbind(pca.ref)
+ratios.ref$major.type <- rep(cell.types, samp.reps)
+
+```
+
+
+```{r make deseq2 df }
+# make df with clr, pca, and raw compositions
+
+ratios <- rbind(ratios.sample, ratios.ref)
+ratios$major.type <- as.factor(ratios$major.type)
+
+counts <- cbind(pb.refs, pb.comps) |>
+          as.data.frame()
+
+counts.small <- counts[1:100,]
+```
+
+```{r deseq2 model comparison improvement}
+
+models <- list(
+  no_composition  = ~ pct.diff + major.type,
+  raw_composition = ~ pct.diff + cardiomyocytes + fibroblasts + endocardium + immune,
+  clr_composition = ~ pct.diff + clr.cardiomyocytes + clr.fibroblasts + clr.endocardium + clr.immune,
+  pca_composition = ~ pct.diff + PC1  
+)
+
+```
+
+```{r deseq prep}
+# Prepare sample information
+sample_info <- data.frame(
+  row.names = ratios$id,
+  pct.diff =  as.factor(ratios$pct.diff),
+  major.type = ratios$major.type
+)
+
+sample_info <- cbind(sample_info, ratios[,c(as.character(cell.types), colnames(clr.sample),colnames(pca.sample))])
+
+sample_info <- sample_info[colnames(counts),] |>
+                na.omit()
+
+
+TestModels <- function(model){
+# Create a DESeqDataSet
+dds <- DESeqDataSetFromMatrix(
+  countData = counts.small,
+  colData = sample_info,
+  design = model
+)
+
+
+# Run the DESeq pipeline
+dds <- DESeq(dds)
+
+# Run the differential expression analysis
+
+genes  <- lapply(2:11, function(percent){results(dds, name = resultsNames(dds)[percent]) |>
+                subset(padj < 0.05) |>
+                nrow()}) |>
+                unlist()
+return(genes)
+}
+```
+
+```{r paralellized DESeq2}
+library(BiocParallel)
+register(MulticoreParam(workers = 4))
+
+counts <- counts[,rownames(sample_info)]
+counts.small <- counts[1:100,]
+start <- Sys.time()
+results <- lapply(models, function(x){TestModels(x)})
+end <- start - Sys.time()
+
+```
+
+```{r apply for deseq, include = F}
+
+all_combinations <- expand.grid(pct.diff = unique(ratios.sample$pct.diff)[unique(ratios.sample$pct.diff)!= 0],
+                                major.type = unique(ratios.sample$major.type)[!is.na(unique(ratios.sample$major.type))])
+ratios.checklist <- paste(ratios.sample$pct.diff, ratios.sample$major.type, sep = "_")
+
+real.comb <- all_combinations |>
+             mutate(checklist = paste(pct.diff, major.type, sep = "_")) |>
+             subset(checklist %in% ratios.checklist) |>
+             select(pct.diff, major.type)
+
+# The function to be applied for each combination
+perform_analysis <- function(pct_diff, major_type) {
+  cur.ratios <- ratios.sample |>
+              subset(major.type == major_type) |>
+              subset(pct.diff == pct_diff)
+  
+  cur.pb <- pb.comps %>% 
+            as.data.frame() %>% 
+            select(cur.ratios$id)
+  
+  merge.ratios <- rbind(cell.ratios.ref, cur.ratios)
+  merge.pb <- cbind(pb.refs, cur.pb)
+
+  sample_info <- data.frame(
+    row.names = colnames(merge.pb),
+    group = as.factor(merge.ratios$pct.diff)
+  )
+
+  dds <- DESeqDataSetFromMatrix(
+    countData = merge.pb,
+    colData = sample_info,
+    design = ~ group
+  )
+
+  dds <- DESeq(dds)
+  res <- results(dds, name = resultsNames(dds)[2])
+  
+  sig.genes <- res %>%
+               subset(padj < 0.01) %>%
+               nrow()
+  
+  return(sig.genes)
+}
+start <- Sys.time()
+results <- mapply(perform_analysis, 
+                 pct_diff = real.comb$pct.diff, 
+                 major_type = real.comb$major.type)
+
+names(results) <- apply(real.comb, 1, paste, collapse = "-")
+Sys.time() - start
+```
+```{r process deseq results}
+# Extract numbers and cell names
+numbers <- gsub("-.*$", "", names(results))
+cell_names <- lapply(str_split(names(results), "-"), "[[", 2) |>
+              unlist()
+
+# Create a data frame
+false_pos <- data.frame(
+  pct.diff = numbers,
+  CellName = cell_names,
+  Value = unname(results)
+)
+
+# Reshape the data frame
+false_pos <- false_pos %>%
+  spread(key = CellName, value = Value)
+
+# Use Number as rownames
+rownames(false_pos) <- false_pos$pct.diff
+
+de_melt <- melt(false_pos, id.vars = "pct.diff") |>
+           na.omit()
+
+```
+
+```{r plot false positives}
+
+ggplot(data = de_melt, aes(x = pct.diff, y = value, color = variable)) +
+  geom_point() + 
+  geom_smooth(method = "lm")
+
+
+```
+
+```{r comp vars prep}
+# Make clr comp
+library(compositions)
+comps.clr <- clr(ratios.sample[4:ncol(ratios.sample)])
+colnames(comps.clr) <- paste0("clr.", colnames(comps.clr))
+
+
+# Make PCA comp
+pca.sample <- prcomp(t(rbind(ratios.sample[4:ncol(ratios.sample)], cell.ratios.ref[1:5])))
+
+pca.ref <- pca.sample$rotation[rownames(cell.ratios.ref),]
+pca.sample <- pca.sample$rotation[rownames(ratios.sample),]
+```
+
+
+
+```{r pre deseq clr}
+sample.pca <- cbind(ratios.sample, pca.sample)
+ref.pca <- cbind(cell.ratios.ref, pca.ref)
+
+ref.pca$pct.diff <- 0
+# Create a DESeqDataSet
+dds.pca <- DESeqDataSetFromMatrix(
+  countData = count_data,
+  colData = sample.pca,
+  design = ~ genotype + treatment + genotype:treatment + PC1 
+)
+
+# Run the DESeq pipeline
+dds.pca <- DESeq(dds.pca)
+
+# Run the differential expression analysis
+res.pca <- results(dds.pca, name="genotypeKO.treatmentMI")
+
+```
+
+
+
+```{r clr deseq}
+# The function to be applied for each combination
+deseq_pca <- function(pct_diff, major_type) {
+   major_type <-  real.comb$major.type[1]
+   
+   cur.ratios <- sample.pca |>
+              subset(major.type == major_type)
+   
+  cur.pb <- pb.comps %>% 
+            as.data.frame() %>% 
+            select(cur.ratios$id)
+  cur.ratios$type <- "test"
+  ref.pca$type <- "ref"
+  merge.ratios <- rbind(ref.pca, cur.ratios)
+  merge.pb <- cbind(pb.refs, cur.pb)
+
+  sample_info <- data.frame(
+    row.names = colnames(merge.pb),
+    pct.diff = as.numeric(merge.ratios$pct.diff),
+    type = as.factor(merge.ratios$type)
+  )
+  sample_info <- cbind(sample_info, merge.ratios[,colnames(pca.sample)])
+
+  dds <- DESeqDataSetFromMatrix(
+    countData = merge.pb,
+    colData = sample_info,
+    design = ~ type 
+  )
+
+  dds <- DESeq(dds)
+  res <- results(dds, name = resultsNames(dds)[2])
+  
+  sig.genes <- res %>%
+               subset(padj < 0.01) %>%
+               nrow()
+  
+  dds <- DESeqDataSetFromMatrix(
+    countData = merge.pb,
+    colData = sample_info,
+    design = ~ type + PC1
+  )
+
+  dds <- DESeq(dds)
+  res <- results(dds, name = resultsNames(dds)[2])
+  
+  sig.genes.pca <- res %>%
+               subset(padj < 0.01) %>%
+               nrow()
+  genes.df <- data.frame(pca = sig.genes.pca,
+                         no_pca = sig.genes)
+  
+  return(sig.genes)
+}
+start <- Sys.time()
+results <- mapply(deseq_clr, 
+                 pct_diff = real.comb$pct.diff, 
+                 major_type = real.comb$major.type)
+
+names(results) <- apply(real.comb, 1, paste, collapse = "-")
+Sys.time() - start
+```
+
+```{r make mega df }
+# make df with clr, pca, and raw compositions
+
+
+```
+
+```{r deseq2 model comparison improvement}
+
+models <- list(
+  no_composition = ~ group,
+  raw_composition = ~ group + raw_composition,
+  clr_composition = ~ group + clr_composition,
+  pca_composition = ~ group + PCA1  # assuming two principal components, adjust accordingly
+)
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

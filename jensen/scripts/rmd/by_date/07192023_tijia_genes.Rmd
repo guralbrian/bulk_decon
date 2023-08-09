@@ -1,0 +1,112 @@
+---
+title: "Tijia CC GWAS Genes"
+author: "Brian Gural"
+date: "7/19/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Introduction and Context\
+The aim of this markdown is to look at expression patterns of genes identified from a Collaborative Cross heart failure GWAS conducted by by Tijia Fuller in July 2023. Our single nucleus data is a merged set of snRNAseq from left ventricles of male B6 (Christoph Rau/Michaela Patterson) and publically available scRNAseq datasets from Tabula Muris, Wu 2021, and Martini 2019. 
+
+
+## Load data\
+
+```{r load libs, message=FALSE, echo = T, warning=FALSE, results= 'hide', cache=FALSE, include=T}
+# load libraries
+libs <- c("Seurat", "ggplot2", "patchwork", "SeuratDisk","reshape2", "tidyverse",
+          "SCpubr","shiny", "ggrepel", "gridExtra", "scCustomize", "httr", "scales") # list libraries here
+lapply(libs, require, character.only = T)
+source("jensen/scripts/functions/decon_all.R")
+```
+
+
+```{r load data, message=FALSE, echo = T, warning=FALSE, cache=FALSE, include=T}
+# Script used to produce this can be found at jensen/scripts/rmd/by_date/07192023_1.rmd
+sn <- LoadH5Seurat("jensen/data/processed/single_cell/merged_datasets/07192023/07192023_1.h5seurat")
+```
+
+
+## Standard single cell plots\
+
+```{r cluster dimplots, message=FALSE, echo = T, warning=FALSE, include=TRUE, fig.width= 12, fig.height=18}
+# Set standard palette
+pal <- brewer_pal(type = "qual", 2)(length(levels(sn)))
+names(pal) <- levels(sn)
+
+# Initialize plot list
+plots <- c()
+
+# Make reduction plots for cell type clusters and dataset origins
+plots[["dim.clust"]] <- do_DimPlot(sn, label = T, repel = T,colors.use = pal) + NoLegend()
+plots[["dim.origin"]] <- do_DimPlot(sn, group.by = "origin", label = T, repel = T) + NoLegend()
+
+# Convert your table to a data frame and reset row names
+df <- as.data.frame(table(sn$origin, Idents(sn)))
+colnames(df) <- c("origin", "cluster", "count")
+
+# Convert cluster to factor for ordered x-axis
+df$cluster <- factor(df$cluster, levels = unique(df$cluster))
+
+# Create the bar plot
+plots[["bar.clust.orig"]] <- ggplot(df, aes(x = cluster, y = count, fill = origin)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  labs(x = "Cluster", y = "Count", fill = "Origin", 
+       title = "Count of Origins by Cluster") +
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=1, size = 10))
+
+# Plots for couts, features, mitocondrial gene %, and doublet scores
+plots[["bar.umi"]] <- VlnPlot(sn, group.by = "origin", features = "nCount_RNA", log = T) 
+
+plots[["feat.count"]] <- do_FeaturePlot(sn, features = "nCount_RNA") 
+plots[["feat.features"]] <- do_FeaturePlot(sn, features = "nFeature_RNA") 
+plots[["feat.mito"]] <- do_FeaturePlot(sn, features = "PercentMito") 
+plots[["feat.doub"]] <- do_FeaturePlot(sn, features = "DoubletScore") 
+
+# Wrap them all together
+wrap_plots(plots, ncol = 2)
+```
+
+## Tijia's genes\
+
+```{r Tijia genes, fig.width = 20, fig.height= 10, message=FALSE, echo = T, warning=FALSE}
+
+# Make function to generate feature plots
+plotGene <- function(seurat, slot = "scale.data", gene, plot.legend = T){
+  
+  seurat |>
+    do_FeaturePlot(gene, reduction = "umap", slot = slot, 
+                   legend.position = if(plot.legend == T){"bottom"}else{"none"}, 
+                   legend.width = 2, legend.length = 25,  order = T) +
+    theme(title = element_text(size = 22),
+          legend.title = element_blank()) +
+    labs(title = gene)
+}
+
+# Make function to generate violin plots
+plotVln <- function(seurat, gene, slot, palette){
+  plot = VlnPlot(seurat, features = gene, cols = palette, log = T, slot  = slot) 
+  return(plot)
+} 
+
+# Bring in list of genes
+genes <- c("Cryab", "Idh3a", "Dlat", "Ndufs1")
+
+# Make plots, place in nested list
+plots.feature <- lapply(genes, function(x){plotGene(seurat = sn, slot = "data", gene = x, plot.legend = F)})
+plots.vln <- lapply(genes, function(x){plotVln(seurat = sn, slot = "data", gene = x, palette = pal)})
+
+plots.genes.1 <- c(plots.feature[1:2], plots.vln[1:2])
+plots.genes.2 <- c(plots.feature[3:4], plots.vln[3:4])
+# Wrap them
+wrap_plots(plots.genes.1, 
+           ncol = length(genes)/2)
+
+wrap_plots(plots.genes.2, 
+           ncol = length(genes)/2)
+```
