@@ -26,6 +26,26 @@ source("jensen/scripts/functions/decon_all.R")
 
 ```{r load data, cache = TRUE, echo=FALSE, message=F, include = F}
 sn <- LoadH5Seurat("jensen/data/processed/single_cell/merged_datasets/07192023/07192023_1.h5seurat")
+
+
+```
+
+```{r make downsampled df}
+
+sn.small <- sn |>
+  GetAssayData(assay = "RNA", slot = "counts") |>
+  as.matrix() |>
+  SampleUMI(5000, verbose = T)
+
+sn.small <- CreateSeuratObject(sn.small)
+meta.features <- colnames(sn@meta.data)
+for(i in meta.features){
+  sn.small <- AddMetaData(sn.small, sn@meta.data[[i]], col.name = i)
+}
+
+Idents(sn.small) <- Idents(sn)
+
+sn <- sn.small
 ```
 ## R Markdown
 
@@ -149,8 +169,8 @@ simulate_ratios <- function(major_cell, changing_cell, major_prop, changing_prop
   rownames(props) <- paste0("mix_", 1:nrow(props))
   
   # add 3rd and 4th cell type proportions with a very small amount of noise
-  props[,3] <- props[,3] * sample(rnorm(1000, 1, 0.005), length(changing_props))
-  props[,4] <- props[,4] * sample(rnorm(1000, 1, 0.003), length(changing_props))
+  props[,3] <- props[,3] * sample(rnorm(1000, 1, 0.0005), length(changing_props))
+  props[,4] <- props[,4] * sample(rnorm(1000, 1, 0.0003), length(changing_props))
   
   # Normalize back to proportional sum == 1
   props[,1:5]  <- props[,1:5]/rowSums(props[,1:5])
@@ -208,7 +228,7 @@ changing.prop <- 0.25
 range <- 0.2
 step.size <- 0.01
 replicates <- 3
-noise <- 0.001
+noise <- 0.0001
 
 ratios <- simulate_ratios(major_cell = major.cell, 
                                   changing_cell = changing.cell, 
@@ -225,7 +245,7 @@ ratios <- simulate_ratios(major_cell = major.cell,
 ```{r make additive pseudobulk}
 start <- Sys.time()
 # Function to make a list of cell type ratios
-cell.target <- 10000
+cell.target <- 4000
 # take each row of cell.ratios and put it into MakePseudoBulk 
 pb.add <- sapply(1:nrow(ratios), function(x){AggCells(sn, ratios[x,-6], cell.target)}) |>
       as.data.frame()
@@ -273,7 +293,7 @@ ggplot(pca.rna, aes(x = PC1, y = PC2, color = cm, size = fb)) +
 ```{r make deseq2 df }
 # make df with clr, pca, and raw compositions
 counts <- pb.add
-counts.small <- counts[sample(rownames(counts), 50),]
+counts.small <- counts[sample(rownames(counts), 2000),]
 ```
 
 ```{r deseq2 model comparison improvement}
@@ -285,7 +305,9 @@ models <- list(
   raw_cm_fb_im  = ~ 0 + pct.change + cardiomyocytes + fibroblasts + immune,
   clr_cm        = ~ 0 + pct.change + clr.cardiomyocytes,
   clr_cm_fb     = ~ 0 + pct.change + clr.cardiomyocytes + clr.fibroblasts,
-  clr_cm_fb_im  = ~ 0 + pct.change + clr.cardiomyocytes + clr.fibroblasts + clr.immune)
+  clr_cm_fb_im  = ~ 0 + pct.change + clr.cardiomyocytes + clr.fibroblasts + clr.immune,
+  pc1           = ~ 0 + pct.change + PC1,
+  pc2           = ~ 0 + pct.change + PC1 + PC2)
 
 
 ```
@@ -332,136 +354,208 @@ register(MulticoreParam(4))
 
 
 start <- Sys.time()
-de.lfcse <- lapply(models, function(x){TestModels(x, para = T)})  
+deseq.res <- lapply(models, function(x){TestModels(x, para = T)})  
 multi.time <- Sys.time() - start
 
+#save(deseq.res, file = "jensen/results/benchmarking/deseq/08112023_2000g")
 
 ```
-```{r get deseq data}
 
-names(de.lfcse)
-GetSeqData <- function(de_nested_list, column){
-  lapply(names(de_nested_list), function(x){
-    lapply(de_nested_list[[x]], function(y){
-      
-    })
-  })
-}
-de.lfcse[["unadjusted"]][[6]][["padj"]]
-```
 
-```{r get logfcSE}
 
-# Function to calculate length and mean of each sub sub list
-extract_values <- function(sub_list_name, sub_sub_list) {
-  tibble(
-    sub_list = sub_list_name,
-    length = length(sub_sub_list),
-    mean_value = mean(unlist(sub_sub_list), na.rm = TRUE)
-  )
+```{r get deseq data, fig.width= 11, fig.height= 6}
+
+test <- deseq.res
+
+# Iterate over the names of de.lfcse
+for (sublist_name in names(test)) {
+  # Get the current sublist
+  sublist <- test[[sublist_name]]
+  
+  # Rename the elements in the sublist using pct.use
+  names(sublist) <- pct.use
+  
+  # Update the sublist in de.lfcse
+  test[[sublist_name]] <- sublist
 }
 
-# Function to process sub lists
-process_sub_list <- function(sub_list_name, sub_list) {
-  map_df(seq_along(sub_list), ~ extract_values(sub_list_name, sub_list[[.]]))
+
+
+calculate_stats <- function(data, column_name, threshold) {
+  result <- data %>%
+    enframe(name = "sublist_name", value = "data") %>%
+    mutate(data = map(data, ~.x %>% enframe(name = "sub_sublist_name", value = "values"))) %>%
+    unnest(data) %>%
+    mutate(
+      mean_value = map_dbl(values, ~mean(.x[[column_name]], na.rm = TRUE)),
+      std_dev = map_dbl(values, ~sd(.x[[column_name]], na.rm = TRUE)),
+      false_pos = map_dbl(values, ~sum(abs(.x[[column_name]]) < threshold, na.rm = TRUE))
+    ) %>%
+    select(-values)
+
+  return(result)
 }
 
-# Apply the function to the entire nested list
-result <- map2_df(names(de.lfcse), de.lfcse, process_sub_list)
+result <- calculate_stats(test, "padj", 0.05)
 
-colnames(result) <- c("model_name", "n_de", "ave_se")
 
-result$pct.change <- pct.use |>
+result$sub_sublist_name <- result$sub_sublist_name |>
                      str_replace("_","-") |>
-                     as.numeric() |>
-                     rep(length(models))
+                     as.numeric()
 
-#write.csv(result, "jensen/results/benchmarking/deseq/08102023_1000g")
-```
-
-
-```{r get logfcSE, fig.width= 12, fig.height= 7}
-
-se.res <- melt(result, id.vars = c("pct.change", "model_name", "ave_se", "n_de"))
-
-se.res$NumberCovariates <- rep(c(0,1,2,3,1,2,3,1,2), each = length(se.res$model_name)/length(unique(se.res$model_name))) 
-
-se.res$Model <- rep(as.character(models), each = length(se.res$model_name)/length(unique(se.res$model_name))) 
-se.res$n_de[se.res$n_de == 0] <- 0.01
-
-
-se.res <- se.res |> 
+result <- result |> 
       mutate(ModelType = factor(case_when(
-      str_detect(model_name, "unadjusted") ~ "No adjustment",
-      str_detect(model_name, "raw") ~ "Raw proportions",
-      str_detect(model_name, "clr") ~ "Centered log ratios",
-      str_detect(model_name, "pc") ~ "PCA")))
+      str_detect(sublist_name, "unadjusted") ~ "No adjustment",
+      str_detect(sublist_name, "raw") ~ "Raw proportions",
+      str_detect(sublist_name, "clr") ~ "Centered log ratios",
+      str_detect(sub_sublist_name, "pc") ~ "PCA")))
 
-pal <- c("#969696", "#fa9fb5", "#f768a1", "#c51b8a", "#a6bddb", "#74a9cf", "#2b8cbe", "#74c476", "#31a354")
 
-se.res |>
-subset(ModelType != "PCA") |>
-ggplot(aes(x = pct.change, y = n_de + 0.1, color = Model)) +
+pal <- c("#fa9fb5", "#f768a1", "#c51b8a", "#74c476", "#31a354", "#a6bddb", "#74a9cf", "#2b8cbe", "#969696")
+
+
+result |>
+ggplot(aes(x = sub_sublist_name, y = std_dev, color = sublist_name)) +
   geom_point(alpha = 0.8) + # smaller and more transparent points
-  geom_smooth(se = F, method = "loess", size = 1.5, alpha = 0.7) +
-  scale_y_log10() +
+  geom_smooth(se = F, method = "loess", size = 1.5, alpha = 0.5, span = 0.3) +
+  #scale_y_continuous(trans = "log10") +
   scale_color_manual(values = pal) +
   theme_minimal() +
   theme(
-    legend.position = c(0.9, 0.95),
+    legend.position = c(0.9, 0.7),
     legend.title = element_blank(),
     text = element_text(size = 12),
     panel.grid.major = element_blank(), # remove major gridlines
     panel.grid.minor = element_blank()  # remove minor gridlines
   ) +
-  labs(y= "Average logfc SE of false postives", x = "General fibroblast proportion difference")
+  labs(y= "Std dev of p-values", x = "General fibroblast proportion difference")
 
-log2(0)
+result |>
+ggplot(aes(x = sub_sublist_name, y = mean_value, color = sublist_name)) +
+  geom_point(alpha = 0.8) + # smaller and more transparent points
+  geom_smooth(se = F, method = "loess", size = 1.5, alpha = 0.5, span = 0.3) +
+  #scale_y_continuous(trans = "log2") +
+  scale_color_manual(values = pal) +
+  theme_minimal() +
+  theme(
+    legend.position = c(0.9, 0.7),
+    legend.title = element_blank(),
+    text = element_text(size = 12),
+    panel.grid.major = element_blank(), # remove major gridlines
+    panel.grid.minor = element_blank()  # remove minor gridlines
+  ) +
+  geom_magnify(from = c(-0.06,0.06,0.98,1), to = c(-0.19,-0.06,0.6,0.9), 
+                   shape = "rect", shadow = TRUE)  +
+  labs(y= "Mean p-value", x = "General fibroblast proportion difference") +
+  ggtitle("Centered log ratio adjustments protect from compositionly caused low p-values")
+
+
+
+
+pal <- c("#fa9fb5", "#f768a1", "#c51b8a", "#a6bddb", "#74a9cf", "#2b8cbe", "#969696")
+
+
+result |>
+  subset(ModelType != "PCA") |>
+ggplot(aes(x = sub_sublist_name, y = false_pos +0.01, color = sublist_name)) +
+  geom_point(alpha = 0.4) + # smaller and more transparent points
+  geom_smooth(se = F, method = "loess", size = 1.5, alpha = 0.5, span = 0.2) +
+  #scale_y_continuous(trans = "log2") +
+  scale_color_manual(values = pal) +
+  theme_minimal() +
+  theme(
+    legend.position = c(0.9, 0.4),
+    legend.title = element_blank(),
+    text = element_text(size = 12),
+    panel.grid.major = element_blank(), # remove major gridlines
+    panel.grid.minor = element_blank()  # remove minor gridlines
+  ) +
+  geom_magnify(from = c(-0.07, 0.07,0,35), to = c(-0.07,0.07, 300,600), 
+                   shape = "rect", shadow = F)  +
+  labs(y= "False Positives", x = "General fibroblast proportion difference") +
+  ggtitle("Centered log ratio covariates minimize false positives from compositional differences")
+
 ```
 
-```{r plot deseq2 res, fig.width= 12, fig.height= 7}
+```{r logFC plots}
 
-plot.genes <- read.csv("jensen/results/benchmarking/deseq/08092023_2000g", row.names = 1)
-outs <- nrow(plot.genes)
+#result <- calculate_stats(test, "log2FoldChange", 0.58)
+#result.low <- calculate_stats(test, "log2FoldChange", -0.58)
+result <- calculate_stats(test, "log2FoldChange", 0.58)
+result$sub_sublist_name <- result$sub_sublist_name |>
+                     str_replace("_","-") |>
+                     as.numeric()
 
-plot.genes$pct.changed <- as.numeric(pct.use)
-
-plot.genes <- melt(plot.genes, id.vars = c("pct.changed"))
-
-plot.genes$NumberCovariates <- rep(c(0,1,2,3,1,2,3,1,2), each = outs) 
-
-plot.genes$Model <- rep(as.character(models), each = outs) 
-
-plot.genes <- plot.genes |> 
+result <- result |> 
       mutate(ModelType = factor(case_when(
-      str_detect(variable, "unadjusted") ~ "No adjustment",
-      str_detect(variable, "pc") ~ "PCA",
-      str_detect(variable, "raw") ~ "Raw proportions",
-      str_detect(variable, "clr") ~ "Centered log ratios")))
+      str_detect(sublist_name, "unadjusted") ~ "No adjustment",
+      str_detect(sublist_name, "raw") ~ "Raw proportions",
+      str_detect(sublist_name, "clr") ~ "Centered log ratios",
+      str_detect(sub_sublist_name, "pc") ~ "PCA")))
 
-pal <- c("#969696", "#fcc5c0", "#fa9fb5", "#f768a1", "#d0d1e6", "#a6bddb", "#74a9cf", "#feb24c","#fd8d3c")
 
-plot.genes |>
-ggplot(aes(x = pct.changed, y = value/3, color = Model)) +
-  geom_point(alpha = 0.5) + # smaller and more transparent points
-  geom_smooth(se = F, method = "loess", size = 1.5, span = 0.45, alpha = 0.7) +
-  scale_y_continuous(trans = "log10", 
-                     breaks = scales::trans_breaks("log10", function(x) 10^x, n = 3), # fewer y axis labels
-                     labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+pal <- c("#fa9fb5", "#f768a1", "#c51b8a", "#74c476", "#31a354", "#a6bddb", "#74a9cf", "#2b8cbe", "#969696")
+
+
+result |>
+ggplot(aes(x = sub_sublist_name, y = std_dev, color = sublist_name)) +
+  geom_point(alpha = 0.8) + # smaller and more transparent points
+  geom_smooth(se = F, method = "loess", size = 1.5, alpha = 0.5, span = 0.3) +
+  #scale_y_continuous(trans = "log10") +
   scale_color_manual(values = pal) +
   theme_minimal() +
   theme(
+    legend.position = c(0.9, 0.7),
     legend.title = element_blank(),
-    legend.position = "left",
     text = element_text(size = 12),
     panel.grid.major = element_blank(), # remove major gridlines
     panel.grid.minor = element_blank()  # remove minor gridlines
   ) +
-  labs(y= "False Postives", x = "General fibroblast proportion difference")
+  labs(y= "Std dev of log2FC", x = "General fibroblast proportion difference")
+
+result |>
+ggplot(aes(x = sub_sublist_name, y = mean_value, color = sublist_name)) +
+  geom_point(alpha = 0.8) + # smaller and more transparent points
+  geom_smooth(se = F, method = "loess", size = 1.5, alpha = 0.5, span = 0.3) +
+  #scale_y_continuous(trans = "log2") +
+  scale_color_manual(values = pal) +
+  theme_minimal() +
+  theme(
+    legend.position = c("bottom"),
+    legend.title = element_blank(),
+    text = element_text(size = 12),
+    panel.grid.major = element_blank(), # remove major gridlines
+    panel.grid.minor = element_blank()  # remove minor gridlines
+  ) +
+  labs(y= "Mean log 2 fold change", x = "General fibroblast proportion difference") 
+
+
+
+
+pal <- c("#fa9fb5", "#f768a1", "#c51b8a", "#a6bddb", "#74a9cf", "#2b8cbe", "#969696")
+
+
+result |>
+  #subset(ModelType != "PCA") |>
+ggplot(aes(x = sub_sublist_name, y = false_pos +0.01, color = sublist_name)) +
+  geom_point(alpha = 0.4) + # smaller and more transparent points
+  geom_smooth(se = F, method = "loess", size = 1.5, alpha = 0.5, span = 0.2) +
+  #scale_y_continuous(trans = "log2") +
+  scale_color_manual(values = pal) +
+  theme_minimal() +
+  theme(
+    legend.position = "top",
+    legend.title = element_blank(),
+    text = element_text(size = 12),
+    panel.grid.major = element_blank(), # remove major gridlines
+    panel.grid.minor = element_blank()  # remove minor gridlines
+  )  +
+  labs(y= "Genes with a fold-change > 1.5", x = "General fibroblast proportion difference") 
 
 ```
 
-```{r barplot}
 
-```
+
+
+
 
