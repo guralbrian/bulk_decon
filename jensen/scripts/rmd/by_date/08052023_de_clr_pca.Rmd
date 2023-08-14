@@ -95,7 +95,7 @@ sample.clr <- cbind(sample_info, comps.clr)
 dds.clr <- DESeqDataSetFromMatrix(
   countData = count_data,
   colData = sample.clr,
-  design = ~ genotype + treatment + genotype:treatment + clr.cardiomyocytes + clr.endothelial_cells 
+  design = ~ genotype + treatment + genotype:treatment + clr.cardiomyocytes +  clr.fibroblasts #+ clr.endothelial_cells
 )
 
 # Run the DESeq pipeline
@@ -217,6 +217,11 @@ lost.clr <- comparison.clr |>
 top.clr <- comparison.clr |> 
   arrange(padj.clr) |>
   slice_head(n = 5)
+
+top.lost.raw <- comparison.clr |>
+  subset(raw.sig == T) |> 
+  arrange(padj.raw) |>
+  slice_head(n = 10)
 ```
 
 ```{r plot clr, fig.width = 14, fig.height= 12}
@@ -224,7 +229,7 @@ limit <- comparison.clr |>
   na.omit() |>
   arrange(desc(abs(p_diff))) |>
   slice_head(n = 1) |>
-  pull(p_diff) * c(-1, 1)
+  pull(p_diff) * c(1, -1)
 
 plot.clr <- ggplot(comparison.clr, aes(x = log2FoldChange.clr, y = -log10(padj.clr), color = p_diff)) +
   geom_point(alpha = 0.8, size = 4) +
@@ -256,5 +261,97 @@ plot.clr <- ggplot(comparison.clr, aes(x = log2FoldChange.clr, y = -log10(padj.c
   ggtitle("DE w/ clr-based composition in model", subtitle = "Colored text show genes that became or lost significance, top 5 by change")# move legend to the bottom
 
 plot.clr
+```
+
+```{r plot raw, fig.width = 14, fig.height= 12}
+
+plot.raw <- ggplot(comparison.clr, aes(x = log2FoldChange.raw, y = -log10(padj.raw), color = p_diff)) +
+  geom_point(alpha = 0.8, size = 4) +
+  scale_color_distiller(type = "div", limit = limit)+
+  geom_text_repel(data = gained.clr, aes(label = Row.names), size = 8, box.padding = unit(0.35, "lines"), 
+                  force = 40, segment.linetype = 2, segment.size = 0.6, color = "orange", force_pull = 0.01, min.segment.length = 0) + # label most increase sig genes 
+  geom_text_repel(data = lost.clr, aes(label = Row.names), size = 8, box.padding = unit(0.35, "lines"), 
+                  force = 20, segment.linetype = 2, segment.size = 0.6, color = "purple", force_pull = 0.01, min.segment.length = 0) + # label most decrease sig genes 
+  geom_text_repel(data = top.clr, aes(label = Row.names), size = 8, box.padding = unit(0.35, "lines"), 
+                  force = 20, segment.linetype = 2, segment.size = 0.6, color = "black", force_pull = 0.01, min.segment.length = 0) + # label most sig genes 
+  theme_minimal() +
+  labs(x = "log2(Fold Change)", y = "-log10(adjusted p-value)", color = "Change in -log10(p-value)") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed") + 
+  geom_vline(xintercept = 0, linetype = "solid") + # add a line for p=0.05
+  theme(legend.position = "bottom",
+        axis.text.x = element_text(color = "black", size = 25),
+        axis.text.y = element_text(color = "black", size = 25),
+        axis.ticks = element_blank(),
+        title = element_text(size = 25),
+        legend.text = element_text(size = 25),
+        legend.key.size = unit(0.7, 'in'),
+        legend.title = element_text(vjust = 0.7),
+        axis.title.y = element_text(color = "black", size = 25),
+        axis.title.x = element_text(color = "black", size = 25),
+        panel.background = element_rect(fill='transparent'),
+        plot.background = element_rect(fill='transparent', color=NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  ggtitle("DE w/ clr-based composition in model", subtitle = "Colored text show genes that became or lost significance, top 5 by change")# move legend to the bottom
+
+plot.raw
+```
+
+```{r shiny}
+ui <- fluidPage(
+  titlePanel("Gene Expression Viewer"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("gene", "Select a Gene:", choices = comparison.clr$Row.names)
+    ),
+    mainPanel(
+      plotOutput("genePlot")
+    )
+  )
+)
+
+server <- function(input, output) {
+  output$genePlot <- renderPlot({
+    selected_gene <- input$gene
+    
+    # Filter the data based on the selected gene
+    gene_data <- filter(comparison.clr, Row.names == selected_gene)
+    
+    # Create a plot (modify this as needed for your data)
+    ggplot(comparison.clr, aes(x = log2FoldChange.clr, y = -log10(padj.clr), color = gene_data$Row.names)) +
+        geom_point(alpha = 0.8, size = 4) +
+        #scale_color_distiller(type = "div", limit = limit)+
+        geom_text_repel(data = gained.clr, aes(label = Row.names), size = 8, box.padding = unit(0.35, "lines"), 
+                  force = 40, segment.linetype = 2, segment.size = 0.6, color = "orange", force_pull = 0.01, min.segment.length = 0) + # label most increase sig genes 
+        geom_text_repel(data = lost.clr, aes(label = Row.names), size = 8, box.padding = unit(0.35, "lines"), 
+                  force = 20, segment.linetype = 2, segment.size = 0.6, color = "purple", force_pull = 0.01, min.segment.length = 0) + # label most decrease sig genes 
+        geom_text_repel(data = top.clr, aes(label = Row.names), size = 8, box.padding = unit(0.35, "lines"), 
+                  force = 20, segment.linetype = 2, segment.size = 0.6, color = "black", force_pull = 0.01, min.segment.length = 0) + # label most sig genes 
+        theme_minimal() +
+        labs(x = "log2(Fold Change)", y = "-log10(adjusted p-value)", color = "Change in -log10(p-value)") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed") + 
+  geom_vline(xintercept = 0, linetype = "solid") + # add a line for p=0.05
+  theme(legend.position = "bottom",
+        axis.text.x = element_text(color = "black", size = 25),
+        axis.text.y = element_text(color = "black", size = 25),
+        axis.ticks = element_blank(),
+        title = element_text(size = 25),
+        legend.text = element_text(size = 25),
+        legend.key.size = unit(0.7, 'in'),
+        legend.title = element_text(vjust = 0.7),
+        axis.title.y = element_text(color = "black", size = 25),
+        axis.title.x = element_text(color = "black", size = 25),
+        panel.background = element_rect(fill='transparent'),
+        plot.background = element_rect(fill='transparent', color=NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  ggtitle("DE w/ clr-based composition in model", subtitle = "Colored text show genes that became or lost significance, top 5 by change")# move legend to the bottom
+  })
+}
+
+
+shinyApp(ui = ui, server = server)
+
+
 ```
 
