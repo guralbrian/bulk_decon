@@ -1,0 +1,274 @@
+---
+title: "Remove doublets and ambient RNA"
+author: "Brian Gural"
+date: "2023-08-15"
+output: html_document
+  code_folding: hide
+code_download: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 8, message = F, warning = F)
+```
+
+# Introduction
+
+## Rational
+
+This script is meant to remove single cell doublets and ambient RNA from a snRNAseq dataset produced by Christoph Rau. Each sample is the aggregate of 5 samples, all male B6 mice.
+
+## Pipeline overview
+
+### Main methods
+
+This pipeline makes use of the DropletUtils package to remove ambient RNA and scDblFinder to score droplets on their likelihood of containing more than one nuclei. Here, we are generally following a combination of pipelines. The first two are by BioConductor for [droplet processing] (http://bioconductor.org/books/3.14/OSCA.advanced/droplet-processing.html) and [quality control of PBMC data](http://bioconductor.org/books/3.14/OSCA.workflows/unfiltered-human-pbmcs-10x-genomics.html#unfiltered-human-pbmcs-10x-genomics)
+
+### Step-by-step
+The general structure of this analysis is as follows:
+
+
+
+```{r load libs, message=FALSE, echo = T, warning=FALSE, results= 'hide', cache=FALSE, include=F}
+# List libraries
+libs <- c("Seurat", "ggplot2", "patchwork","SeuratDisk", "reshape2",
+          "tidyverse", "SingleCellExperiment", "viridis", "gplots", "scales", 
+          "ggrepel", "gridExtra", "scCustomize", "matrixStats", "scran", 
+          "scuttle", "scater", "DropletUtils", "scDblFinder", "scuttle", "BiocParallel") # list libraries here
+# Require all of them
+lapply(libs, require, character.only = T)
+rm(libs)
+```
+
+
+```{r load data, message=FALSE, echo = T, warning = FALSE, cache = T, include=F, collapse = T}
+dir <- "jensen/data/raw/single_cell/patterson/seurat/"
+files <- paste0(dir, list.files(dir))
+# Function to load data
+.loadData <- function(file_path) {
+  sn <- LoadH5Seurat(file_path)
+  sn <- subset(sn, nCount_RNA > 0)
+  sn$UMI <- colnames(sn)
+  return(sn)
+}
+
+sn <- lapply(files, function(x){.loadData(x)})
+```
+ 
+ 
+```{r subset empty drops}
+
+# Function to subset empty drops
+.subsetEmptyDrops <- function(sn) {
+  empty.drops <- sn %>%
+                 subset(nCount_RNA <= 300) # too many empty droplets to process
+  empty.subset <- sample(colnames(empty.drops), 10000)
+  keep.drops <- sn %>%
+                subset(nCount_RNA > 300 | UMI %in% empty.subset) # add in a fraction of the empty droplets
+  return(keep.drops)
+}
+
+sn <- lapply(sn, function(x){.subsetEmptyDrops(x)})
+
+```
+
+```{r plot gene ranks}
+
+# make sce object for later functions
+sce <- lapply(sn, function(x){as.SingleCellExperiment(x)})
+  
+# rank each cell by the # counts
+bcrank <-  lapply(sce, function(x){barcodeRanks(counts(x))})
+    
+# Function to plot each cell by the number of reads
+# Looks for an inflection point
+# We can assume that below the inflection point are empty droplets
+# Weirdly there are two, so I went with the higher
+ .plotRank <- function(ranks){
+  uniq <- !duplicated(ranks$rank)
+    o <- order(ranks$rank)
+  # plot the ranks with the counts, look for the knee and inflection points
+  plot(x = ranks$rank[uniq], y = ranks$total[uniq], log="y", xlab="Rank", ylab="Total UMI count", cex.lab=1.2) +
+          lines(ranks$rank[o], ranks$fitted[o], col="red") +
+          abline(h=metadata(ranks)$inflection, col="darkgreen", lty=2) +
+          abline(h=metadata(ranks)$knee, col="dodgerblue", lty=2) +
+          abline(h=500, col="darkorange", lty=2) 
+          legend("bottomleft", legend=c("Inflection", "Knee", "Limit"), col=c("darkgreen", "dodgerblue", "darkorange"), lty=2, cex=1.2)
+ }
+ 
+bcrank.plots <-  lapply(bcrank, function(x){.plotRank(x)})
+
+```
+
+
+```{r emptyDrops limited}
+# Test for empty droplets, assume those below the limit are empty
+e.out <- lapply(sce, function(x){emptyDrops(x, test.ambient = T, lower = 500)})
+```
+
+```{r QC}
+# limit to droplets lower than the false discovery threshold 
+.qualityControl <- function(sce.func, e.out.funct) {
+  sce.func <- sce.func[,which(e.out.funct$FDR <= 0.01)]
+  is.mito <- grep("^mt-", rownames(sce.func))
+  qc <- perCellQCMetrics(sce.func, subsets=list(MT=is.mito))
+  discard.mito <- isOutlier(qc$subsets_MT_percent, type="higher")
+  colData(sce.func) <- cbind(colData(sce.func), qc)
+  sce.func <- sce.func[,!discard.mito]
+  return(sce.func)
+}
+
+sce.1 <- mapply(.qualityControl, sce, e.out)
+```
+
+
+```{r QC cluster/variance}
+.qcClusterVariance <- function(sce.1.func) {
+  clusters <- quickCluster(sce.1.func)
+  sce.1.func <- computeSumFactors(sce.1.func, cluster=clusters)
+  sce.1.func <- logNormCounts(sce.1.func)
+  sce.dec <- modelGeneVarByPoisson(sce.1.func)
+  sce.top <- getTopHVGs(sce.dec, prop=0.1)
+  return(list(sce.1.func, sce.dec, sce.top))
+}
+
+sec.vars <- lapply(sce.1, function(x){.qcClusterVariance(x)})
+
+```
+
+
+```{r QC dimensional reduction, cache = T}
+
+
+# Function for QC dimensional reduction
+.qcDimensionalReduction <- function(sce.func) {
+  set.seed(10000)
+  sce.func[[1]] <- denoisePCA(sce.func[[1]], subset.row=sce.func[[3]], technical=sce.func[[2]])
+  set.seed(100000)
+  sce.func[[1]] <- runTSNE(sce.func[[1]], dimred="PCA")
+  set.seed(1000000)
+  sce.func[[1]] <- runUMAP(sce.func[[1]], dimred="PCA")
+  return(sce.func[[1]])
+} 
+
+sce.2 <- lapply(sec.vars, function(x){.qcDimensionalReduction(x)})
+
+```
+
+
+```{r QC clustering. cache = T}
+
+.qcClustering <- function(sce.func) {
+  g <- buildSNNGraph(sce.func, k=30)
+  clust <- igraph::cluster_walktrap(g)$membership
+  colLabels(sce.func) <- factor(clust)
+  return(sce.func)
+}
+
+sce.2 <- lapply(sce.2, function(x){.qcClustering(x)})
+```
+
+
+```{r plot tnse}
+plotTSNE(sce.2[[1]], colour_by="label")
+plotTSNE(sce.2[[2]], colour_by="label")
+```
+
+```{r remove ambience, cache = T}
+
+
+.removeAmbience <- function(sce.func, e.out.func) {
+  amb <- metadata(e.out.func)$ambient[,1]
+  stripped <- sce.func[names(amb),]
+  out <- removeAmbience(counts(stripped), ambient=amb, groups=colLabels(stripped))
+  counts(stripped, withDimnames=FALSE) <- out
+  stripped <- logNormCounts(stripped)
+  return(stripped)
+}
+
+stripped <- mapply(.removeAmbience, sce.2, e.out)
+```
+
+```{r remove ambience visual, fig.width=7, fig.height=9, results='hide'}
+
+
+plotAmbience <- function(sce.func, gene){
+  before = plotExpression(sce.func, x="label", colour_by="label", features=gene, add_legend = F) 
+  return(before)}
+
+genes <- c("Col1a1","Acta2", "Myh6", "Tnnt2", "D830005E20Rik") 
+
+plots.1.before <- lapply(genes, function(x){
+  plotAmbience(sce.2[[1]], x)
+})
+
+plots.1.after <- lapply(genes, function(x){
+  plotAmbience(stripped[[1]], x)
+})
+
+plots.1.be <- grid.arrange(grobs= plots.1.before, top = "Raw dat", ncol = 1)
+plots.1.af <- grid.arrange(grobs= plots.1.after, top = "After removing ambient RNA", ncol = 1)
+plots.1 <- grid.arrange(plots.1.be,plots.1.af  , top = "B6_1", ncol = 2)
+
+
+plots.2.before <- lapply(genes, function(x){
+  plotAmbience(sce.2[[2]], x)
+})
+
+plots.2.after <- lapply(genes, function(x){
+  plotAmbience(stripped[[2]], x)
+})
+
+plots.2.be <- grid.arrange(grobs= plots.2.before, top = "Raw data", ncol = 1)
+plots.2.af <- grid.arrange(grobs= plots.2.after, top = "After removing ambient RNA", ncol = 1)
+plots.2 <- grid.arrange(plots.2.be,plots.2.af  , top = "B6_2", ncol = 2)
+
+
+```
+
+```{r remove ambience visual, fig.width=18, fig.height=18}
+plots.all <- grid.arrange(plots.1,plots.2  , ncol = 2)
+```
+
+```{r remove ambience visual 2, fig.width=10, fig.height=4, results='hide' }
+plots.2 <- lapply(genes, function(x){
+  plotAmbience(sce.2[[2]], stripped[[2]], x)
+})
+```
+
+```{r show both, fig.height=18, fig.width= 10}
+gridExtra::grid.arrange(grobs = c(plots.1, plots.2), ncol = 2)
+```
+
+
+```{r doublets and visuals}
+  # Find Doublets ####
+.removeDoublets <- function(stripped, sec.top) {
+  dbl.dens <- computeDoubletDensity(stripped, d=ncol(reducedDim(stripped)), subset.row=sec.top)
+  stripped$DoubletScore <- dbl.dens
+  cut_off <- quantile(stripped$DoubletScore,0.95)
+  stripped$isDoublet <- c("no","yes")[factor(as.integer(stripped$DoubletScore>=cut_off),levels=c(0,1))]
+  sn.clean <- as.Seurat(stripped)
+  SaveH5Seurat(sn.clean, "jensen/results/doublets_ambient_rna/08142023/B6_1")
+  return(sn.clean)
+}
+sce.top <- c(sec.vars[[1]][[3]], sec.vars[[2]][[3]])
+
+
+  dbl.dens <- computeDoubletDensity(stripped, #subset.row=top.mam, 
+                                    d=ncol(reducedDim(stripped)),subset.row=sec.top)
+  
+  stripped$DoubletScore <- dbl.dens
+  
+  # Save plotUMAP with DoubletScore
+  
+  scater::plotUMAP(stripped, colour_by="DoubletScore")
+  # Save plotColData with DoubletScore
+  plotColData(stripped, x="label", y="DoubletScore", colour_by="label")+
+    geom_hline(yintercept = quantile(colData(stripped)$DoubletScore, 0.95),lty="dashed",color="red")
+  
+  cut_off <- quantile(stripped$DoubletScore,0.95)
+  stripped$isDoublet <- c("no","yes")[factor(as.integer(stripped$DoubletScore>=cut_off),levels=c(0,1))]
+  
+  sn.clean <- as.Seurat(stripped)
+  SaveH5Seurat(sn.clean, "jensen/results/doublets_ambient_rna/08142023/B6_1")
+```
