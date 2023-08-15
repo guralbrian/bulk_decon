@@ -24,9 +24,23 @@ This script is meant to remove single cell doublets and ambient RNA from a snRNA
 This pipeline makes use of the DropletUtils package to remove ambient RNA and scDblFinder to score droplets on their likelihood of containing more than one nuclei. Here, we are generally following a combination of pipelines. The first two are by BioConductor for [droplet processing] (http://bioconductor.org/books/3.14/OSCA.advanced/droplet-processing.html) and [quality control of PBMC data](http://bioconductor.org/books/3.14/OSCA.workflows/unfiltered-human-pbmcs-10x-genomics.html#unfiltered-human-pbmcs-10x-genomics)
 
 ### Step-by-step
+
 The general structure of this analysis is as follows:
+- Load all data and packages
+- Trim down size of single cell datasets
+  - They have > 1.7 million droplets, so exclude most of the nearly empty ones
+- Identify empty droplets
+  - Involves ranking droplets by counts, QC/clustering, looking for an empty droplet cluster (defined by low counts and high homogeneity)
+- Regress empty droplet cluster expression profile from all other clusters
+  - We'll also take a look at how this affected expression of canonical markers
+- Identify doublets by simulating our own doublets, clustering, and checking for overlaps
+  - Plus visualizing doublets scores
+- Save all of the data as a Seurat
 
 
+# Analysis
+
+## Load data/packages
 
 ```{r load libs, message=FALSE, echo = T, warning=FALSE, results= 'hide', cache=FALSE, include=F}
 # List libraries
@@ -54,7 +68,10 @@ files <- paste0(dir, list.files(dir))
 sn <- lapply(files, function(x){.loadData(x)})
 ```
  
- 
+## Remove excess of empty droplets
+
+I didn't want to include all of the >700K droplets which had <5 counts, but I didn't want to completely exclude them. I compromised selecting for droplets with > 300 counts and then sampling 10K of the rest. This left me with ~29K and ~37K droplets in each sample going forward.
+
 ```{r subset empty drops}
 
 # Function to subset empty drops
@@ -70,6 +87,10 @@ sn <- lapply(files, function(x){.loadData(x)})
 sn <- lapply(sn, function(x){.subsetEmptyDrops(x)})
 
 ```
+
+## Find empty droplets
+
+This plot orders all of the droplets included in the subset and then plots their total RNA counts on the y-axis. It's meant to identify an 'elbow' in the data, which indicates a transition cell-containing droplets to empty droplets. However, our data has two inflection points. Using the lower limit maintained so many cells that it was impossible compute. My SLURM job ran out of memory (32 GB), after 11 hours. Now, with the higher threshold, memory usage stays <7 GB and the whole script runs in under half an hour.
 
 ```{r plot gene ranks}
 
@@ -99,11 +120,16 @@ bcrank.plots <-  lapply(bcrank, function(x){.plotRank(x)})
 
 ```
 
+## Select empty droplets 
 
 ```{r emptyDrops limited}
 # Test for empty droplets, assume those below the limit are empty
 e.out <- lapply(sce, function(x){emptyDrops(x, test.ambient = T, lower = 500)})
 ```
+
+## Standard scRNAseq QC pipeline
+
+The ambient RNA detection relies on clustering the empty droplets. It works best with a proper processing pipeline, so that's what we're doing here.
 
 ```{r QC}
 # limit to droplets lower than the false discovery threshold 
@@ -138,7 +164,6 @@ sec.vars <- lapply(sce.1, function(x){.qcClusterVariance(x)})
 
 ```{r QC dimensional reduction, cache = T}
 
-
 # Function for QC dimensional reduction
 .qcDimensionalReduction <- function(sce.func) {
   set.seed(10000)
@@ -167,15 +192,20 @@ sce.2 <- lapply(sec.vars, function(x){.qcDimensionalReduction(x)})
 sce.2 <- lapply(sce.2, function(x){.qcClustering(x)})
 ```
 
+### TSNE clusters of each dataset, still including ambient RNA
+
+On the top is B6_1 and the bottom is B6_2. If the script worked right.
 
 ```{r plot tnse}
-plotTSNE(sce.2[[1]], colour_by="label")
-plotTSNE(sce.2[[2]], colour_by="label")
+tnse.1 <- plotTSNE(sce.2[[1]], colour_by="label")
+tnse.2 <- plotTSNE(sce.2[[2]], colour_by="label")
+
+grid.arrange(tnse.1, tnse.2, ncol = 2)
 ```
 
+## Remove ambient RNA
+
 ```{r remove ambience, cache = T}
-
-
 .removeAmbience <- function(sce.func, e.out.func) {
   amb <- metadata(e.out.func)$ambient[,1]
   stripped <- sce.func[names(amb),]
@@ -188,15 +218,23 @@ plotTSNE(sce.2[[2]], colour_by="label")
 stripped <- mapply(.removeAmbience, sce.2, e.out)
 ```
 
-```{r remove ambience visual, fig.width=7, fig.height=9, results='hide'}
+### Marker expression by cluster before and after ambient RNA removal
+ 
+The first three are markers for fibroblasts, endothelial cells, and immune cells (B cells + MF). The next three are all cardiomyocyte markers, with two canonical and one that was the strongest marker from our last pass at the deconvolution analysis. 
 
+I think it's an interesting candidate for RNAscope, as there is some literature to support CM nuclear specificity.  [Cardiomyocyte-Specific Long Noncoding RNA Regulates Alternative Splicing of the Triadin Gene in the Heart](https://www.ahajournals.org/doi/10.1161/CIRCULATIONAHA.121.058017) by Zhao et al is from, last year and is worth checking out. They define it as *Trdn-as* and saw it highly and specifically expressed in cardiomyocyte nuclei via smFISH. I'll try to add a figure from that paper below. 
+
+```{r remove ambience visual, fig.width=7, fig.height=9, results='hide', include = F}
 
 plotAmbience <- function(sce.func, gene){
   before = plotExpression(sce.func, x="label", colour_by="label", features=gene, add_legend = F) 
   return(before)}
 
-genes <- c("Col1a1","Acta2", "Myh6", "Tnnt2", "D830005E20Rik") 
+# List markers for fibroblasts, endothelial cells, immune, and cardiomyocytes (3x)
+genes <- c("Col1a1","Pecam1", "Cd86", "Myh6", "Tnnt2", "D830005E20Rik") 
 
+
+# Make sub lists of plots for each version and sample
 plots.1.before <- lapply(genes, function(x){
   plotAmbience(sce.2[[1]], x)
 })
@@ -205,11 +243,13 @@ plots.1.after <- lapply(genes, function(x){
   plotAmbience(stripped[[1]], x)
 })
 
-plots.1.be <- grid.arrange(grobs= plots.1.before, top = "Raw dat", ncol = 1)
+# arrange all of the plots from one sample
+plots.1.be <- grid.arrange(grobs= plots.1.before, top = "Raw data", ncol = 1)
 plots.1.af <- grid.arrange(grobs= plots.1.after, top = "After removing ambient RNA", ncol = 1)
 plots.1 <- grid.arrange(plots.1.be,plots.1.af  , top = "B6_1", ncol = 2)
 
 
+# repeat as above for other sample
 plots.2.before <- lapply(genes, function(x){
   plotAmbience(sce.2[[2]], x)
 })
@@ -221,54 +261,84 @@ plots.2.after <- lapply(genes, function(x){
 plots.2.be <- grid.arrange(grobs= plots.2.before, top = "Raw data", ncol = 1)
 plots.2.af <- grid.arrange(grobs= plots.2.after, top = "After removing ambient RNA", ncol = 1)
 plots.2 <- grid.arrange(plots.2.be,plots.2.af  , top = "B6_2", ncol = 2)
-
-
 ```
 
-```{r remove ambience visual, fig.width=18, fig.height=18}
-plots.all <- grid.arrange(plots.1,plots.2  , ncol = 2)
+```{r remove ambience visual, fig.width=10, fig.height=15}
+# Mesh them all together in one plot
+plots.all <- grid.arrange(plots.1, plots.2, ncol = 2)
 ```
 
-```{r remove ambience visual 2, fig.width=10, fig.height=4, results='hide' }
-plots.2 <- lapply(genes, function(x){
-  plotAmbience(sce.2[[2]], stripped[[2]], x)
-})
+### Zhao 2022 Figure 1
+
+```{r zhao figure, include = F}
+url <- "https://www.ahajournals.org/cms/asset/0d6f33b7-4b50-4685-a6b3-e3cbfbc8de87/circulationaha.121.058017.fig01.jpg"
 ```
 
-```{r show both, fig.height=18, fig.width= 10}
-gridExtra::grid.arrange(grobs = c(plots.1, plots.2), ncol = 2)
-```
+<center><img src="`r url`"></center>
 
+
+## Doublet detection
 
 ```{r doublets and visuals}
-  # Find Doublets ####
-.removeDoublets <- function(stripped, sec.top) {
-  dbl.dens <- computeDoubletDensity(stripped, d=ncol(reducedDim(stripped)), subset.row=sec.top)
-  stripped$DoubletScore <- dbl.dens
-  cut_off <- quantile(stripped$DoubletScore,0.95)
-  stripped$isDoublet <- c("no","yes")[factor(as.integer(stripped$DoubletScore>=cut_off),levels=c(0,1))]
-  sn.clean <- as.Seurat(stripped)
-  SaveH5Seurat(sn.clean, "jensen/results/doublets_ambient_rna/08142023/B6_1")
-  return(sn.clean)
-}
+# Find Doublets
+.removeDoublets <- function(stripped.func, sec.top.func) {
+  dbl.dens <- computeDoubletDensity(stripped.func, d=ncol(reducedDim(stripped.func)), subset.row=sec.top.func)
+  stripped.func$DoubletScore <- dbl.dens
+  cut_off <- quantile(stripped.func$DoubletScore,0.95)
+  stripped.func$isDoublet <- c("no","yes")[factor(as.integer(stripped.func$DoubletScore >= cut_off), levels=c(0,1))] 
+  return(stripped.func)}
+
+# get top variable gene info
 sce.top <- c(sec.vars[[1]][[3]], sec.vars[[2]][[3]])
 
+# iterate throuigh datasets and gene sets in doublet detection function
+stripped <- lapply(1:length(stripped), function(x){.removeDoublets(stripped[[x]], sec.vars[[x]][[3]])})
 
-  dbl.dens <- computeDoubletDensity(stripped, #subset.row=top.mam, 
-                                    d=ncol(reducedDim(stripped)),subset.row=sec.top)
-  
-  stripped$DoubletScore <- dbl.dens
-  
-  # Save plotUMAP with DoubletScore
-  
-  scater::plotUMAP(stripped, colour_by="DoubletScore")
-  # Save plotColData with DoubletScore
-  plotColData(stripped, x="label", y="DoubletScore", colour_by="label")+
-    geom_hline(yintercept = quantile(colData(stripped)$DoubletScore, 0.95),lty="dashed",color="red")
-  
-  cut_off <- quantile(stripped$DoubletScore,0.95)
-  stripped$isDoublet <- c("no","yes")[factor(as.integer(stripped$DoubletScore>=cut_off),levels=c(0,1))]
-  
-  sn.clean <- as.Seurat(stripped)
-  SaveH5Seurat(sn.clean, "jensen/results/doublets_ambient_rna/08142023/B6_1")
+
+```
+
+### Doublet visuals
+
+With the doublets, we can see that they localize together in clusters. For now, they'll stay in the dataset. I'll include that data in a downstream QC.\
+
+```{r make doublets plots, results = 'hide', include = F}
+# plotUMAP with DoubletScore
+doub.plot.1 <- scater::plotTSNE(stripped[[1]], colour_by="DoubletScore")
+doub.plot.2 <- scater::plotTSNE(stripped[[2]], colour_by="DoubletScore")
+
+
+# Make violin plots of doublet scores
+doub.vln.1  <- plotColData(stripped[[1]], x="label", y="DoubletScore", colour_by="label")+
+               geom_hline(yintercept = quantile(colData(stripped[[1]])$DoubletScore, 0.95),lty="dashed",color="red")
+
+doub.vln.2  <- plotColData(stripped[[2]], x="label", y="DoubletScore", colour_by="label")+
+               geom_hline(yintercept = quantile(colData(stripped[[2]])$DoubletScore, 0.95),lty="dashed",color="red")
+
+doub.both.1 <- gridExtra::grid.arrange(tnse.1, doub.plot.1, doub.vln.1, ncol = 1, top = "B6_1")
+doub.both.2 <- gridExtra::grid.arrange(tnse.2, doub.plot.2, doub.vln.2, ncol = 1, top = "B6_2")
+
+
+```
+
+
+```{r visualize doublets, fig.width=10, fig.height=8}
+gridExtra::grid.arrange(doub.both.1, doub.both.2, ncol = 2)
+```
+
+
+
+
+```{r save as seurat}
+# Convert to seurat
+sn.clean.1 <- as.Seurat(stripped[[1]])
+sn.clean.2 <- as.Seurat(stripped[[2]])
+
+# Save as seurat
+SaveH5Seurat(sn.clean.1, "jensen/results/doublets_ambient_rna/08152023/B6_1")
+SaveH5Seurat(sn.clean.2, "jensen/results/doublets_ambient_rna/08152023/B6_2")
+
+```
+
+```{r session info, include = T}
+sessionInfo()
 ```
