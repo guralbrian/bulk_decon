@@ -3,8 +3,6 @@ title: "Remove doublets and ambient RNA"
 author: "Brian Gural"
 date: "2023-08-15"
 output: html_document
-  code_folding: hide
-code_download: true
 ---
 
 ```{r setup, include=FALSE}
@@ -122,7 +120,7 @@ bcrank.plots <-  lapply(bcrank, function(x){.plotRank(x)})
 
 ## Select empty droplets 
 
-```{r emptyDrops limited}
+```{r emptyDrops limited, cache = T}
 # Test for empty droplets, assume those below the limit are empty
 e.out <- lapply(sce, function(x){emptyDrops(x, test.ambient = T, lower = 500)})
 ```
@@ -147,7 +145,7 @@ sce.1 <- mapply(.qualityControl, sce, e.out)
 ```
 
 
-```{r QC cluster/variance}
+```{r QC cluster/variance, cache = T}
 .qcClusterVariance <- function(sce.1.func) {
   clusters <- quickCluster(sce.1.func)
   sce.1.func <- computeSumFactors(sce.1.func, cluster=clusters)
@@ -180,7 +178,7 @@ sce.2 <- lapply(sec.vars, function(x){.qcDimensionalReduction(x)})
 ```
 
 
-```{r QC clustering. cache = T}
+```{r QC clustering, cache = T}
 
 .qcClustering <- function(sce.func) {
   g <- buildSNNGraph(sce.func, k=30)
@@ -224,7 +222,7 @@ The first three are markers for fibroblasts, endothelial cells, and immune cells
 
 I think it's an interesting candidate for RNAscope, as there is some literature to support CM nuclear specificity.  [Cardiomyocyte-Specific Long Noncoding RNA Regulates Alternative Splicing of the Triadin Gene in the Heart](https://www.ahajournals.org/doi/10.1161/CIRCULATIONAHA.121.058017) by Zhao et al is from, last year and is worth checking out. They define it as *Trdn-as* and saw it highly and specifically expressed in cardiomyocyte nuclei via smFISH. I'll try to add a figure from that paper below. 
 
-```{r remove ambience visual, fig.width=7, fig.height=9, results='hide', include = F}
+```{r remove ambience plots, fig.width=7, fig.height=9, results='hide', include = F}
 
 plotAmbience <- function(sce.func, gene){
   before = plotExpression(sce.func, x="label", colour_by="label", features=gene, add_legend = F) 
