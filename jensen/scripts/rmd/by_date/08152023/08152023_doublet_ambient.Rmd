@@ -2,11 +2,16 @@
 title: "Remove doublets and ambient RNA"
 author: "Brian Gural"
 date: "2023-08-15"
-output: html_document
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+    theme: united
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, fig.width = 8, message = F, warning = F)
+knitr::opts_chunk$set(echo = TRUE, fig.width = 10, message = F, warning = F, error = T)
 ```
 
 # Introduction
@@ -19,28 +24,28 @@ This script is meant to remove single cell doublets and ambient RNA from a snRNA
 
 ### Main methods
 
-This pipeline makes use of the DropletUtils package to remove ambient RNA and scDblFinder to score droplets on their likelihood of containing more than one nuclei. Here, we are generally following a combination of pipelines. The first two are by BioConductor for [droplet processing] (http://bioconductor.org/books/3.14/OSCA.advanced/droplet-processing.html) and [quality control of PBMC data](http://bioconductor.org/books/3.14/OSCA.workflows/unfiltered-human-pbmcs-10x-genomics.html#unfiltered-human-pbmcs-10x-genomics)
+This pipeline makes use of the DropletUtils package to remove ambient RNA and scDblFinder to score droplets on their likelihood of containing more than one nuclei. Here, we are generally following a combination of pipelines. The first two are by BioConductor for [droplet processing](http://bioconductor.org/books/3.14/OSCA.advanced/droplet-processing.html) and [quality control of PBMC data](http://bioconductor.org/books/3.14/OSCA.workflows/unfiltered-human-pbmcs-10x-genomics.html#unfiltered-human-pbmcs-10x-genomics)
 
 ### Step-by-step
 
 The general structure of this analysis is as follows:
-- Load all data and packages
-- Trim down size of single cell datasets
-  - They have > 1.7 million droplets, so exclude most of the nearly empty ones
-- Identify empty droplets
-  - Involves ranking droplets by counts, QC/clustering, looking for an empty droplet cluster (defined by low counts and high homogeneity)
-- Regress empty droplet cluster expression profile from all other clusters
-  - We'll also take a look at how this affected expression of canonical markers
-- Identify doublets by simulating our own doublets, clustering, and checking for overlaps
-  - Plus visualizing doublets scores
-- Save all of the data as a Seurat
+* Load all data and packages
+* Trim down size of single cell datasets
+    + They have > 1.7 million droplets, so exclude most of the nearly empty ones
+* Identify empty droplets
+    + Involves ranking droplets by counts, QC/clustering, looking for an empty droplet cluster (defined by low counts and high homogeneity)
+* Regress empty droplet cluster expression profile from all other clusters
+    + We'll also take a look at how this affected expression of canonical markers
+* Identify doublets by simulating our own doublets, clustering, and checking for overlaps
+    + Plus visualizing doublets scores
+* Save all of the data as a Seurat
 
 
 # Analysis
 
 ## Load data/packages
 
-```{r load libs, message=FALSE, echo = T, warning=FALSE, results= 'hide', cache=FALSE, include=F}
+```{r load libs, message=FALSE, echo = T, warning=FALSE, results= 'hide', cache=FALSE}
 # List libraries
 libs <- c("Seurat", "ggplot2", "patchwork","SeuratDisk", "reshape2",
           "tidyverse", "SingleCellExperiment", "viridis", "gplots", "scales", 
@@ -52,7 +57,7 @@ rm(libs)
 ```
 
 
-```{r load data, message=FALSE, echo = T, warning = FALSE, cache = T, include=F, collapse = T}
+```{r load data, message=FALSE, echo = T, warning = FALSE, cache = T, collapse = T}
 dir <- "jensen/data/raw/single_cell/patterson/seurat/"
 files <- paste0(dir, list.files(dir))
 # Function to load data
@@ -88,9 +93,8 @@ sn <- lapply(sn, function(x){.subsetEmptyDrops(x)})
 
 ## Find empty droplets
 
-This plot orders all of the droplets included in the subset and then plots their total RNA counts on the y-axis. It's meant to identify an 'elbow' in the data, which indicates a transition cell-containing droplets to empty droplets. However, our data has two inflection points. Using the lower limit maintained so many cells that it was impossible compute. My SLURM job ran out of memory (32 GB), after 11 hours. Now, with the higher threshold, memory usage stays <7 GB and the whole script runs in under half an hour.
 
-```{r plot gene ranks}
+```{r plot gene ranks, results = 'hide'}
 
 # make sce object for later functions
 sce <- lapply(sn, function(x){as.SingleCellExperiment(x)})
@@ -105,20 +109,37 @@ bcrank <-  lapply(sce, function(x){barcodeRanks(counts(x))})
  .plotRank <- function(ranks){
   uniq <- !duplicated(ranks$rank)
     o <- order(ranks$rank)
+  ranks.funct <- data.frame(rank =ranks$rank[uniq],
+                      total =ranks$total[uniq])
   # plot the ranks with the counts, look for the knee and inflection points
-  plot(x = ranks$rank[uniq], y = ranks$total[uniq], log="y", xlab="Rank", ylab="Total UMI count", cex.lab=1.2) +
-          lines(ranks$rank[o], ranks$fitted[o], col="red") +
-          abline(h=metadata(ranks)$inflection, col="darkgreen", lty=2) +
-          abline(h=metadata(ranks)$knee, col="dodgerblue", lty=2) +
-          abline(h=500, col="darkorange", lty=2) 
-          legend("bottomleft", legend=c("Inflection", "Knee", "Limit"), col=c("darkgreen", "dodgerblue", "darkorange"), lty=2, cex=1.2)
+  plot <- ggplot(ranks.funct, aes(x = rank, y = total, color = total)) +
+    geom_point(size = 2) +
+    scale_color_viridis(option = "viridis", trans = "log") +
+    geom_hline(yintercept = 104, color = "darkgreen", linetype = 2) +
+    geom_hline(yintercept = 1010, color = "dodgerblue", linetype = 2) +
+    geom_hline(yintercept = 500, color = "darkorange", linetype = 2) +
+    labs(x = "Rank", y = "Total UMI count") +
+    theme_minimal() +
+    theme(text = element_text(size = 12),
+          legend.position = "none") +
+    scale_y_log10() +
+    annotate("text", 
+             x = max(ranks.funct$rank)*0.8, 
+             y = c(104, 1010, 500)*0.9, 
+             label = c("Inflection", "Knee", "Limit"), 
+             hjust = 0, vjust = 1, size = 5, 
+             color = c("darkgreen", "dodgerblue", "darkorange"))
+ return(plot)
  }
  
 bcrank.plots <-  lapply(bcrank, function(x){.plotRank(x)})
 
 ```
 
-## Select empty droplets 
+```{r gene ranks show, fig.cap = "Figure 1:  This plot orders all of the droplets included in the subset and then plots their total RNA counts on the y-axis. It's meant to identify an 'elbow' in the data, which indicates a transition cell-containing droplets to empty droplets. However, our data has two inflection points. Using the lower limit maintained so many cells that it was impossible compute. My SLURM job ran out of memory (32 GB), after 11 hours. Now, with the higher threshold, memory usage stays <7 GB and the whole script runs in under half an hour."}
+grid.arrange(bcrank.plots[[1]],bcrank.plots[[2]], ncol = 2)
+```
+
 
 ```{r emptyDrops limited, cache = T}
 # Test for empty droplets, assume those below the limit are empty
@@ -192,11 +213,11 @@ sce.2 <- lapply(sce.2, function(x){.qcClustering(x)})
 
 ### TSNE clusters of each dataset, still including ambient RNA
 
-On the top is B6_1 and the bottom is B6_2. If the script worked right.
-
-```{r plot tnse}
-tnse.1 <- plotTSNE(sce.2[[1]], colour_by="label")
-tnse.2 <- plotTSNE(sce.2[[2]], colour_by="label")
+```{r plot tnse, fig.cap= "Figure 2: Dimensional reduction of subsetted, raw snRNAseq datasets. B6_1 and B6_2, left and right."}
+tnse.1 <- plotTSNE(sce.2[[1]], colour_by="label") +
+          ggtitle("B6_1")
+tnse.2 <- plotTSNE(sce.2[[2]], colour_by="label") +
+          ggtitle("B6_2")
 
 grid.arrange(tnse.1, tnse.2, ncol = 2)
 ```
@@ -218,9 +239,9 @@ stripped <- mapply(.removeAmbience, sce.2, e.out)
 
 ### Marker expression by cluster before and after ambient RNA removal
  
-The first three are markers for fibroblasts, endothelial cells, and immune cells (B cells + MF). The next three are all cardiomyocyte markers, with two canonical and one that was the strongest marker from our last pass at the deconvolution analysis. 
+I've included D830005E20Rik as it was that was the strongest cardiomyocyte marker from our last pass at the deconvolution analysis. 
 
-I think it's an interesting candidate for RNAscope, as there is some literature to support CM nuclear specificity.  [Cardiomyocyte-Specific Long Noncoding RNA Regulates Alternative Splicing of the Triadin Gene in the Heart](https://www.ahajournals.org/doi/10.1161/CIRCULATIONAHA.121.058017) by Zhao et al is from, last year and is worth checking out. They define it as *Trdn-as* and saw it highly and specifically expressed in cardiomyocyte nuclei via smFISH. I'll try to add a figure from that paper below. 
+I think it's an interesting candidate for RNAscope, as there is some literature to support CM nuclear specificity.  [Cardiomyocyte-Specific Long Noncoding RNA Regulates Alternative Splicing of the Triadin Gene in the Heart](https://www.ahajournals.org/doi/10.1161/CIRCULATIONAHA.121.058017) by Zhao et al is from last year and is worth checking out. They define it as *Trdn-as* and saw it highly and specifically expressed in cardiomyocyte nuclei via smFISH.I'll add a relevant figure below
 
 ```{r remove ambience plots, fig.width=7, fig.height=9, results='hide', include = F}
 
@@ -261,18 +282,17 @@ plots.2.af <- grid.arrange(grobs= plots.2.after, top = "After removing ambient R
 plots.2 <- grid.arrange(plots.2.be,plots.2.af  , top = "B6_2", ncol = 2)
 ```
 
-```{r remove ambience visual, fig.width=10, fig.height=15}
+```{r remove ambience visual, fig.width=10, fig.height=15, fig.cap = "Figure 3: Changes in gene expression after removal of ambient RNA, for each sample. Col1a1, fibroblasts; Pecam1, ECs; Myh6, CMs; Tnnt2, CMs; D830005E20Rik, CMs."}
 # Mesh them all together in one plot
 plots.all <- grid.arrange(plots.1, plots.2, ncol = 2)
 ```
 
+
+
+
 ### Zhao 2022 Figure 1
 
-```{r zhao figure, include = F}
-url <- "https://www.ahajournals.org/cms/asset/0d6f33b7-4b50-4685-a6b3-e3cbfbc8de87/circulationaha.121.058017.fig01.jpg"
-```
-
-<center><img src="`r url`"></center>
+![Figure 4: Fig1 from Zhao 2022. Their caption was, "Human TRDN-AS and mouse Trdn-as are expressed exclusively in cardiomyocytes (CMs) and enriched in nuclei...](/proj/raulab/users/brian/r_projects/bulk_decon/jensen/scripts/rmd/by_date/08152023/media/zhao2022_fig1.png)
 
 
 ## Doublet detection
@@ -297,7 +317,7 @@ stripped <- lapply(1:length(stripped), function(x){.removeDoublets(stripped[[x]]
 
 ### Doublet visuals
 
-With the doublets, we can see that they localize together in clusters. For now, they'll stay in the dataset. I'll include that data in a downstream QC.\
+With the doublets, we can see that they localize together in clusters. For now, they'll stay in the dataset. I'll include that data in a downstream QC.
 
 ```{r make doublets plots, results = 'hide', include = F}
 # plotUMAP with DoubletScore
@@ -312,18 +332,16 @@ doub.vln.1  <- plotColData(stripped[[1]], x="label", y="DoubletScore", colour_by
 doub.vln.2  <- plotColData(stripped[[2]], x="label", y="DoubletScore", colour_by="label")+
                geom_hline(yintercept = quantile(colData(stripped[[2]])$DoubletScore, 0.95),lty="dashed",color="red")
 
-doub.both.1 <- gridExtra::grid.arrange(tnse.1, doub.plot.1, doub.vln.1, ncol = 1, top = "B6_1")
-doub.both.2 <- gridExtra::grid.arrange(tnse.2, doub.plot.2, doub.vln.2, ncol = 1, top = "B6_2")
+doub.both.1 <- gridExtra::grid.arrange(tnse.1, doub.plot.1, doub.vln.1, ncol = 1)
+doub.both.2 <- gridExtra::grid.arrange(tnse.2, doub.plot.2, doub.vln.2, ncol = 1)
 
 
 ```
 
 
-```{r visualize doublets, fig.width=10, fig.height=8}
+```{r visualize doublets, fig.width=10, fig.height=8, fig.cap= "Figure 5: Doublet scores by cluster, between samples. Threshold was defined with the upper 5% of scores."}
 gridExtra::grid.arrange(doub.both.1, doub.both.2, ncol = 2)
 ```
-
-
 
 
 ```{r save as seurat}
@@ -334,6 +352,9 @@ sn.clean.2 <- as.Seurat(stripped[[2]])
 # Save as seurat
 SaveH5Seurat(sn.clean.1, "jensen/results/doublets_ambient_rna/08152023/B6_1")
 SaveH5Seurat(sn.clean.2, "jensen/results/doublets_ambient_rna/08152023/B6_2")
+
+SaveH5Seurat(sn.clean.1, "jensen/data/processed/single_cell/no_doublets/08162023/rau_B6_1")
+SaveH5Seurat(sn.clean.2, "jensen/data/processed/single_cell/no_doublets/08162023/rau_B6_2")
 
 ```
 
