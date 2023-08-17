@@ -367,11 +367,12 @@ plotUMAP <- function(data,
                      nrow = NULL,
                      design = NULL,
                      label.size = 4,
-                     font.size = NULL) {
+                     font.size = NULL,
+                     name = NULL) {
   dim.plots  <- vector("list", length(dim.ft))
   feat.plots <- vector("list", length(feat.ft))
   vln.plots <- vector("list", length(vln.ft)*length(vln.groups))
-  
+  print(name)
   for(i in seq_along(dim.plots)){
     dim.plots[[i]]<- do_DimPlot(data, 
                              reduction = 'umap', 
@@ -381,7 +382,8 @@ plotUMAP <- function(data,
                              font.size = font.size,
                              label.size = label.size) + 
                           NoLegend() + 
-                          ggtitle(dim.ft[[i]])
+                          ggtitle(name) +
+                          theme(plot.title = element_text(size = font.size*2, hjust = 0.5))
   } 
   
   for(i in seq_along(feat.plots)){
@@ -390,7 +392,8 @@ plotUMAP <- function(data,
                                     features = feat.ft[[i]],
                                     pt.size = 0.4, 
                                     order = TRUE,
-                                    label = TRUE) + 
+                                    font.size = font.size,
+                                    label.size = label.size) + 
                                     ggtitle(if(
                                       !is.null(feat.labels[[i]])){
                                         paste0("*",feat.ft[[i]],"*", ", ", feat.labels[[i]])
@@ -402,7 +405,8 @@ plotUMAP <- function(data,
     for(j in seq_along(vln.groups)){
     vln.plots[[i*j]] <-  SCpubr::do_ViolinPlot(data, 
                                                features = vln.ft[[i]], 
-                                               group.by = vln.groups[[j]]) + 
+                                               group.by = vln.groups[[j]],
+                                               font.size = font.size) + 
                                                ggtitle(paste0(vln.ft[[i]], " by ", vln.groups[[j]]))
     }
   }

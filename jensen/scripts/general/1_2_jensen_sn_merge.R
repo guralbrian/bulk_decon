@@ -9,7 +9,7 @@ lapply(libs, require, character.only = T)
 source("jensen/scripts/functions/decon_all.R")
 
 # load individual seurats
-doublet.path <- "jensen/data/processed/single_cell/no_doublets/"
+doublet.path <- "jensen/data/processed/single_cell/no_doublets/06202023/"
 datasets <- list.files(doublet.path)
 
 sn.list <- lapply(datasets, function(x){LoadH5Seurat(paste0(doublet.path, x))})
