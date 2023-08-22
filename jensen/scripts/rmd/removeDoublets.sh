@@ -11,4 +11,4 @@
 
 module load r/4.2.1
 
-Rscript by_date/08142023_doublet_ambient.Rmd
+Rscript by_date/08142023_doublet_ambient.R
