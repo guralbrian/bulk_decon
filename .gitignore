@@ -57,11 +57,11 @@ vignettes/*.pdf
 #*README_files/
 
 # Results folder
-results/
-
+jensen/results/
+gtex/results/
 # Data folder
-data/
-
+jensen/data/
+gtex/data/
 # Data files 
 *.csv
 *.h5seurat
