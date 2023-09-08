@@ -145,9 +145,10 @@ decon.melt <- decon.melt |>
 
 
 
-
+write.csv(decon.melt, "jensen/data/processed/outputs/compositions/bcsv_poster_ratios.csv", row.names = F)
 
 ```
+
 
 ```{r music plot sham, fig.width = 19, fig.height= 9, echo=FALSE, message=FALSE, warning=FALSE}
 
