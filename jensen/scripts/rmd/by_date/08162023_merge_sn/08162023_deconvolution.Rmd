@@ -9,7 +9,11 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE, fig.width = 10, message = F, warning = F, error = T)
 ```
 
+<<<<<<< HEAD
 ```{r load libs, message=FALSE, echo = F, warning=FALSE, results= 'hide', cache=FALSE}
+=======
+```{r load libs, message=FALSE, echo = T, warning=FALSE, results= 'hide', cache=FALSE}
+>>>>>>> 65e819e64855c8c017dadf056d0ca3ad77401628
 libs <- c("Seurat", "ggplot2", "DESeq2", "patchwork","SeuratDisk", "MuSiC", "reshape2",
           "tidyverse", "SingleCellExperiment", "harmony", "SCpubr", 
           "AUCell", "viridis", "gplots", "scales", "ggrepel", "gridExtra", "scCustomize",
@@ -731,7 +735,10 @@ plot.clr <- ggplot(comparison.clr.high, aes(x = log2FoldChange.clr, y = -log10(p
   ggtitle("DE w/ clr-based composition in model", subtitle = "Colored text show genes that became or lost significance, top 5 by change")# move legend to the bottom
 
 plot.clr
+<<<<<<< HEAD
 # This is the plot sent to Jensen on 8/21/23
+=======
+>>>>>>> 65e819e64855c8c017dadf056d0ca3ad77401628
 ```
 
 ```{r top clr sig plot, fig.width = 35, fig.height= 15, echo=FALSE, message=FALSE, warning=FALSE}
@@ -758,8 +765,11 @@ wrap_plots(plots.exp,
            ncol = 6)
 ```
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 65e819e64855c8c017dadf056d0ca3ad77401628
 ```{r bulk gene exp plot prep,  fig.width=20}
 
   # Melt the count data to long format
@@ -877,6 +887,7 @@ plot <- ggarrange(high.plot, p2,
 high.plot + geom_text(data = high.df, aes(x = gene))
 plot
 
+<<<<<<< HEAD
 ```
 
 ```{r jensen email update visuals, fig.width = 35, fig.height= 15, echo=FALSE, message=FALSE, warning=FALSE}
@@ -992,4 +1003,6 @@ return(all.plots)
 update.plots <- lapply(genes.update, function(x){.plotJensenUpdate(x)})
 
 wrap_plots(update.plots)
+=======
+>>>>>>> 65e819e64855c8c017dadf056d0ca3ad77401628
 ```

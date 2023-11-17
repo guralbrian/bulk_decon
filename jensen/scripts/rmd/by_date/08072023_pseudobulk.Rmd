@@ -329,7 +329,11 @@ result <- result |>
 
 ```
 
+<<<<<<< HEAD
 ```{r plot DESeq output, fig.width=10, fig.height= 6}
+=======
+```{r plot DESeq output}
+>>>>>>> 65e819e64855c8c017dadf056d0ca3ad77401628
 
 pal <- c("#fa9fb5", "#f768a1", "#c51b8a", "#74c476", "#31a354", "#a6bddb", "#74a9cf", "#2b8cbe", "#969696")
 

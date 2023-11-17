@@ -60,6 +60,7 @@ vignettes/*.pdf
 
 # Results folder
 <<<<<<< HEAD
+<<<<<<< HEAD
 gtex/results/
 jensen/results/
 
@@ -67,6 +68,13 @@ jensen/results/
 gtex/data/
 jensen/data/
 
+=======
+jensen/results/
+gtex/results/
+# Data folder
+jensen/data/
+gtex/data/
+>>>>>>> 65e819e64855c8c017dadf056d0ca3ad77401628
 =======
 jensen/results/
 gtex/results/
