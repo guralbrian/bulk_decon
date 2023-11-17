@@ -4,7 +4,9 @@
 
 # Session Data files
 .RData
-
+.RDatatemp
+.Rdatatemp
+.RDataTmp
 # User-specific files
 .Ruserdata
 
@@ -57,11 +59,21 @@ vignettes/*.pdf
 #*README_files/
 
 # Results folder
-results/
+<<<<<<< HEAD
+gtex/results/
+jensen/results/
 
 # Data folder
-data/
+gtex/data/
+jensen/data/
 
+=======
+jensen/results/
+gtex/results/
+# Data folder
+jensen/data/
+gtex/data/
+>>>>>>> 65e819e64855c8c017dadf056d0ca3ad77401628
 # Data files 
 *.csv
 *.h5seurat
@@ -71,3 +83,4 @@ data/
 *.pdf
 *.jpeg
 *.html
+*.Rhistory

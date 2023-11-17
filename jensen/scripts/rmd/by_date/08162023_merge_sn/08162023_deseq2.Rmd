@@ -1,0 +1,806 @@
+---
+title: "Composition-adjusted DESeq2 analysis"
+author: "Brian Gural"
+date: "2023-08-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 10, message = F, warning = F, error = T)
+```
+
+```{r load libs, message=FALSE, echo = T, warning=FALSE, results= 'hide', cache=FALSE}
+libs <- c("Seurat", "ggplot2", "DESeq2", "patchwork","SeuratDisk", "MuSiC", "reshape2",
+          "tidyverse", "SingleCellExperiment", "harmony", "SCpubr", 
+          "AUCell", "viridis", "gplots", "scales", "ggrepel", "gridExtra", "scCustomize",
+          "httr","matrixStats", "scran", "scuttle", "scater", "DropletUtils", "scDblFinder",
+          "DeconvoBuddies", "readr", "SingleCellExperiment", "compositions",
+          "SummarizedExperiment", "Biobase", "ggmagnify", "stringr", "MuSiC",
+          "ggforce", "DirichletReg", "readxl") # list libraries here
+lapply(libs, require, character.only = T)
+source("jensen/scripts/functions/decon_all.R")
+rm(libs)
+```
+
+```{r load data}
+
+decon.melt <- read.csv("jensen/data/processed/outputs/compositions/08162023_comps.csv", row.names = 1)
+markers <- read.csv("jensen/data/processed/outputs/compositions/08162023_markers.csv")
+
+
+sn <- LoadH5Seurat("jensen/data/processed/single_cell/merged_datasets/08162023.h5seurat")
+
+
+# Load and format bulk data
+jensen_bulk <- readxl::read_xlsx("jensen/data/raw/jensen_counts_correct.xlsx")[,-c(20,21)] |>
+  as.data.frame()
+colnames(jensen_bulk)[c(20,21)] <- c("WT MI", "KO MI")
+
+```
+
+```{r dirichlet, fig.width = 12, fig.height= 6, echo=TRUE, message=TRUE, warning=FALSE}
+
+decon.melt <- decon.melt |> 
+  mutate(CellType = factor(case_when(
+    str_detect(CellType, "cardiomyocytes") ~ "Cardiomyocytes",
+    str_detect(CellType, "fibroblasts") ~ "Fibroblasts",
+    str_detect(CellType, "`endothelial cells`") ~ "Endothelial Cells",
+    str_detect(CellType, "macrophages") ~ "Macrophages",
+    str_detect(CellType, "`B cells`") ~ "B Cells")))
+
+## Prep DirichletReg matrix
+
+# Add small value to remove zeros
+decon.melt$Prop <- decon.melt$Prop + 0.0001
+
+# Make model matrix
+dir.mat <- decon.melt |>
+  subset(type == "whole", #%in% c("Cardiomyocytes", "Fibroblasts", "Endothelial Cells"),
+         select = c("Sub", "CellType", "Prop", "genotype", "treatment")) |>
+  dcast(Sub + genotype + treatment ~ CellType, value.var = "Prop")
+
+
+### TEMP ###
+
+############
+
+# Convert data to DirichletRegData object
+dir.mat$CellTypes <- DR_data(dir.mat[,c(4:length(dir.mat))])
+
+dir.mat$genotype   <- as.factor(dir.mat$genotype) |>
+                        relevel(ref = "WT") 
+
+dir.mat$treatment <- as.factor(dir.mat$treatment) |>
+                        relevel(ref = "sham") 
+# Run Dirichlet regression
+model.1 <- DirichReg(CellTypes ~ treatment * genotype, data = dir.mat, model = "alternative", base = 3)
+model.2 <- DirichReg(CellTypes ~ treatment * genotype, data = dir.mat, model = "common")
+
+# compare models, find if interaction term improves model
+
+summary(model.1)
+model.1$sub.comp
+
+```
+
+```{r sig bars, fig.width = 8.8, fig.height=5.2 , echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyverse)
+
+# !needs the pr and z value columns!
+df <- data.frame(CellType = rep(c("B Cells", "Cardiomyocytes", "Fibroblasts", "Macrophages"),
+                                times =1, each = 4),
+                 Variable = rep(c("Intercept", "treatment MI", 
+                                  "genotype KO", "treatmentMI genotypeKO"),
+                                times = 4),
+                 coefficients = model.1$coefficients[-length(model.1$coefficients)],
+                 std_err = model.1$se[-length(model.1$coefficients)])
+# Create a data frame with the required information
+df.1 <- data.frame(
+    CellType = c(
+        "Cardiomyocytes", "Cardiomyocytes", "Cardiomyocytes",
+        "Fibroblasts", "Fibroblasts", "Fibroblasts",
+        "immune", "immune", "immune"
+    ),
+    Variable = c(
+        "Myocardial Infarction", "a1-AR KO", "Myocardial Infarction and a1-AR KO",
+        "Myocardial Infarction", "a1-AR KO", "Myocardial Infarction and a1-AR KO",
+        "Myocardial Infarction", "a1-AR KO", "Myocardial Infarction and a1-AR KO"
+    ),
+    Estimate = c(0.27344, -0.02141, 0.01670, 1.0866, -0.0380, 0.5711, -1.1859, -0.1314, 1.6480),
+    StdError = c(0.11116, 0.10321, 0.15849, 0.1658, 0.1791, 0.2313, 0.5499, 0.4366, 0.7057),
+    zvalue = c(2.460, -0.207, 0.105, 6.555, -0.212, 2.469, -2.157, -0.301, 2.335),
+    Pr = c(0.0139, 0.8357, 0.9161, 5.55e-11, 0.8320, 0.0135, 0.0310, 0.7635, 0.0195)
+)
+
+# Print the data frame
+print(df)
+
+
+
+# Add a column for significance labels
+df <- df |>
+    mutate(Significance = case_when(
+        as.numeric(Pr ) < .001 ~ "***",
+        as.numeric(Pr) < .01 ~ "**",
+        as.numeric(Pr) < .05 ~ "*",
+        as.numeric(Pr) < .1 ~ ".",
+        TRUE ~ " "
+    ))
+
+# Load the required library
+library(stringr)
+
+# Wrap the Variable names
+df$Variable <- str_wrap(df$Variable, width = 10)
+pal <- brewer_pal(type = "qual", palette = "Dark2")(5)
+
+names(pal) <- c("Cardiomyocytes", "Endothelial Cells", "Fibroblasts", "Macrophages", "B Cells")
+
+
+# Now, plot the data
+err.plot <- df |> 
+  subset(Variable != "Intercept" & 
+           CellType %in% c("Cardiomyocytes", "Fibroblasts")) |> 
+   ggplot(aes(y = Variable, x = coefficients, color = CellType)) +
+    geom_point(position = position_dodge(width = 0.6), size = 8) +
+    geom_errorbarh(aes(xmin = coefficients - std_err, xmax = coefficients + std_err),
+                  height = 0.2, position = position_dodge(width = 0.6), size = 2) +
+    scale_color_manual(values = pal) +
+    theme_classic() +
+    theme(axis.text.x = element_text(color = "black", size = 20),
+        axis.text.y = element_text(color = "black", size = 20),
+        axis.ticks = element_blank(),
+        legend.position = c(1, 0.4),
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6),
+        title = element_text(size = 20),
+        legend.text = element_text(size = 20),
+        axis.title.y = element_text(color = "black", size = 20),
+        axis.title.x = element_text(color = "black", size = 20),
+         panel.background = element_rect(fill='transparent'),
+         plot.background = element_rect(fill='transparent', color=NA),
+         panel.grid.major = element_blank(),
+         panel.grid.minor = element_blank(),
+         legend.background = element_rect(fill='transparent'),
+         legend.box.background = element_rect(fill='transparent')) +
+  labs(x = "Coeffiecients\n(estimates of effect)", 
+       y = "Predictor Variables", 
+       legend = "Cell Types")  +
+  scale_y_discrete(
+    labels = function(x) str_wrap(x, width = 10),
+    drop = FALSE
+  )
+
+err.plot
+
+```
+```{r prep phenos , fig.width = 14, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
+phenotypes_real <- jensen_bulk[1,] |> 
+  pivot_longer(cols = -c(1:5), 
+               names_to = "gene_treat", 
+               values_to = "id") |>
+  mutate(gene_treat = str_remove(gene_treat, "\\..*")) |>
+  select(gene_treat, id)
+
+```
+
+
+
+```{r deseq pre, fig.width = 12, fig.height= 6, echo=TRUE, message=TRUE, warning=FALSE}
+library(makeunique)
+jensen_bulk <- read_xlsx("jensen/data/raw/jensen_counts_correct.xlsx")[-1,-c(1:4,20,21)] |>
+               as.data.frame()
+colnames(jensen_bulk) <- c("gene", make_unique(unlist(phenotypes_real$gene_treat)))
+
+phenotypes_real$de_id <- colnames(jensen_bulk)[-1]
+
+# Add a suffix to duplicate gene names to make them unique
+make.names.jensen_bulk <- function(jensen_bulk){
+    duplicated.names <- duplicated(jensen_bulk$gene)
+    suffix <- cumsum(duplicated.names)
+    jensen_bulk$gene[duplicated.names] <- paste0(jensen_bulk$gene[duplicated.names], ".", suffix[duplicated.names])
+    return(jensen_bulk)
+}
+
+jensen_bulk <- make.names.jensen_bulk(jensen_bulk)
+
+# Now set the row names
+row.names(jensen_bulk) <- jensen_bulk$gene
+
+#write.csv(jensen_bulk, "jensen/data/processed/outputs/compositions/08162023_counts.csv", row.names = F)
+#write.csv(jensen_bulk, "jensen/results/deseq2_08032023/bulk_data.csv")
+
+#write.csv(dir.mat$CellTypes, "jensen/results/deseq2_08032023/comp_data.csv")
+
+```
+
+
+```{r clr transform}
+# use clr or ilr to incorp the compositions into the design matrix
+comps.clr <- compositions::clr(dir.mat$CellTypes)
+
+colnames(comps.clr) <- paste0("clr.", colnames(comps.clr))
+
+```
+
+```{r pca}
+
+pca <- prcomp(t(dir.mat$CellTypes[,c("Cardiomyocytes", "Endothelial Cells", "Fibroblasts")]))
+
+summary(pca)
+```
+
+```{r deseq pre, fig.width = 12, fig.height= 6, echo=TRUE, message=TRUE, warning=FALSE}
+
+# Prepare for DESeq2
+count_data <- jensen_bulk[,-1]
+
+count_data <- mutate_all(count_data, function(x) round(as.numeric(as.character(x)), digits = 0)) # round to integers
+
+# Prepare sample information
+sample_info <- data.frame(
+  row.names = colnames(count_data),
+  genotype =  lapply(strsplit(colnames(count_data), " "),  "[[", 1) |> unlist() |> as.factor() ,
+  treatment = lapply(strsplit(colnames(count_data), " "),  "[[", 2) |> unlist() |> as.factor()
+)
+
+sample_info$genotype <- relevel(sample_info$genotype, ref = "WT")
+sample_info$treatment <- relevel(sample_info$treatment, ref = "sham")
+
+```
+
+```{r deseq pca}
+
+sample.pca <- cbind(sample_info, pca$rotation)
+
+# Create a DESeqDataSet
+dds.pca <- DESeqDataSetFromMatrix(
+  countData = count_data,
+  colData = sample.pca,
+  design = ~ genotype + treatment + genotype:treatment + PC1 
+)
+
+# Run the DESeq pipeline
+dds.pca <- DESeq(dds.pca)
+
+# Run the differential expression analysis
+res.pca <- results(dds.pca, name="genotypeKO.treatmentMI")
+
+```
+
+```{r deseq clr}
+sample.clr <- cbind(sample_info, comps.clr)
+
+# Create a DESeqDataSet
+dds.clr <- DESeqDataSetFromMatrix(
+  countData = count_data,
+  colData = sample.clr,
+  design = ~ genotype + treatment + genotype:treatment + clr.Cardiomyocytes +  clr.Fibroblasts #+ clr.endothelial_cells
+)
+
+# Run the DESeq pipeline
+dds.clr <- DESeq(dds.clr)
+
+# Run the differential expression analysis
+res.clr <- results(dds.clr, name="genotypeKO.treatmentMI")
+
+```
+
+```{r deseq raw}
+# Create a DESeqDataSet
+dds.raw <- DESeqDataSetFromMatrix(
+  countData = count_data,
+  colData = sample_info,
+  design = ~ genotype + treatment + genotype:treatment
+)
+
+# Run the DESeq pipeline
+dds.raw <- DESeq(dds.raw)
+
+# Run the differential expression analysis
+res.raw <- results(dds.raw, name="genotypeKO.treatmentMI")
+```
+
+
+```{r compare deseq pca, fig.width = 8, fig.height= 6, echo=TRUE, message=TRUE, warning=FALSE}
+# Compare results
+comparison.pca <- merge(as.data.frame(res.pca), as.data.frame(res.raw), by = "row.names", suffixes = c(".pca", ".raw"))
+
+# Calculate difference in -log10 p-values
+comparison.pca$p_diff <- -log10(comparison.pca$padj.pca) - -log10(comparison.pca$padj.raw)
+
+# Make categorical column
+comparison.pca <- comparison.pca |>
+        mutate(pca.sig = ifelse(padj.pca <= 0.05 & padj.raw >= 0.05, T, F),
+               raw.sig = ifelse(padj.pca >= 0.05 & padj.raw <= 0.05, T, F),
+               both.sig = ifelse(padj.pca <= 0.05 & padj.raw <= 0.05, T, F)) 
+
+#write.csv(comparison.clr.high, "jensen/data/processed/outputs/compositions/08162023_deseq.csv", row.names = F)
+```
+
+```{r add comp de info}
+# Get the gene names for the top 5 genes by change in adjusted p value, within lost and gained sig groups
+gained.pca <- comparison.pca |>  
+  subset(pca.sig == T) |>
+  arrange(desc(abs(p_diff))) |>
+  slice_head(n = 5)
+
+lost.pca <- comparison.pca |>  
+  subset(raw.sig == T) |> 
+  arrange(desc(abs(p_diff))) |>
+  slice_head(n = 5)
+
+top.pca <- comparison.pca |> 
+  arrange(padj.pca) |>
+  slice_head(n = 15)
+```
+
+```{r plot pca, fig.width = 14, fig.height= 12}
+limit <- comparison.pca |> 
+  na.omit() |>
+  arrange(desc(abs(p_diff))) |>
+  slice_head(n = 1) |>
+  pull(p_diff) * c(1,-1)
+
+plot.pca <- ggplot(comparison.pca, aes(x = log2FoldChange.pca, y = -log10(padj.pca), color = p_diff)) +
+  geom_point(alpha = 0.8, size = 4) +
+  scale_color_distiller(type = "div", limit = limit)+
+  geom_text_repel(data = gained.pca, aes(label = Row.names), size = 8, box.padding = unit(0.35, "lines"), 
+                  force = 40, segment.linetype = 2, segment.size = 0.6, color = "orange", force_pull = 0.01, min.segment.length = 0) + # label most increase sig genes 
+  geom_text_repel(data = lost.pca, aes(label = Row.names), size = 8, box.padding = unit(0.35, "lines"), 
+                  force = 20, segment.linetype = 2, segment.size = 0.6, color = "purple", force_pull = 0.01, min.segment.length = 0) + # label most decrease sig genes 
+  geom_text_repel(data = top.pca, aes(label = Row.names), size = 8, box.padding = unit(0.35, "lines"), 
+                  force = 20, segment.linetype = 2, segment.size = 0.6, color = "black", force_pull = 0.01, min.segment.length = 0) + # label most sig genes 
+  theme_minimal() +
+  labs(x = "log2(Fold Change)", y = "-log10(adjusted p-value)", color = "Change in -log10(p-value)") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed") + 
+  geom_vline(xintercept = 0, linetype = "solid") + # add a line for p=0.05
+  theme(legend.position = "bottom",
+        axis.text.x = element_text(color = "black", size = 25),
+        axis.text.y = element_text(color = "black", size = 25),
+        axis.ticks = element_blank(),
+        title = element_text(size = 25),
+        legend.text = element_text(size = 25),
+        legend.key.size = unit(0.7, 'in'),
+        legend.title = element_text(vjust = 0.7),
+        axis.title.y = element_text(color = "black", size = 25),
+        axis.title.x = element_text(color = "black", size = 25),
+        panel.background = element_rect(fill='transparent'),
+        plot.background = element_rect(fill='transparent', color=NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  ggtitle("DE w/ PCA-based composition in model", subtitle = "Colored text show genes that became or lost significance, top 5 by change")# move legend to the bottom
+
+plot.pca
+```
+
+```{r compare deseq clr, fig.width = 8, fig.height= 6, echo=TRUE, message=TRUE, warning=FALSE}
+# Compare results
+comparison.clr <- merge(as.data.frame(res.clr), as.data.frame(res.raw), by = "row.names", suffixes = c(".clr", ".raw"))
+
+# Calculate difference in -log10 p-values
+comparison.clr$p_diff <- -log10(comparison.clr$padj.clr) - -log10(comparison.clr$padj.raw)
+
+# Make categorical column
+comparison.clr <- comparison.clr |>
+        mutate(clr.sig = ifelse(padj.clr <= 0.05 & padj.raw >= 0.05, T, F),
+               raw.sig = ifelse(padj.clr >= 0.05 & padj.raw <= 0.05, T, F),
+               both.sig = ifelse(padj.clr <= 0.05 & padj.raw <= 0.05, T, F)) 
+
+# Get the gene names for the top 5 genes by change in adjusted p value, within lost and gained sig groups
+gained.clr <- comparison.clr |>  
+  subset(clr.sig == T) |>
+  arrange(desc(abs(p_diff))) |>
+  slice_head(n = 5)
+
+lost.clr <- comparison.clr |>  
+  subset(raw.sig == T) |> 
+  arrange(desc(abs(p_diff))) |>
+  slice_head(n = 5)
+
+top.clr <- comparison.clr |> 
+  arrange(padj.clr) |>
+  slice_head(n = 15)
+
+top.lost.raw <- comparison.clr |>
+  subset(raw.sig == T) |> 
+  arrange(padj.raw) |>
+  slice_head(n = 10)
+```
+
+```{r plot clr, fig.width = 14, fig.height= 12}
+limit <- comparison.clr |> 
+  na.omit() |>
+  arrange(desc(abs(p_diff))) |>
+  slice_head(n = 1) |>
+  pull(p_diff) * c(1, -1)
+
+plot.clr <- ggplot(comparison.clr, aes(x = log2FoldChange.clr, y = -log10(padj.clr), color = p_diff)) +
+  geom_point(alpha = 0.8, size = 4) +
+  scale_color_distiller(type = "div", limit = limit)+
+  geom_text_repel(data = gained.clr, aes(label = Row.names), size = 8, box.padding = unit(0.35, "lines"), 
+                  force = 40, segment.linetype = 2, segment.size = 0.6, color = "orange", force_pull = 0.01, min.segment.length = 0) + # label most increase sig genes 
+  geom_text_repel(data = lost.clr, aes(label = Row.names), size = 8, box.padding = unit(0.35, "lines"), 
+                  force = 20, segment.linetype = 2, segment.size = 0.6, color = "purple", force_pull = 0.01, min.segment.length = 0) + # label most decrease sig genes 
+  geom_text_repel(data = top.clr, aes(label = Row.names), size = 8, box.padding = unit(0.35, "lines"), 
+                  force = 20, segment.linetype = 2, segment.size = 0.6, color = "black", force_pull = 0.01, min.segment.length = 0) + # label most sig genes 
+  theme_minimal() +
+  labs(x = "log2(Fold Change)", y = "-log10(adjusted p-value)", color = "Change in -log10(p-value)") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed") + 
+  geom_vline(xintercept = 0, linetype = "solid") + # add a line for p=0.05
+  theme(legend.position = "bottom",
+        axis.text.x = element_text(color = "black", size = 25),
+        axis.text.y = element_text(color = "black", size = 25),
+        axis.ticks = element_blank(),
+        title = element_text(size = 25),
+        legend.text = element_text(size = 25),
+        legend.key.size = unit(0.7, 'in'),
+        legend.title = element_text(vjust = 0.7),
+        axis.title.y = element_text(color = "black", size = 25),
+        axis.title.x = element_text(color = "black", size = 25),
+        panel.background = element_rect(fill='transparent'),
+        plot.background = element_rect(fill='transparent', color=NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  ggtitle("DE w/ clr-based composition in model", subtitle = "Colored text show genes that became or lost significance, top 5 by change")# move legend to the bottom
+
+plot.clr
+```
+
+```{r immune + FB markers, fig.width = 30, fig.height= 10, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Screening 
+
+plotGene <- function(seurat, slot = "scale.data", gene, plot.title = T, plot.legend = T){
+  
+  seurat |>
+    do_FeaturePlot(gene, reduction = "umap", slot = slot, 
+                   legend.position = if(plot.legend == T){"bottom"}else{"none"}, 
+                   legend.width = 2, legend.length = 25,  order = T) +
+    theme(title = element_text(size = 22),
+          legend.title = element_blank()) +
+    labs(title = if(plot.title == T){paste0(gene)}else{" "})
+}
+
+genes <- c("Ttn", "Col3a1", "Lancl3", "Errfi1")
+
+
+
+# plot new
+plots <- c()
+plots[["cell"]] <- do_DimPlot(sn, reduction = "umap", label = T, repel = T)  +  
+  NoLegend() + theme(title = element_text(size = 22))
+plots.exp <- lapply(genes, function(x){plotGene(seurat = sn, slot = "data", gene = x, plot.legend = F)})
+
+plots.exp <- c(plots, plots.exp)
+wrap_plots(plots.exp, 
+           ncol = 5)
+```
+
+```{r bulk gene exp plot}
+
+  # Melt the count data to long format
+  count_data$gene <- rownames(count_data)
+  count_data_long <- melt(count_data, variable.name = "sample", value.name = "expression")
+
+
+  # Filter for the specified genes
+  count_data_long <- count_data_long %>% filter(gene %in% genes)
+  
+  # Split sample names into genotype and treatment
+  sample_info_long <- count_data_long %>%
+    mutate(sample.1 = sample) |>
+    separate(sample.1, into = c("genotypeXtreatment", "replicate"), sep = "[(]")
+  
+  # List genes of interest
+  genes <- c("Ttn", "Col3a1",  "Lancl3", "Errfi1")
+
+
+  # Merge with sample_info
+  plot_data <- sample_info_long |>
+    subset(gene %in% genes)
+  
+my_palette <- c('#78c679', '#006d2c', '#d95f0e', '#993404')
+
+
+ plot_data |>
+  ggplot(aes(x = gene, y = log10(expression), fill = genotypeXtreatment)) +
+  geom_bar(stat = "summary", 
+           position = position_dodge(0.9), 
+           fun = mean,
+           width = 0.9,
+           color = "black") +
+  theme(axis.text.x = element_text(color = "black", size = 25, angle =15),
+        axis.text.y = element_text(color = "black", size = 20),
+        axis.ticks = element_blank(),
+        legend.position = "right",
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6),
+        strip.text = element_text(size = 20),
+        title = element_text(size = 30),
+        legend.text = element_text(size = 25),
+         panel.background = element_rect(fill='transparent'),
+         plot.background = element_rect(fill='transparent', color=NA),
+         panel.grid.major = element_blank(),
+         panel.grid.minor = element_blank(),
+         legend.background = element_rect(fill='transparent'),
+         legend.box.background = element_rect(fill='transparent')) +
+  labs(x = "Gene", 
+       y = "log10(Counts)", 
+       fill = "Genotype-Treatment") +
+  scale_fill_manual(values = my_palette) +  # using custom palette
+  geom_jitter(aes(x = gene, y = log10(expression) ), 
+              position = position_jitterdodge(0.01, 0, 0.9),
+              size = 2)
+
+
+
+```
+
+
+```{r DE high expression}
+# We need to find genes that are expressed at a level detectable by RNAscope. Jensen suspects that Lancl3 has too low of expression
+# Get list of genes that have > 100 counts in any sample
+  genes.high <- melt(count_data, variable.name = "sample", value.name = "expression") |>
+                      subset(expression >= 500)  |>
+                      pull(gene)
+
+# remake counts df with high expression genes
+  count.high <- count_data[unique(genes.high),1:nrow(sample.clr)]
+  
+# rerun DEseq with CLR
+```
+
+```{r deseq clr high}
+# Create a DESeqDataSet
+dds.clr.high <- DESeqDataSetFromMatrix(
+  countData = count.high,
+  colData = sample.clr,
+  design = ~ genotype + treatment + genotype:treatment + clr.Cardiomyocytes +  clr.Fibroblasts #+ clr.endothelial_cells
+)
+
+# Run the DESeq pipeline
+dds.clr.high <- DESeq(dds.clr.high)
+
+# Run the differential expression analysis
+res.clr.high <- results(dds.clr.high, name="genotypeKO.treatmentMI")
+
+```
+
+```{r deseq raw high}
+# Create a DESeqDataSet
+dds.raw.high <- DESeqDataSetFromMatrix(
+  countData = count.high,
+  colData = sample_info,
+  design = ~ genotype + treatment + genotype:treatment
+)
+
+# Run the DESeq pipeline
+dds.raw.high <- DESeq(dds.raw.high)
+
+# Run the differential expression analysis
+res.raw.high <- results(dds.raw.high, name="genotypeKO.treatmentMI")
+```
+
+```{r compare deseq clr, fig.width = 8, fig.height= 6, echo=TRUE, message=TRUE, warning=FALSE}
+# Compare results
+comparison.clr.high <- merge(as.data.frame(res.clr.high), as.data.frame(res.raw.high), by = "row.names", suffixes = c(".clr", ".raw"))
+
+# Calculate difference in -log10 p-values
+comparison.clr.high$p_diff <- -log10(comparison.clr.high$padj.clr) - -log10(comparison.clr.high$padj.raw)
+
+# Make categorical column
+comparison.clr.high <- comparison.clr.high |>
+        mutate(clr.sig = ifelse(padj.clr <= 0.05 & padj.raw >= 0.05, T, F),
+               raw.sig = ifelse(padj.clr >= 0.05 & padj.raw <= 0.05, T, F),
+               both.sig = ifelse(padj.clr <= 0.05 & padj.raw <= 0.05, T, F)) 
+
+#write.csv(comparison.clr.high, "jensen/data/processed/outputs/compositions/08162023_deseq.csv", row.names = F)
+#comparison.clr.high <- read.csv( "jensen/data/processed/outputs/compositions/08162023_deseq.csv")
+```
+
+```{r sig changed genes}
+# Get the gene names for the top 5 genes by change in adjusted p value, within lost and gained sig groups
+gained.clr <- comparison.clr.high |>  
+  subset(clr.sig == T) |>
+  arrange(desc(abs(p_diff))) |>
+  slice_head(n = 5)
+
+lost.clr <- comparison.clr.high |>  
+  subset(raw.sig == T) |> 
+  arrange(desc(abs(p_diff))) |>
+  slice_head(n = 5)
+
+top.clr <- comparison.clr.high |> 
+  arrange(padj.clr) |>
+  slice_head(n = 15)
+
+top.lost.raw <- comparison.clr.high |>
+  subset(raw.sig == T) |> 
+  arrange(padj.raw) |>
+  slice_head(n = 10)
+```
+
+```{r plot clr, fig.width = 14, fig.height= 12}
+limit <- comparison.clr.high |> 
+  na.omit() |>
+  arrange(desc(abs(p_diff))) |>
+  slice_head(n = 1) |>
+  pull(p_diff) * c(1, -1)
+
+plot.clr <- ggplot(comparison.clr.high, aes(x = log2FoldChange.clr, y = -log10(padj.clr), color = p_diff)) +
+  geom_point(alpha = 0.8, size = 4) +
+  scale_color_distiller(type = "div", limit = limit)+
+  geom_text_repel(data = gained.clr, aes(label = Row.names), size = 8, box.padding = unit(0.35, "lines"), 
+                  force = 40, segment.linetype = 2, segment.size = 0.6, color = "orange", force_pull = 0.01, min.segment.length = 0) + # label most increase sig genes 
+  geom_text_repel(data = lost.clr, aes(label = Row.names), size = 8, box.padding = unit(0.35, "lines"), 
+                  force = 20, segment.linetype = 2, segment.size = 0.6, color = "purple", force_pull = 0.01, min.segment.length = 0) + # label most decrease sig genes 
+  geom_text_repel(data = top.clr, aes(label = Row.names), size = 8, box.padding = unit(0.35, "lines"), 
+                  force = 20, segment.linetype = 2, segment.size = 0.6, color = "black", force_pull = 0.01, min.segment.length = 0) + # label most sig genes 
+  theme_minimal() +
+  labs(x = "log2(Fold Change)", y = "-log10(adjusted p-value)", color = "Change in -log10(p-value)") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed") + 
+  geom_vline(xintercept = 0, linetype = "solid") + # add a line for p=0.05
+  theme(legend.position = "bottom",
+        axis.text.x = element_text(color = "black", size = 25),
+        axis.text.y = element_text(color = "black", size = 25),
+        axis.ticks = element_blank(),
+        title = element_text(size = 25),
+        legend.text = element_text(size = 25),
+        legend.key.size = unit(0.7, 'in'),
+        legend.title = element_text(vjust = 0.7),
+        axis.title.y = element_text(color = "black", size = 25),
+        axis.title.x = element_text(color = "black", size = 25),
+        panel.background = element_rect(fill='transparent'),
+        plot.background = element_rect(fill='transparent', color=NA),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) +
+  ggtitle("DE w/ clr-based composition in model", subtitle = "Colored text show genes that became or lost significance, top 5 by change")# move legend to the bottom
+
+plot.clr
+```
+
+```{r top clr sig plot, fig.width = 35, fig.height= 15, echo=FALSE, message=FALSE, warning=FALSE}
+
+
+genes <- top.clr |>
+  pull(Row.names)
+# Screening expression patters of genes
+#genes <- c("Ttn", "Col3a1", "Errfi1", "Acer2")
+
+# Only these genes are expressed enough for dim plots
+genes <- c("Timp4",   "Errfi1",  "Aplnr" ,  "Zbtb16" , "Fkbp5"  , "Acer2"  , "Cish",  "Noct"  ,  "Fam117b","Pik3r1" , "Lrrc8a" , "Egr1",    "Bcl2l1" , "Atf6", "Stbd1")  
+
+
+
+# plot new
+plots <- c()
+plots[["cell"]] <- do_DimPlot(sn, reduction = "umap", label = T, repel = T)  +  
+  NoLegend() + theme(title = element_text(size = 22))
+plots.exp <- lapply(genes, function(x){plotGene(seurat = sn, slot = "counts", gene = x, plot.legend = F)})
+
+plots.exp <- c(plots, plots.exp)
+wrap_plots(plots.exp, 
+           ncol = 6)
+```
+
+```{r bulk gene exp plot prep,  fig.width=20}
+
+  # Melt the count data to long format
+  count_data$gene <- rownames(count_data)
+
+
+  # Filter for the specified genes
+  count.high.top <- count_data %>% filter(gene %in% genes)
+  
+  # Add in DE info
+  
+  high.df <- comparison.clr.high |>
+            subset(Row.names %in% genes) |>
+            select(Row.names, log2FoldChange.clr, padj.clr, padj.raw) |>
+            arrange(padj.clr)
+
+colnames(high.df) <- c("gene", "Log2 Fold Change", "p-value with composition", "p-value (unadjusted)")
+
+
+# Find cell type expression
+sn$idents <- Idents(sn)
+cell.ave <- AverageExpression(sn, group.by = "idents")$RNA 
+
+# add back into df
+high.df$"Cell type with highest expression" <- colnames(cell.ave[genes,])[apply(cell.ave[genes,],1,which.max)]
+
+
+high.df <- high.df |>
+  as.data.frame()
+
+# Join back together
+count.high.top <- merge(count.high.top, high.df)
+  
+
+# Melt data
+count.high.long <- count.high.top |>
+  pivot_longer(cols = rownames(sample_info))
+
+# Split sample names into genotype and treatment
+sample.info.long <- count.high.long  |>
+    separate(name, into = c("genotypeXtreatment", "replicate"), sep = "[(]")
+
+# relevel before plotting 
+sample.info.long$genotypeXtreatment <- factor(sample.info.long$genotypeXtreatment, levels=c("WT sham ", "WT MI ", "KO sham ", "KO MI "))
+
+sample.info.long$gene <- factor(sample.info.long$gene, levels=genes)
+
+my_palette <- c('#78c679', '#006d2c', '#d95f0e', '#993404')
+
+```
+
+
+```{r plot bulk exp top, fig.width=15}
+ sample.info.long |>
+  ggplot(aes(x = gene, y = log10(value), fill = genotypeXtreatment)) +
+  geom_bar(stat = "summary", 
+           position = position_dodge(0.9), 
+           fun = mean,
+           width = 0.9,
+           color = "black") +
+  theme(axis.text.x = element_text(color = "black", size = 25, angle =25),
+        axis.text.y = element_text(color = "black", size = 25),
+        axis.ticks = element_blank(),
+        legend.position = "top",
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6),
+        strip.text = element_text(size = 20),
+        title = element_text(size = 30),
+        legend.text = element_text(size = 25),
+        axis.title.x = element_blank(),
+         panel.background = element_rect(fill='transparent'),
+         plot.background = element_rect(fill='transparent', color=NA),
+         panel.grid.major = element_blank(),
+         panel.grid.minor = element_blank(),
+         legend.background = element_rect(fill='transparent'),
+         legend.box.background = element_rect(fill='transparent')) +
+  labs( y = "log10(Counts)", 
+       fill = "Genotype-Treatment") +
+  scale_fill_manual(values = my_palette) +  # using custom palette
+  geom_jitter(aes(x = gene, y = log10(value) ), 
+              position = position_jitterdodge(0.01, 0, 0.9),
+              size = 2)
+```
+
+```{r RNAscope gene cans table, fig.width= 20}
+# make df of info for genes
+library(ggpubr)
+high.df <- comparison.clr.high |>
+            subset(Row.names %in% genes) |>
+            select(Row.names, log2FoldChange.clr, padj.clr, padj.raw) |>
+            arrange(padj.clr)
+
+colnames(high.df) <- c("gene", "Log2 Fold Change", "p-value with composition", "p-value (unadjusted)")
+
+
+
+# Find cell type expression
+sn$idents <- Idents(sn)
+cell.ave <- AverageExpression(sn, group.by = "idents")$RNA 
+
+
+high.df$"Cell type with highest expression" <- colnames(cell.ave[genes,])[apply(cell.ave[genes,],1,which.max)]
+
+
+high.df <- high.df |>
+  as.data.frame()
+
+p2 <- ggtexttable(high.df) 
+
+plot <- ggarrange(high.plot, p2,
+                  ncol = 1, nrow = 2,
+                  heights = c(10,5),
+                  widths = c(7,10))
+
+high.plot + geom_text(data = high.df, aes(x = gene))
+plot
+
+```

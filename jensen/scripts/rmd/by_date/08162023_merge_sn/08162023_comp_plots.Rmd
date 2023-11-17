@@ -1,0 +1,124 @@
+---
+title: "Plot compositions"
+author: "Brian Gural"
+date: "2023-08-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 10, message = F, warning = F, error = T)
+```
+
+```{r load libs, message=FALSE, echo = T, warning=FALSE, results= 'hide', cache=FALSE}
+libs <- c("Seurat", "ggplot2", "DESeq2", "patchwork","SeuratDisk", "MuSiC", "reshape2",
+          "tidyverse", "SingleCellExperiment", "harmony", "SCpubr", 
+          "AUCell", "viridis", "gplots", "scales", "ggrepel", "gridExtra", "scCustomize",
+          "httr","matrixStats", "scran", "scuttle", "scater", "DropletUtils", "scDblFinder",
+          "DeconvoBuddies", "readr", "SingleCellExperiment", "compositions",
+          "SummarizedExperiment", "Biobase", "ggmagnify", "stringr", "MuSiC",
+          "ggforce", "DirichletReg", "readxl") # list libraries here
+lapply(libs, require, character.only = T)
+source("jensen/scripts/functions/decon_all.R")
+rm(libs)
+```
+
+```{r load data}
+
+decon.melt <- read.csv("jensen/data/processed/outputs/compositions/08162023_comps.csv", row.names = 1)
+markers <- read.csv("jensen/data/processed/outputs/compositions/08162023_markers.csv")
+```
+
+```{r music plot sham, fig.width = 14.5, fig.height= 8.92, echo=FALSE, message=FALSE, warning=FALSE}
+decon.melt <- decon.melt |> 
+  
+# Reorder the factor levels of CellType so that they are ordered by sum of their values accross groups
+decon.melt$CellType <- reorder(decon.melt$CellType, -decon.melt$Prop, FUN = sum)
+
+# Setting the levels
+decon.melt$gene_treat <- factor(decon.melt$gene_treat, 
+                                        levels = c('WT sham', 'WT MI', 'KO sham', 'KO MI'))
+
+#! These colors are hard to read when printed, should be lighter
+#! Or the dots from geom_jitter need to be bigger/brighter
+
+my_palette <- c('#78c679', '#006d2c', '#d95f0e', '#993404')
+
+plot.jen.sample <- decon.melt |>
+  subset(type == "whole") |>
+  ggplot(aes(x = as.numeric(CellType), y = Prop, fill = gene_treat)) +
+  geom_bar(stat = "summary", 
+           position = position_dodge(0.95), 
+           fun = mean,
+           width = 0.9,
+           color = "black",
+           alpha = 0.8) +
+  theme(axis.text.x = element_text(color = "black", size = 25, angle =15),
+        axis.text.y = element_text(color = "black", size = 20),
+        axis.ticks = element_blank(),
+        legend.position = c(0.95, 0.95),
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6),
+        strip.text = element_text(size = 20),
+        title = element_text(size = 30),
+        legend.text = element_text(size = 25),
+         panel.background = element_rect(fill='transparent'),
+         plot.background = element_rect(fill='transparent', color=NA),
+         panel.grid.major = element_blank(),
+         panel.grid.minor = element_blank(),
+         legend.background = element_rect(fill='transparent'),
+         legend.box.background = element_rect(fill='transparent')) +
+  labs(x = "Cell Type", 
+       y = "Proportion", 
+       fill = "Genotype-Treatment") +
+  scale_fill_manual(values = my_palette) +  # using custom palette
+  geom_jitter(inherit.aes = T, 
+              position = position_jitterdodge(0.01, 0, 0.9),
+              size = 2) +
+  scale_x_continuous(
+    breaks = 1:length(levels(decon.melt$CellType)),
+    label = levels(decon.melt$CellType)) +
+  geom_magnify(from = c(1.55,2.45,0,0.2), to = c(1.7,3.6,0.33,0.8), 
+                   shape = "rect", shadow = TRUE) 
+
+plot.jen.sample
+```
+
+```{r bcvs.fractions, fig.width = 15.68, fig.height= 4.41, echo=FALSE, message=FALSE, warning=FALSE}
+
+pal <- brewer_pal(type = "qual", palette = "Dark2")(5)
+
+names(pal) <- c("Cardiomyocytes", "Endothelial Cells", "Fibroblasts", "Macrophages", "B Cells")
+
+
+scale_fill_manual(values = pal,
+                     name = "Model design",
+                     labels = models.legend,
+                     breaks = names(models.legend))
+# Plot the samples which are purified, bulk sequenced cell types
+plot.fractions <- decon.melt |>
+  subset(type == "fraction") |>
+  ggplot(aes(x=Sub, y=Prop, fill=CellType))  +
+   geom_bar(stat='identity',
+           position = "fill",
+           width = 0.8,
+           color = "black")+
+   scale_fill_manual(values = pal)  +
+   facet_wrap(~fraction_type, 
+           scales = "free_x",
+           labeller =  label_wrap_gen(multi_line=FALSE)) +
+   ylab("Proportion") +
+   theme_minimal() +
+   theme(axis.text.x = element_blank(),
+        axis.text.y = element_text(color = "black", size = 20),
+        axis.ticks = element_blank(),
+        strip.text = element_text(size = 30),
+        title = element_text(size = 30),
+        legend.text = element_text(size = 25),
+        panel.background = element_blank(),
+        panel.grid = element_blank()) +
+   xlab("Sample replicates") 
+
+plot.fractions
+
+```

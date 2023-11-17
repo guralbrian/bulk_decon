@@ -26,16 +26,14 @@ source("jensen/scripts/functions/decon_all.R")
 
 ```{r load data, cache = TRUE, echo=FALSE, message=F, include = F}
 sn <- LoadH5Seurat("jensen/data/processed/single_cell/merged_datasets/07192023/07192023_1.h5seurat")
-
-
 ```
 
 ```{r make downsampled df}
-
+# Downsample 
 sn.small <- sn |>
   GetAssayData(assay = "RNA", slot = "counts") |>
   as.matrix() |>
-  SampleUMI(5000, verbose = T)
+  SampleUMI(5000, verbose = T, upsample = T)
 
 sn.small <- CreateSeuratObject(sn.small)
 meta.features <- colnames(sn@meta.data)
@@ -54,77 +52,7 @@ Having highly correlated variables in the design leads to unstable estimates of 
 This Rmd is meant to test the effect of different representations of composition in DESeq2 models. I've made simulated bulk RNAseq datasets of from range of cell type proportions, using snRNAseq as a gene expression profile reference. The null hypothesis is that compositional differences will not result in false positives between samples. The alternative hypothesis is that there will be differences and the can be accounted for with covariates which represent the composition.
 
 
-```{r cell profiles, include=F}
-
-# Sum expression of each cell type cluster in the seurat
-GetCellProfile <- function(seurat, cell.type){
-  cell.ids  <- Idents(seurat)[which(Idents(seurat) == cell.type)] |>
-    names() # Get the cell.ids that are the cell type of interest
-  cell.type.profile <- rowSums(seurat@assays$RNA@counts[,cell.ids]) |>
-    as.numeric()  # sum expression of cells with those ids
-  assign(as.character(cell.type), cell.type.profile) # name the profile with the cell type
-  return(get(as.character(cell.type)))
-}
-
-
-cell.types <- unique(Idents(sn))
-# Make matrix of expression profiles 
-# Each col should be a cell type
-# Each row should be a gene
-cell.expr.prof <- sapply(cell.types, function(x){GetCellProfile(sn, x)}, USE.NAMES = T)
-colnames(cell.expr.prof) <- cell.types
-row.names(cell.expr.prof) <- row.names(sn) 
-
-
-# This defines the probability of which gene a single UMI will be, by cell type
-# each cell will contain the probability of a random UMI from that cell type/column to be that gene/row
-# Could be simultaneous with prior step
-gene.probs <- sweep(cell.expr.prof,2,colSums(cell.expr.prof),`/`) |>
-              as.data.frame()
-
-```
-
 ```{r make pb functions, include = F}
-
-# Make function to take in a named list of proportions, then multiply by the ratio
-# then multiply it all by umi target
-# then add noise
-# then round to integers
-
-MakePseudoBulk <- function(ratios, profiles, umi_target, noise) {
-  ratio.format <- as.vector(ratios)
-  names(ratio.format) <- names(ratios)
-  # Ensure ratios is a named list or named vector
-  if (!is.list(ratio.format) && !is.vector(ratio.format)) {
-    stop("ratios must be a named list or named vector")
-  }
-  if (!all(names(ratio.format) %in% colnames(profiles))) {
-    stop("All names in ratios must be present as columns in profiles")
-  }
-
-  # Modify columns by multiplying with ratios and adding noise
-  profiles.use <- profiles |>
-    select(all_of(names(ratio.format))) |>
-    mutate(across(all_of(names(ratio.format)), 
-                  ~ jitter(.x * ratio.format[[as.character(cur_column())]], factor = noise)))
-    #rnorm(n()) adds Gaussian noise to each column. Generates random numbers from a normal distribution with a standard deviation of noise.
-  profiles.use[profiles.use < 0 ] <- 0
-  # Compute mean of all columns
-  mean_column <- profiles.use |>
-    rowMeans()
-
-  # Normalize the result to sum to 1
-  mean_column_norm <- mean_column / sum(mean_column)
-  counts <- mean_column_norm * umi_target
-  counts <- counts |>
-    round() |>
-    as.integer()
-  
-  names(counts) <- row.names(profiles)
-  
-  return(counts)
-}
-
 
 # Function to make a data frame of cell type ratios
 simulate_ratios <- function(major_cell, changing_cell, major_prop, changing_prop, 
@@ -186,7 +114,7 @@ AddCellProfile <- function(sn, count, cell_type){
     cell.ids  <- Idents(sn)[which(Idents(sn) == cell_type)] |>
               names() |>
               sample(size = count[cell_type], replace = T)
- 
+     
      # sum expression of cells with those ids
      cell.type.profile <- rowSums(sn@assays$RNA@counts[,cell.ids]) |>
        as.numeric()  
@@ -195,7 +123,6 @@ AddCellProfile <- function(sn, count, cell_type){
   }
   
 AggCells <- function(sn, ratios, cell_count) {
-  
   ratio.format <- ratios[1,] |> unlist()
   names(ratio.format) <- names(ratios)
   # Ensure ratios is a named list or named vector
@@ -225,6 +152,7 @@ major.cell <- "cardiomyocytes"
 changing.cell <- "fibroblasts"
 major.prop <- 0.5
 changing.prop <- 0.25
+cell.types <- unfactor(unique(Idents(sn.small)))
 range <- 0.2
 step.size <- 0.01
 replicates <- 3
@@ -276,17 +204,6 @@ ggplot(pca.sample, aes(x = PC1, y = PC2, color = pct.change, size = fb)) +
 # add this info back to proportion dfs 
 ratios <- cbind(ratios, clr.sample) |> 
                  cbind(pca.sample) 
-
-pca.rna <- prcomp(pb.add)$rotation |>
-           as.data.frame()
-
-pca.rna$pct.change <- ratios$pct.change
-pca.rna$fb <- ratios$fibroblasts
-pca.rna$cm <- ratios$cardiomyocytes
-
-
-ggplot(pca.rna, aes(x = PC1, y = PC2, color = cm, size = fb)) +
-  geom_point()
 ```
 
 
@@ -302,12 +219,13 @@ models <- list(
   unadjusted    = ~ 0 + pct.change,
   raw_cm        = ~ 0 + pct.change + cardiomyocytes,
   raw_cm_fb     = ~ 0 + pct.change + cardiomyocytes + fibroblasts,
-  raw_cm_fb_im  = ~ 0 + pct.change + cardiomyocytes + fibroblasts + immune,
+  #raw_cm_fb_im  = ~ 0 + pct.change + cardiomyocytes + fibroblasts + immune,
   clr_cm        = ~ 0 + pct.change + clr.cardiomyocytes,
   clr_cm_fb     = ~ 0 + pct.change + clr.cardiomyocytes + clr.fibroblasts,
-  clr_cm_fb_im  = ~ 0 + pct.change + clr.cardiomyocytes + clr.fibroblasts + clr.immune,
-  pc1           = ~ 0 + pct.change + PC1,
-  pc2           = ~ 0 + pct.change + PC1 + PC2)
+  #clr_cm_fb_im  = ~ 0 + pct.change + clr.cardiomyocytes + clr.fibroblasts + clr.immune,
+  pc1           = ~ 0 + pct.change + PC1
+  #pc2           = ~ 0 + pct.change + PC1 + PC2
+  )
 
 
 ```
@@ -365,22 +283,21 @@ multi.time <- Sys.time() - start
 
 ```{r get deseq data, fig.width= 11, fig.height= 6}
 
-test <- deseq.res
 
 # Iterate over the names of de.lfcse
-for (sublist_name in names(test)) {
+for (sublist_name in names(deseq.res)) {
   # Get the current sublist
-  sublist <- test[[sublist_name]]
+  sublist <- deseq.res[[sublist_name]]
   
   # Rename the elements in the sublist using pct.use
   names(sublist) <- pct.use
   
   # Update the sublist in de.lfcse
-  test[[sublist_name]] <- sublist
+  deseq.res[[sublist_name]] <- sublist
 }
 
 
-
+# Function to collect values from nested list DESeq output
 calculate_stats <- function(data, column_name, threshold) {
   result <- data %>%
     enframe(name = "sublist_name", value = "data") %>%
@@ -396,7 +313,7 @@ calculate_stats <- function(data, column_name, threshold) {
   return(result)
 }
 
-result <- calculate_stats(test, "padj", 0.05)
+result <- calculate_stats(deseq.res, "padj", 0.05)
 
 
 result$sub_sublist_name <- result$sub_sublist_name |>
@@ -410,6 +327,9 @@ result <- result |>
       str_detect(sublist_name, "clr") ~ "Centered log ratios",
       str_detect(sub_sublist_name, "pc") ~ "PCA")))
 
+```
+
+```{r plot DESeq output, fig.width=10, fig.height= 6}
 
 pal <- c("#fa9fb5", "#f768a1", "#c51b8a", "#74c476", "#31a354", "#a6bddb", "#74a9cf", "#2b8cbe", "#969696")
 
@@ -452,110 +372,41 @@ ggplot(aes(x = sub_sublist_name, y = mean_value, color = sublist_name)) +
 
 
 
-pal <- c("#fa9fb5", "#f768a1", "#c51b8a", "#a6bddb", "#74a9cf", "#2b8cbe", "#969696")
+pal <- c("#fa9fb5", "#f768a1",  "#74c476", "#a6bddb", "#74a9cf", "#969696")
+# Modify legend text 
 
+models.legend <- list(
+  unadjusted    = ~ "Group",
+  raw_cm        = ~ "Group + CM proportion",
+  raw_cm_fb     = ~ "Group + CM proportion + FB proportion",
+  #raw_cm_fb_im  = ~ 0 + pct.change + cardiomyocytes + fibroblasts + immune,
+  clr_cm        = ~ "Group + CLR of CMs", 
+  clr_cm_fb     = ~ "Group + CLR of CMs + CLR of FBs",
+  #clr_cm_fb_im  = ~ 0 + pct.change + clr.cardiomyocytes + clr.fibroblasts + clr.immune,
+  pc1           = ~ "Group + PC1"
+  #pc2           = ~ 0 + pct.change + PC1 + PC2
+  )
 
 result |>
-  subset(ModelType != "PCA") |>
 ggplot(aes(x = sub_sublist_name, y = false_pos +0.01, color = sublist_name)) +
   geom_point(alpha = 0.4) + # smaller and more transparent points
   geom_smooth(se = F, method = "loess", size = 1.5, alpha = 0.5, span = 0.2) +
   #scale_y_continuous(trans = "log2") +
-  scale_color_manual(values = pal) +
+  scale_color_manual(values = pal,
+                     name = "Model design",
+                     labels = models.legend) +
   theme_minimal() +
   theme(
-    legend.position = c(0.9, 0.4),
+    legend.position = c(0.85, 0.25),
     legend.title = element_blank(),
     text = element_text(size = 12),
     panel.grid.major = element_blank(), # remove major gridlines
     panel.grid.minor = element_blank()  # remove minor gridlines
   ) +
-  geom_magnify(from = c(-0.07, 0.07,0,35), to = c(-0.07,0.07, 300,600), 
+  geom_magnify(from = c(-0.07, 0.07,-3,15), to = c(-0.08,0.08, 150,300), 
                    shape = "rect", shadow = F)  +
-  labs(y= "False Positives", x = "General fibroblast proportion difference") +
-  ggtitle("Centered log ratio covariates minimize false positives from compositional differences")
+  labs(y= "False Positives per 1000 genes", x = "Simulated fibroblast proportion difference") +
+  ggtitle("Compositional covariates in DE analysis minimize false-positives")
 
 ```
-
-```{r logFC plots}
-
-#result <- calculate_stats(test, "log2FoldChange", 0.58)
-#result.low <- calculate_stats(test, "log2FoldChange", -0.58)
-result <- calculate_stats(test, "log2FoldChange", 0.58)
-result$sub_sublist_name <- result$sub_sublist_name |>
-                     str_replace("_","-") |>
-                     as.numeric()
-
-result <- result |> 
-      mutate(ModelType = factor(case_when(
-      str_detect(sublist_name, "unadjusted") ~ "No adjustment",
-      str_detect(sublist_name, "raw") ~ "Raw proportions",
-      str_detect(sublist_name, "clr") ~ "Centered log ratios",
-      str_detect(sub_sublist_name, "pc") ~ "PCA")))
-
-
-pal <- c("#fa9fb5", "#f768a1", "#c51b8a", "#74c476", "#31a354", "#a6bddb", "#74a9cf", "#2b8cbe", "#969696")
-
-
-result |>
-ggplot(aes(x = sub_sublist_name, y = std_dev, color = sublist_name)) +
-  geom_point(alpha = 0.8) + # smaller and more transparent points
-  geom_smooth(se = F, method = "loess", size = 1.5, alpha = 0.5, span = 0.3) +
-  #scale_y_continuous(trans = "log10") +
-  scale_color_manual(values = pal) +
-  theme_minimal() +
-  theme(
-    legend.position = c(0.9, 0.7),
-    legend.title = element_blank(),
-    text = element_text(size = 12),
-    panel.grid.major = element_blank(), # remove major gridlines
-    panel.grid.minor = element_blank()  # remove minor gridlines
-  ) +
-  labs(y= "Std dev of log2FC", x = "General fibroblast proportion difference")
-
-result |>
-ggplot(aes(x = sub_sublist_name, y = mean_value, color = sublist_name)) +
-  geom_point(alpha = 0.8) + # smaller and more transparent points
-  geom_smooth(se = F, method = "loess", size = 1.5, alpha = 0.5, span = 0.3) +
-  #scale_y_continuous(trans = "log2") +
-  scale_color_manual(values = pal) +
-  theme_minimal() +
-  theme(
-    legend.position = c("bottom"),
-    legend.title = element_blank(),
-    text = element_text(size = 12),
-    panel.grid.major = element_blank(), # remove major gridlines
-    panel.grid.minor = element_blank()  # remove minor gridlines
-  ) +
-  labs(y= "Mean log 2 fold change", x = "General fibroblast proportion difference") 
-
-
-
-
-pal <- c("#fa9fb5", "#f768a1", "#c51b8a", "#a6bddb", "#74a9cf", "#2b8cbe", "#969696")
-
-
-result |>
-  #subset(ModelType != "PCA") |>
-ggplot(aes(x = sub_sublist_name, y = false_pos +0.01, color = sublist_name)) +
-  geom_point(alpha = 0.4) + # smaller and more transparent points
-  geom_smooth(se = F, method = "loess", size = 1.5, alpha = 0.5, span = 0.2) +
-  #scale_y_continuous(trans = "log2") +
-  scale_color_manual(values = pal) +
-  theme_minimal() +
-  theme(
-    legend.position = "top",
-    legend.title = element_blank(),
-    text = element_text(size = 12),
-    panel.grid.major = element_blank(), # remove major gridlines
-    panel.grid.minor = element_blank()  # remove minor gridlines
-  )  +
-  labs(y= "Genes with a fold-change > 1.5", x = "General fibroblast proportion difference") 
-
-```
-
-
-
-
-
 

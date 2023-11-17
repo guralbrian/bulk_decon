@@ -1,0 +1,391 @@
+---
+title: "Annotating Rau-Patterson snRNAseq"
+author: "Brian Gural"
+date: "2023-09-13"
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float: true
+    theme: united
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.width = 10, message = F, warning = F, error = T)
+```
+
+```{r load libs}
+libs <- c("tidyverse", "Seurat", "SeuratDisk", "SCpubr", "Biobase", "MuSiC", 
+          "reshape2", "SingleCellExperiment", "DirichletReg") # list libraries here
+lapply(libs, require, character.only = T)
+rm(libs)
+```
+
+```{r load data}
+
+sn <- LoadH5Seurat("/proj/raulab/users/brian/r_projects/cc_composition/data/processed/single_cell/merges/rau_patterson/09132023/doublets_below_3.h5seurat")
+
+#Load Lusis raw counts dataset
+bulk_hfpef <- read.csv("lusis/data/raw/Michal_HFpEFexperiment_raw_counts.csv")[,-c(1,3)]
+bulk_hfref <- read.csv("lusis/data/raw/Michal_ISOexperiment_raw_counts.csv")[,-c(1,3)]
+
+
+# Get sample ID, treatment, and model for each datasets
+phenos_hfpef <- data.frame(Sub = c(colnames(bulk_hfpef)[-1])) |> 
+          mutate(id = lapply(str_split(Sub, "_"),"[[", 2)) |> 
+          mutate(number = as.numeric(lapply(str_split(id, "S"),"[[", 2))) |> 
+          mutate(Treatment = factor(case_when(
+             number <= 6  ~ "Control",
+             number >  6  ~ "HFpEF")),
+                 Model = "HFpEF") |> 
+         select(Sub, id, Treatment, Model)
+
+phenos_hfref <- data.frame(Sub = c(colnames(bulk_hfref)[-1])) |> 
+          mutate(id = lapply(str_split(Sub, "_"),tail, n =1 )) |> 
+          mutate(group = lapply(str_split(Sub, "_"),"[[", 2)) |> 
+          mutate(Treatment = factor(case_when(
+             group == "HGFAC"  ~ "HFrEF",
+             group == "GFP"  ~ "Control")),
+                 Model = "HFrEF") |> 
+         select(Sub, id, Treatment, Model)
+
+
+# combine phenotypes 
+phenos <- rbind(phenos_hfpef, phenos_hfref)
+```
+
+```{r merge isoforms & datasets, fig.width = 14, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
+# Join counts matrices
+bulk_raw <- merge(bulk_hfpef, bulk_hfref)
+
+bulk_clean <- bulk_raw |>
+  group_by(Gene.name) |> 
+  summarize_all(sum) |> 
+  column_to_rownames("Gene.name")
+```
+
+```{r scran find markers, fig.width = 7, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Update sn with annotations
+sn.mark <- sn |>
+      #subset(idents = c(0,1,2,3,4,5)) |> 
+      subset(features = rownames(sn)[rownames(sn) %in% rownames(bulk_clean)])
+
+sn.sce <- sn.mark |> 
+  as.SingleCellExperiment(assay = "RNA") |>
+  as("SummarizedExperiment")
+
+# Add gene names
+rownames(sn.sce) <- rownames(sn.mark@assays$RNA@counts)
+
+# Get markers based on expression ratios between clusters and 1vAll comparisons
+
+scn.markers  <- scran::findMarkers(sn.sce, groups = Idents(sn.mark), pval.type = "some", assay.type = "counts")
+
+
+.getMarkers <- function(type){
+marker <- scn.markers@listData[[type]] |>
+  as.data.frame() %>%
+  dplyr::filter(summary.logFC >= 1.1 |
+                   summary.logFC <= -1.1) |>
+  arrange(FDR) |>
+  slice_head(n = 15) |>
+  dplyr::select(p.value, FDR, summary.logFC) |>
+  mutate(celltype = type) |> 
+  rownames_to_column(var = "gene")
+return(marker)}
+
+# Collapse list of data frames
+all.markers <- lapply(levels(Idents(sn.mark)), function(x){.getMarkers(x)}) |>
+               purrr::reduce(full_join)
+
+all.markers |>
+  group_by(celltype) |>
+  arrange(desc(summary.logFC)) |>
+  slice_head(n = 3) 
+rm(sn.sce)
+rm(sn.mark)
+gc()
+```
+
+```{r print gene lists}
+
+# Genes here are printed and manuallly entered into ToppGene
+# https://toppgene.cchmc.org/
+genes <- function(x){ all.markers |> 
+                      subset(celltype == x) |> 
+                      pull(gene) |> 
+                      as.data.frame() |> 
+                      print(row.names = F, print.keys = F)
+}
+
+cell.types <- c("Endothelial Cells",
+                "Cardiomyocytes",
+                "Fibroblast",
+                "VSMC/Pericytes",
+                "Monocytes/MF")
+                #"SMC"
+                #"Cardiac Neuron",
+                #"?Matrix FB, Lung?")
+                #"unclear",#"??EC, CA??"
+                #"unclear")#"???")
+
+sn.mark <- sn |>
+ subset(idents = seq(0,length(cell.types)-1,1)) 
+ #subset(idents = c(0,1,2,4))
+names(cell.types) <- levels(sn.mark)
+sn.mark <- RenameIdents(sn.mark, cell.types)
+```
+
+```{r music}
+
+bulk.es.exp <- bulk_clean[all.markers$gene,] |> 
+  sapply(as.integer) %>%
+  ExpressionSet(assayData = .) |> 
+  exprs()
+row.names(bulk.es.exp) <- all.markers$gene
+
+
+# Run MuSiC with subset genes
+
+# Convert to SingleCellExperiment
+sce <- as.SingleCellExperiment(sn.mark, assay = "RNA")
+  
+# Exclude specified clusters
+cells <- levels(Idents(sn.mark))
+cells <- cells[!(cells %in% c("unclear")) & !is.na(cells)]
+  
+# Use MuSiC to estimate cell type proportions
+decon <- music_prop(bulk.mtx = bulk.es.exp, sc.sce = sce, markers = all.markers$gene,
+                      clusters = "ident", samples = "orig.ident",
+                      select.ct = cells)
+  
+# Turn MuSiC output into graph-friendly dataframe
+decon.melt <- reshape2::melt(decon$Est.prop.weighted)
+colnames(decon.melt) = c('Sub', 'CellType', 'Prop')
+
+rm(decon)
+rm(sce)
+rm(cells)
+
+```
+
+```{r reformat data}
+# Divide fraction and whole data
+
+decon.melt <- decon.melt|> 
+            left_join(phenos) |> 
+            select(-c("id")) |> 
+            filter(Sub != "H7_HGFAC_S6")
+
+# Unmelt for clustering 
+decon.wide <- decon.melt  |> 
+              select(Sub, CellType, Prop) |> 
+              pivot_wider(names_from = "Sub", values_from = "Prop") |> 
+              column_to_rownames("CellType") %>%
+              mutate_all(as.numeric)
+
+# Reorder the factor levels of CellType so that they are ordered by sum of their values across groups
+decon.melt$CellType <- reorder(decon.melt$CellType, -decon.melt$Prop, FUN = sum)
+
+```
+
+
+```{r comp plots, echo=FALSE, fig.width=15, fig.height = 8}
+library(RColorBrewer)
+brewer.pal(n=8,"Paired")
+
+my_palette <- c("#66c2a5", 
+                "#fc8d62", 
+                "#8da0cb"#, 
+                #"#FF7F00"
+                )
+
+ordered_df <- decon.melt %>%
+  filter(CellType == "Cardiomyocytes") %>%  # Filter rows where CellType is "Cardiomyocytes"
+  arrange(Prop) %>%  # Sort these rows by Prop in descending order
+  pull(Sub)  # Extract the Sub values in this order
+# Use the ordered Sub values to reorder the original data frame
+decon.melt <- decon.melt %>%
+  mutate(Sub = factor(Sub, levels = ordered_df)) %>%
+  arrange(Sub)
+decon.melt$CellType_wrap = str_wrap(decon.melt$CellType, width = 12)
+
+
+cell.type.order <-  decon.melt %>%
+  group_by(CellType_wrap) |> 
+  mutate(mean = mean(Prop)) |> 
+  arrange(desc(mean)) |>
+  pull(CellType_wrap) |> 
+  unique()
+
+design <- "AA
+           BB"
+
+
+# Generate boxplot
+comp_celltype <- decon.melt   %>%
+    ggplot(aes(x = factor(CellType_wrap, levels = as.character(cell.type.order)), y = Prop, fill = Treatment)) +
+    geom_dotplot(aes(fill = Treatment), binaxis ="y", stackdir = "center", binwidth = 0.02, position = position_dodge(0.8)) +
+    stat_summary(fun.y=median, fun.ymin=median, fun.ymax=median, 
+                         geom="crossbar", width=0.7, position = position_dodge(0.8)) +
+    facet_wrap(~Model) +
+    theme(axis.text.x = element_text(color = "black", size = 28, angle =25, vjust = 0.5),
+          axis.text.y = element_text(color = "black", size = 28),
+          legend.position = "top",
+          legend.justification = c("center", "top"),
+          legend.box.just = "center",
+          legend.margin = margin(6, 6, 6, 6),
+          strip.text = element_text(size = 30),
+          title = element_text(size = 30),
+          legend.text = element_text(size = 36),
+          legend.title = element_text(size = 32),
+          panel.background = element_rect(fill='white'),
+          panel.grid.major = element_line(color = "darkgrey",
+                                          size = 0.5),
+          panel.grid.minor = element_blank(),
+          legend.box.background = element_rect(fill='transparent'),
+          axis.title.x = element_blank(),
+          plot.margin = unit(c(1,1,1,1), units = "cm"),
+          axis.title.y = element_text(size = 30)) +
+    labs(y = "Proportion", 
+         fill = "Treatment") +
+    scale_fill_manual(values = my_palette) 
+    
+# Generate boxplot
+comp_celltype_old <- decon.melt   %>%
+    ggplot(aes(x = factor(CellType_wrap, levels = as.character(cell.type.order)), y = Prop, fill = Treatment)) +
+    geom_bar(stat = "summary",position = position_dodge(0.8),  fun = mean,width = 0.8,  color = "black", alpha = 0.8) +
+    geom_jitter(inherit.aes = T,
+                position = position_jitterdodge(jitter.width = 0.1, dodge.width = 0.8),
+                size = 4, alpha = 0.5) +
+    facet_wrap(~Model) +
+    theme(axis.text.x = element_text(color = "black", size = 28, angle =25, vjust = 0.5),
+          axis.text.y = element_text(color = "black", size = 28),
+          legend.position = "none",
+          legend.margin = margin(6, 6, 6, 6),
+          strip.text = element_blank(),
+          title = element_text(size = 30),
+          legend.text = element_text(size = 36),
+          legend.title = element_text(size = 32),
+          panel.background = element_rect(fill='white'),
+          plot.background = element_rect(fill='transparent', color=NA),
+          panel.grid.minor = element_blank(),
+          legend.background = element_rect(fill='transparent'),
+          legend.box.background = element_rect(fill='transparent'),
+          axis.title.x = element_blank(),
+          plot.margin = unit(c(1,1,1,1), units = "cm"),
+          axis.title.y = element_text(size = 30)) +
+    labs(y = "Proportion", 
+         fill = "Treatment") +
+    scale_fill_manual(values = my_palette) 
+
+
+```
+```{r change relative graph prep, fig.width=15, fig.height = 7}
+
+control.means <- decon.melt |> group_by(CellType, Model) |> 
+            subset(Treatment == "Control") |> 
+            summarize(cont.mean = mean(Prop)) %>%
+            left_join(decon.melt, .) |>
+            mutate(props.norm = Prop/cont.mean) |> 
+            filter(props.norm < 2.5)
+            
+
+# Generate boxplot
+p.box <- control.means   %>%
+    ggplot(aes(x = factor(CellType_wrap, levels = as.character(cell.type.order)), y = props.norm, fill = Treatment)) +
+    geom_boxplot(position = position_dodge(0.8), width = 0.8, color = "black") +
+  
+    facet_wrap(~Model) +
+    theme(axis.text.x = element_text(color = "black", size = 28, angle =25, vjust = 0.5),
+          axis.text.y = element_text(color = "black", size = 28),
+          legend.position = "none",
+          legend.margin = margin(6, 6, 6, 6),
+          strip.text = element_blank(),
+          title = element_text(size = 30),
+          legend.text = element_text(size = 32),
+          legend.title = element_text(size = 32),
+          panel.background = element_rect(fill='white'),
+          panel.grid.major = element_line(color = "darkgrey",
+                                          size = 0.5),
+          panel.grid.minor = element_blank(),
+          legend.box.background = element_rect(fill='transparent'),
+          axis.title.x = element_blank(),
+          plot.margin = unit(c(1,2,1,1), units = "cm"),
+          axis.title.y = element_text(size = 30),
+          axis.text.x.top = ) +
+    labs(y = "Proportion change, relative to control", 
+         fill = "Treatment") +
+    scale_fill_manual(values = my_palette) 
+
+
+```
+```{r grid old plots, fig.width=20, fig.height = 30}
+library(gridExtra)
+library(grid)
+
+# put side-by-side
+grid.arrange(comp_celltype, comp_celltype_old, p.box, ncol=1)
+```
+
+```{r dirichlet, fig.width=15, fig.height = 7}
+
+hfpef <- decon.melt |> 
+  mutate(CellType = factor(CellType),
+         Model = factor(Model),
+         Treatment = factor(Treatment)
+  ) |> 
+  subset(Model == "HFpEF")
+
+## Prep DirichletReg matrix
+
+# Add small value to remove zeros
+hfpef$Prop <- hfref$Prop + 0.0001
+
+# Make model matrix
+dir.mat <- hfpef |>
+  subset(select = c("Sub", "CellType", "Prop", "Treatment")) |>
+  dcast(Sub + Treatment ~ CellType, value.var = "Prop")
+
+
+### TEMP ###
+
+############
+
+# Convert data to DirichletRegData object
+dir.mat$CellTypes <- DR_data(dir.mat[,c(3:length(dir.mat))])
+
+dir.mat$Treatment <- as.factor(dir.mat$Treatment) |>
+                        relevel(ref = "Control") 
+# Run Dirichlet regression
+#model.1 <- DirichReg(CellTypes ~ Treatment, data = dir.mat, model = "alternative", base = 3)
+model.2 <- DirichReg(CellTypes ~ Treatment, data = dir.mat, model = "common")
+
+# compare models, find if interaction term improves model
+
+summary(model.2)
+class(model.2)
+
+```
+
+```{r ggstatplot}
+library("ggstatsplot")
+
+
+# combining the two different plots
+combine_plots(
+  plotlist = list(
+    ggcoefstats(mod1) +
+      ggplot2::labs(x = parse(text = "'standardized regression coefficient' ~italic(beta)")),
+    ggcoefstats(mod2) +
+      ggplot2::labs(
+        x = parse(text = "'standardized regression coefficient' ~italic(beta)"),
+        y = "fixed effects"
+      )
+  ),
+  plotgrid.args = list(nrow = 2),
+  annotation.args = list(title = "Relationship between movie budget and its IMDB rating")
+)
+
+```

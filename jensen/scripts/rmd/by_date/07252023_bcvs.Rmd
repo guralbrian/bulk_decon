@@ -96,6 +96,11 @@ decon.melt <- EstimateCellTypeProportions(sn, bulk.es.exp, for.aitchison = FALSE
 ```
 
 ```{r prep phenos , fig.width = 14, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
+# Load and format bulk data
+jensen_bulk <- readxl::read_xlsx("jensen/data/raw/jensen_counts_correct.xlsx")[,-c(20,21)] |>
+  as.data.frame()
+colnames(jensen_bulk)[c(20,21)] <- c("WT MI", "KO MI")
+
 phenotypes_real <- jensen_bulk[1,] |> 
   pivot_longer(cols = -c(1:5), 
                names_to = "gene_treat", 
@@ -145,9 +150,10 @@ decon.melt <- decon.melt |>
 
 
 
-
+write.csv(decon.melt, "jensen/data/processed/outputs/compositions/bcsv_poster_ratios.csv", row.names = F)
 
 ```
+
 
 ```{r music plot sham, fig.width = 19, fig.height= 9, echo=FALSE, message=FALSE, warning=FALSE}
 
