@@ -56,35 +56,19 @@ vignettes/*.pdf
 # Prevent users to commit the README files created by RStudio
 *README.html
 *README_cache/
+
 #*README_files/
 
-# Results folder
-<<<<<<< HEAD
-<<<<<<< HEAD
-gtex/results/
-jensen/results/
+# Data directory
+*/Data/
 
-# Data folder
-gtex/data/
-jensen/data/
-
-=======
-jensen/results/
-gtex/results/
-# Data folder
-jensen/data/
-gtex/data/
->>>>>>> 65e819e64855c8c017dadf056d0ca3ad77401628
-=======
-jensen/results/
-gtex/results/
-# Data folder
-jensen/data/
-gtex/data/
->>>>>>> 65e819e64855c8c017dadf056d0ca3ad77401628
 # Data files 
 *.csv
 *.h5seurat
+*.tsv
+*.mtx
+*.xlsx
+*.gz
 
 # Images
 *.png
