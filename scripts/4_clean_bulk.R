@@ -51,5 +51,6 @@ common.genes <- row.names(fractions)[row.names(fractions) %in% row.names(jensen_
 bulk.all <- cbind(jensen_bulk[common.genes,], fractions[common.genes,])
 
 # Save datasets
-write.csv(bulk.all, "data/processed/bulk/all_counts", row.names = F)
-write.csv(phenotypes_real, "data/processed/bulk/jensen_pheno", row.names = F)
+write.csv(bulk.all, "data/processed/bulk/all_counts.csv", row.names = F)
+write.csv(phenotypes_real, "data/processed/bulk/jensen_pheno.csv", row.names = F)
+write.csv(jensen_bulk, "data/processed/bulk/jensen_bulk_clean.csv")
