@@ -1,5 +1,4 @@
 # Visualize DE 
-
 libs <- c("tidyverse", "wesanderson", "ggrepel") # list libraries here
 lapply(libs, require, character.only = T)
 rm(libs)
@@ -7,6 +6,11 @@ rm(libs)
 # Save the results 
 comparison.clr <- read.csv("data/processed/models/adjusted_de.csv")
 pal <- wes_palette(name = "Zissou1", type = "continuous")
+
+# Find top DE genes
+top.clr <- comparison.clr |> 
+  arrange(padj.clr) |>
+  slice_head(n = 10)
 
 # Find limits for color scale/legend
 limit <- comparison.clr |> 
@@ -41,4 +45,17 @@ plot.clr <- ggplot(comparison.clr, aes(x = log2FoldChange.clr, y = -log10(padj.c
         plot.margin = unit(c(1,1,1,1), "cm")) #+
 #ggtitle("DE w/ clr-based composition in model", subtitle = "Colored text show genes that became or lost significance, top 5 by change")# move legend to the bottom
 
+
+
+# Save 
+png(file = "results/10_plot_de/volcano_adjusted.png",
+    width = 1600, 
+    height = 1200,
+    units = "px",
+    res = 100)
+
 plot.clr
+
+dev.off()
+
+
