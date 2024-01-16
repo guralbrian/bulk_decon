@@ -12,7 +12,7 @@ libs <- c("Seurat", "SeuratDisk", "scran", "DropletUtils", "scater", "scDblFinde
 lapply(libs, require, character.only = T)
 
 
-sample_name <- "b6_1"
+sample_name <- "b6_2"
 # Load Seurat as separate batches
 sn.1 <- LoadH5Seurat(paste0("data/processed/single_cell/", sample_name, ".h5seurat"))
 
@@ -179,4 +179,5 @@ cut_off <- quantile(stripped$DoubletScore,0.95)
 stripped$isDoublet <- c("no","yes")[factor(as.integer(stripped$DoubletScore>=cut_off),levels=c(0,1))]
 
 # Save data
-SaveH5Seurat(stripped, paste0("data/processed/single_cell/no_doublets/", sample_name))
+SaveH5Seurat(as.Seurat(stripped), 
+             paste0("data/processed/single_cell/", sample_name, "_no_doublets"))

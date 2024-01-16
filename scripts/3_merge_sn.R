@@ -1,5 +1,7 @@
 libs <- c("tidyverse", "stringr", "Seurat", "SeuratDisk", "harmony", "SCpubr", 
           "ggridges", "pals", "viridis", "patchwork") # list libraries here
+
+libs <- c("Seurat", "SeuratDisk", "harmony", "tidyverse", "viridis", "patchwork") # list libraries here
 lapply(libs, require, character.only = T)
 rm(libs)
 
@@ -8,8 +10,9 @@ rm(libs)
 raw.path  <- "data/processed/single_cell/"
 rau.files <- list.files(raw.path)[
               stringr::str_detect(list.files(raw.path), 
-                             pattern = "rau") 
-                                  ]
+                             pattern = "no_doublets") 
+                                  ] # Rerun last script, but save them to general folder
+# Add tags for doublets and use str_detect to cut out the rest when loading
 # Load and merge
 rau.sn <- lapply(rau.files, function(x){LoadH5Seurat(paste0(raw.path, x))}) 
 rau.sn <- merge(rau.sn[[1]], rau.sn[[2]])
@@ -60,7 +63,7 @@ rau.sn <- rau.sn |>
   RunUMAP(dims = 1:pcs, reduction = "harmony", verbose = F)
 
 # Save file
-SaveH5Seurat(rau.sn, "data/processed/single_cell/merges/rau_patterson/09132023/doublets_below_3")
+SaveH5Seurat(rau.sn, "data/processed/single_cell/merged_no_doublets")
 
 # Make and save visuals
 p.clusters <- SCpubr::do_DimPlot(rau.sn,
@@ -109,12 +112,11 @@ p.doublet <- makeRidgePlot("DoubletScore", "Doublet likelihood score")
 
 
 # Wrap the plots
-
 design <- "EAB
            FCD"
 
 
-png(file = "data/processed/single_cell/merges/rau_patterson/09132023/cluster_features_3.png",
+png(file = "results/3_merge_sn/cluster_features_3.png",
     width = 1920, 
     height = 1080,
     units = "px")

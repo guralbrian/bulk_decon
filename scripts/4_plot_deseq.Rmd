@@ -1,29 +1,9 @@
----
-title: "Annotating Rau-Patterson snRNAseq"
-author: "Brian Gural"
-date: "2023-09-13"
-output:
-  html_document:
-    code_folding: hide
-    toc: true
-    toc_float: true
-    theme: united
----
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, fig.width = 10, message = F, warning = F, error = T)
-```
-
-
-
-```{r load libs}
 libs <- c("tidyverse", "Seurat", "SeuratDisk", "SCpubr", "Biobase", "MuSiC", 
           "reshape2", "SingleCellExperiment") # list libraries here
 lapply(libs, require, character.only = T)
 rm(libs)
-```
 
-```{r load data}
 
 sn <- LoadH5Seurat("/proj/raulab/users/brian/r_projects/cc_composition/data/processed/single_cell/merges/rau_patterson/09132023/doublets_below_3.h5seurat")
 #sn <- LoadH5Seurat("data/processed/single_cell/merged_old.h5seurat")
@@ -32,9 +12,8 @@ sn <- LoadH5Seurat("/proj/raulab/users/brian/r_projects/cc_composition/data/proc
 #Load just Rau, raw counts
 fractions <- read.csv("/proj/raulab/users/brian/r_projects/cc_composition/data/raw/rau_frac/celltype_counts.csv", row.names = 1)
 fractions.pheno <- read.csv("/proj/raulab/users/brian/r_projects/cc_composition/data/raw/rau_frac/celltype_pheno.csv")
-```
 
-```{r prep phenos , fig.width = 14, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
+
 library(makeunique)
 jensen_bulk <- readxl::read_xlsx("jensen/data/raw/jensen_counts_correct.xlsx")[,-c(20,21)]|>
                as.data.frame()
@@ -71,16 +50,11 @@ jensen_bulk <- jensen_bulk[,-1]
 jensen_bulk <- mutate_all(jensen_bulk, function(x) round(as.numeric(as.character(x)), digits = 0)) # round to integers
 phenotypes_real$de_id <- colnames(jensen_bulk)
 
-```
 
-```{r merge bulks}
 common.genes <- row.names(fractions)[row.names(fractions) %in% row.names(jensen_bulk)]
 
 bulk.all <- cbind(jensen_bulk[common.genes,], fractions[common.genes,])
 
-```
-
-```{r scran find markers, fig.width = 7, fig.height= 8, echo=FALSE, message=FALSE, warning=FALSE}
 
 # Update sn with annotations
 sn.mark <- sn |>
@@ -121,9 +95,6 @@ all.markers |>
   slice_head(n = 3) 
 
 gc()
-```
-
-```{r print gene lists}
 
 # Genes here are printed and manuallly entered into ToppGene
 # https://toppgene.cchmc.org/
@@ -150,9 +121,6 @@ sn.mark <- sn |>
  #subset(idents = c(0,1,2,4,5))
 names(cell.types) <- levels(sn.mark)
 sn.mark <- RenameIdents(sn.mark, cell.types)
-```
-
-```{r music}
 
 bulk.es.exp <- bulk.all[all.markers$gene,] |> 
   sapply(as.integer) %>%

@@ -3,8 +3,8 @@ libs <- c("tidyverse", "RColorBrewer", "reshape2") # list libraries here
 lapply(libs, require, character.only = T)
 rm(libs)
 
-
-# Load compositions#Save outputs
+#### Loading and formatting of data ####
+# Load compositions
 decon.whole <- read.csv("data/processed/compositions/whole_samples.csv")
 decon.frac <- read.csv("data/processed/compositions/fraction_samples.csv")
 
@@ -21,6 +21,9 @@ decon.frac <- decon.frac |>
     str_detect(cell.type, "CM") ~ "Cardiomyocytes",
     str_detect(cell.type, "Endo") ~ "Endothelial Cells",
     str_detect(cell.type, "Fib") ~ "Fibroblasts")))
+
+
+#### Plot fractions ####
 
 p.frac <- decon.frac |>
   ggplot(aes(x=Sub, y=Prop, fill=CellType))  +
@@ -63,7 +66,7 @@ p.frac
 dev.off()
 
 
-# barplot of whole samples
+#### Plot whole samples ####
 #brewer.pal(n=8,"Paired")
 
 my_palette <- c("#A6CEE3", "#1F78B4", "#FDBF6F", "#FF7F00")
@@ -129,6 +132,7 @@ comp_celltype <- decon.whole   %>%
        fill = "Treatment") +
   scale_fill_manual(values = my_palette)
 
+# Save plot to results 
 png(file = "results/7_plot_comps/sample_comps.png",
     width = 1600, 
     height = 800,
@@ -139,9 +143,7 @@ comp_celltype
 
 dev.off()
 
-
-#patchwork::wrap_plots(A = comp_celltype, B = comp_sample, design = design)
-
+#### Plot change relative to control ####
 
 control.means <- decon.whole |> group_by(CellType, Genotype) |> 
   subset(Treatment == "Sham") |> 
@@ -155,6 +157,7 @@ p.box <- control.means   %>%
   subset(Treatment == "TAC") |> 
   ggplot(aes(x = factor(CellType_wrap, levels = as.character(cell.type.order)), y = props.norm, fill = Genotype)) +
   geom_boxplot(position = position_dodge(0.8), width = 0.8, color = "black") +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "gray", linewidth = 2) + 
   theme(axis.text.x = element_text(color = "black", size = 28, angle =25, vjust = 0.5),
         axis.text.y = element_text(color = "black", size = 28),
         legend.position = c(0.9,0.9),
@@ -176,4 +179,14 @@ p.box <- control.means   %>%
        fill = "Treatment") +
   scale_fill_manual(values = my_palette) 
 
+# Save 
+png(file = "results/7_plot_comps/sample_comps_relative.png",
+    width = 1600, 
+    height = 800,
+    units = "px",
+    res = 100)
+
 p.box
+
+dev.off()
+
