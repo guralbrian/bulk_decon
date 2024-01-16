@@ -60,7 +60,7 @@ vignettes/*.pdf
 #*README_files/
 
 # Data directory
-*/Data/
+data/
 
 # Data files 
 *.csv
@@ -69,10 +69,8 @@ vignettes/*.pdf
 *.mtx
 *.xlsx
 *.gz
-
-# Images
-*.png
-*.pdf
-*.jpeg
-*.html
 *.Rhistory
+
+# HTML
+*.html
+

@@ -94,25 +94,5 @@ comparison.clr <- comparison.clr |>
          raw.sig = ifelse(padj.clr >= 0.05 & padj.raw <= 0.05, T, F),
          both.sig = ifelse(padj.clr <= 0.05 & padj.raw <= 0.05, T, F)) 
 
-# Get the gene names for the top 5 genes by change in adjusted p value, within lost and gained sig groups
-gained.clr <- comparison.clr |>  
-  subset(clr.sig == T) |>
-  arrange(desc(abs(p_diff))) |>
-  slice_head(n = 5)
-
-lost.clr <- comparison.clr |>  
-  subset(raw.sig == T) |> 
-  arrange(desc(abs(p_diff))) |>
-  slice_head(n = 5)
-
-top.clr <- comparison.clr |> 
-  arrange(padj.clr) |>
-  slice_head(n = 5)
-
-top.lost.raw <- comparison.clr |>
-  subset(raw.sig == T) |> 
-  arrange(padj.raw) |>
-  slice_head(n = 5)
-
 # Save the results 
 write.csv(comparison.clr, "data/processed/models/adjusted_de.csv", row.names = F)
