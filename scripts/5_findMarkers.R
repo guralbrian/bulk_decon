@@ -9,7 +9,7 @@ rm(libs)
 sn <- LoadH5Seurat("data/processed/single_cell/merged_no_doublets.h5seurat")
 
 # Load whole bulk RNAseq
-bulk.all <- read.csv("data/processed/bulk/all_counts.csv")
+bulk.all <- read.csv("data/processed/bulk/all_counts.csv", row.names = 1)
 
 
 # Find markers for sn clusters, annotate to cell types
@@ -44,7 +44,6 @@ scn.markers  <- scran::findMarkers(sn.sce, groups = Idents(sn.mark), pval.type =
 all.markers <- lapply(levels(Idents(sn.mark)), function(x){.getMarkers(x)}) |>
   purrr::reduce(full_join)
 
-
 gc()
 
 # Genes here are printed and manually entered into ToppGene
@@ -64,9 +63,6 @@ cell.types <- c("Endothelial Cells",
                 "Macrophages",
                 "SMC")
 #"Cardiac Neuron", # Neuron is the last cell type to be identified with confidence
-#"?Matrix FB, Lung?")
-#"unclear",#"??EC, CA??"
-#"unclear")#"???")
 
 # Subset to the high-confidence clusters
 # Rename the clusters to match the cell types
@@ -75,9 +71,6 @@ sn.mark <- sn |>
 #subset(idents = c(0,1,2,4,5))
 names(cell.types) <- levels(sn.mark)
 sn.mark <- RenameIdents(sn.mark, cell.types)
-
-row.names(bulk.es.exp) <- all.markers$gene
-
 
 # Save markers, add cell types and removed unused cell types
 all.markers <- all.markers |>

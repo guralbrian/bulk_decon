@@ -1,7 +1,6 @@
-
 libs <- c("tidyverse", "Seurat", "SeuratDisk", "SCpubr", "Biobase", "MuSiC", 
 "reshape2", "SingleCellExperiment") # list libraries here
-lapply(libs, require, character.only = T)
+lapply(libs, require, character.only = T, quietly = T)
 rm(libs)
 
 # Load snRNAseq
@@ -22,12 +21,14 @@ bulk.es.exp <- bulk.all[all.markers$gene,] |>
   exprs()
 row.names(bulk.es.exp) <- all.markers$gene
 
-
 # Convert to SingleCellExperiment
 sce <- as.SingleCellExperiment(sn, assay = "RNA")
 
 # Exclude specified clusters
 cells <- levels(Idents(sn))
+
+# Subset to measured genes
+bulk.es.exp <- bulk.es.exp[!is.na(rowMeans(bulk.es.exp)), ]
 
 # Use MuSiC to estimate cell type proportions
 decon <- music_prop(bulk.mtx = bulk.es.exp, sc.sce = sce, markers = all.markers$gene,

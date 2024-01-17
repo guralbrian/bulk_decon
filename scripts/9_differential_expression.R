@@ -2,7 +2,7 @@
 # Include composition covariates to test if they mediate DE
 
 # Load libs
-libs <- c("tidyverse", "compositions", "reshape2", "stats", "DESeq2", "wesanderson", "ggrepel") # list libraries here
+libs <- c("tidyverse", "compositions", "reshape2", "stats", "DESeq2") # list libraries here
 lapply(libs, require, character.only = T)
 rm(libs)
 

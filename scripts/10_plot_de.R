@@ -45,8 +45,6 @@ plot.clr <- ggplot(comparison.clr, aes(x = log2FoldChange.clr, y = -log10(padj.c
         plot.margin = unit(c(1,1,1,1), "cm")) #+
 #ggtitle("DE w/ clr-based composition in model", subtitle = "Colored text show genes that became or lost significance, top 5 by change")# move legend to the bottom
 
-
-
 # Save 
 png(file = "results/10_plot_de/volcano_adjusted.png",
     width = 1600, 

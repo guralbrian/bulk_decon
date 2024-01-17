@@ -1,8 +1,6 @@
 # Run dirichlet regression model and visualize the results
 
 # Load libs and data 
-
-# Load libs
 libs <- c("tidyverse", "DirichletReg", "reshape2") # list libraries here
 lapply(libs, require, character.only = T)
 rm(libs)
@@ -10,7 +8,6 @@ rm(libs)
 #### Loading and formatting of data ####
 # Load compositions
 decon.whole <- read.csv("data/processed/compositions/whole_samples.csv")
-
 
 dir.model <- decon.whole |> 
   mutate(CellType = factor(CellType),
@@ -28,7 +25,6 @@ dir.mat <- dir.model |>
   subset(select = c("Sub", "CellType", "Prop", "Treatment", "Genotype")) |>
   dcast(Sub + Treatment + Genotype ~ CellType, value.var = "Prop")
 
-
 # Convert data to DirichletRegData object
 dir.mat$CellTypes <- DR_data(dir.mat[,c(4:length(dir.mat))])
 
@@ -37,6 +33,7 @@ dir.mat$Treatment <- as.factor(dir.mat$Treatment) |>
 
 dir.mat$Genotype <- as.factor(dir.mat$Genotype) |>
   relevel(ref = "WT")
+
 # Run Dirichlet regression
 #model.1 <- DirichReg(CellTypes ~ Treatment * Genotype, data = dir.mat, model = "alternative", base = 3)
 model.2 <- DirichReg(CellTypes ~ Treatment * Genotype, data = dir.mat, model = "common")
@@ -45,8 +42,6 @@ model.2 <- DirichReg(CellTypes ~ Treatment * Genotype, data = dir.mat, model = "
 summary(model.2) # Model results don't look great, might want to remove outlier
 dir.results <- summary(model.2)[["coef.mat"]] |> as.data.frame(check.names = F)
 rownames(dir.results) <- seq(1, nrow(dir.results))
-
-
 
 # Clean the data frame
 dir.results$Variable <- summary(model.2)[["coef.mat"]] |> rownames()
@@ -65,8 +60,6 @@ dir.results <- dir.results |>
     str_detect(Feature, "GenotypeKO$") ~ "A1-AR KO",
     str_detect(Feature, "Intercept") ~ "Intercept"
   ))
-
-
 
 # Plot non-intercept coefficients
 #! Need to add significance labels
