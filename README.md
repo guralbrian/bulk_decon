@@ -11,3 +11,25 @@ Prior research has established the role of α1-AR  [in cardiac mitocondrial func
 
 All data collection was performed in the labs of Drs. Brian Jensen, Christoph Rau, and Mikayla Patterson.
 
+## Example Results
+
+![Plot 1](https://github.com/guralbrian/bulk_decon/blob/main/results/7_plot_comps/sample_comps.png?raw=true)
+
+![Plot 2](https://github.com/guralbrian/bulk_decon/blob/main/results/10_plot_de/volcano_adjusted.png?raw=true)
+
+## Reproducing the analysis
+
+This pipeline was written with SLURM-execution in mind. To run this pipeline on a SLURM-compatible HPC, simply run:
+
+`bash snake.sh`
+
+Once the items remaining in the "To-Do" list have been finished, this should produce a copy of every figure, from the source data.
+
+## To do:
+- ~~Break scripts into functional units~~
+- Make pipeline executable with Snakemake
+- Containerize with Singularity or version control with .Renv
+- Add .fastq pseudoalignment
+
+
+
