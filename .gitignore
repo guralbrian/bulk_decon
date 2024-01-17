@@ -74,3 +74,5 @@ data/
 # HTML
 *.html
 
+# Snakemake Logs
+.snakemake/
