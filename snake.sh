@@ -7,4 +7,4 @@
 module load r r/4.2.1
 module load python
 
-snakemake -j 1 --latency-wait 30 --cluster "sbatch --mem=10000 -N 1 -n 1 -o ./.slurmlogs/%j.out"
+snakemake -j 2 --latency-wait 30 --cluster "sbatch --mem=16000 -N 1 -n 1 -o ./.slurmlogs/%j.out"

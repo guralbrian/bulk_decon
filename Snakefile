@@ -1,10 +1,34 @@
+configfile: "config.json"
 rule all:
     input:
+        expand("data/processed/single_cell/no_doublets/{samples}_no_doublets.h5seurat", 
+               samples = config["samples"]),
         "results/7_plot_comps/pure_cell_types.png",
         "results/7_plot_comps/sample_comps.png",
         "results/7_plot_comps/sample_comps_relative.png",
         "data/processed/models/dirichelet_coefficients.csv",
         "results/10_plot_de/volcano_adjusted.png"
+rule load_sn:
+    output: 
+        "data/processed/single_cell/unprocessed/{samples}.h5seurat"
+    shell:
+        "Rscript scripts/1_load_sn.R {wildcards.samples}"
+rule ambient_doublets:
+    input:
+        "data/processed/single_cell/unprocessed/{samples}.h5seurat"
+    output: 
+        "data/processed/single_cell/no_doublets/{samples}_no_doublets.h5seurat"
+    shell:
+        "Rscript scripts/2_ambient_doublets.R {wildcards.samples}"
+rule merge_sn:
+    input:
+        expand("data/processed/single_cell/no_doublets/{samples}_no_doublets.h5seurat", 
+               samples = config["samples"])
+    output: 
+        "results/3_merge_sn/cluster_features_3.png",
+        "data/processed/single_cell/merged_no_doublets.h5seurat"
+    shell:
+        "Rscript scripts/3_merge_sn.R"
 rule clean_bulk:
     input:
         "data/raw/rau_fractions/celltype_counts.csv",

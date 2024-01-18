@@ -1,22 +1,14 @@
-
-
-
-libs <- c("Seurat", "ggplot2", "DESeq2", "patchwork","SeuratDisk", "reshape2",
-          "tidyverse", "SingleCellExperiment", "harmony", "SCpubr", 
-          "AUCell", "viridis", "gplots", "scales", "ggrepel", "gridExtra", "scCustomize",
-          "httr","matrixStats", "scran", "scuttle", "scater", "DropletUtils", "scDblFinder") # list libraries here
-
 libs <- c("Seurat", "SeuratDisk", "scran", "DropletUtils", "scater", "scDblFinder")
 
 # Require all of them
 lapply(libs, require, character.only = T)
 
+# Get commandArgs
+args <- commandArgs(trailingOnly = TRUE)
+sample_name <-  as.character(args[1])
 
-sample_name <- "b6_2"
 # Load Seurat as separate batches
-sn.1 <- LoadH5Seurat(paste0("data/processed/single_cell/", sample_name, ".h5seurat"))
-
-
+sn.1 <- LoadH5Seurat(paste0("data/processed/single_cell/unprocessed/", sample_name, ".h5seurat"))
 
 #### Filter droplets ####
 sn.1 <- subset(sn.1, nCount_RNA > 0)
@@ -108,7 +100,7 @@ sce.1 <- denoisePCA(sce.1, subset.row = sec.top, technical = sce.dec) |>
   scater::runUMAP(dimred="PCA")
 
 # Plot variance explained by each PC
-png_path <- paste0("results/2_ambient_doublets/",sample_name, "_pca_var.png")
+png_path <- paste0("results/2_ambient_doublets/", sample_name, "_pca_var.png")
 png(png_path, width = 14, height = 8, units = "in", res = 300)
 
 plot(attr(reducedDim(sce.1), "varExplained"), xlab="PC", ylab="Variance explained (%)")
@@ -120,7 +112,7 @@ g <- buildSNNGraph(sce.1, k=20, use.dimred = 'PCA')
 clust <- igraph::cluster_walktrap(g)$membership
 colLabels(sce.1) <- factor(clust)
 
-png_path <- paste0("results/2_ambient_doublets/",sample_name, "_tnse.png")
+png_path <- paste0("results/2_ambient_doublets/", sample_name, "_tnse.png")
 png(png_path, width = 14, height = 8, units = "in", res = 300)
 
 # plot the clusters
@@ -180,4 +172,4 @@ stripped$isDoublet <- c("no","yes")[factor(as.integer(stripped$DoubletScore>=cut
 
 # Save data
 SaveH5Seurat(as.Seurat(stripped), 
-             paste0("data/processed/single_cell/", sample_name, "_no_doublets"))
+             paste0("data/processed/single_cell/no_doublets/", sample_name, "_no_doublets"))
