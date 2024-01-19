@@ -7,7 +7,7 @@ rm(libs)
 
 ## Merge and label clusters of Rau data ##
 # Get files
-raw.path  <- "data/processed/single_cell/"
+raw.path  <- "data/processed/single_cell/no_doublets/"
 rau.files <- list.files(raw.path)[
               stringr::str_detect(list.files(raw.path), 
                              pattern = "no_doublets") 
