@@ -23,6 +23,10 @@ This pipeline was written with SLURM-execution in mind. To run this pipeline on 
 
 `bash snake.sh`
 
+This process can be visualized with a DAG (`snakemake --dag | dot -Tsvg > dag.svg`)
+
+![DAG Plot](https://github.com/guralbrian/bulk_decon/dag.svg)
+
 Once the items remaining in the "To-Do" list have been finished, this should produce a copy of every figure, from the source data.
 
 ## To do:
