@@ -1,6 +1,9 @@
 configfile: "config.json"
+configfile: "fract_config.json"
 rule all:
     input:
+        expand("data/raw/fastq/{samples_fract}/{samples_fract}_S32_L002_R2_001.fastqc.html", 
+               samples_fract = config["samples_fract"]),
         expand("data/processed/single_cell/no_doublets/{samples}_no_doublets.h5seurat", 
                samples = config["samples"]),
         "results/7_plot_comps/pure_cell_types.png",
@@ -8,6 +11,12 @@ rule all:
         "results/7_plot_comps/sample_comps_relative.png",
         "data/processed/models/dirichelet_coefficients.csv",
         "results/10_plot_de/volcano_adjusted.png"
+rule fastqc:
+    output:
+        "data/raw/fastq/{samples_fract}/{samples_fract}_S32_L002_R2_001_fastqc.html",
+        "data/raw/fastq/{samples_fract}/{samples_fract}_S32_L002_R2_001_fastqc.zip"
+    shell:
+        "fastqc data/raw/fastq/{wildcards.samples_fract}/{wildcards.samples_fract}_S32_L002_R2_001.fastq.gz"
 rule load_sn:
     output: 
         "data/processed/single_cell/unprocessed/{samples}.h5seurat"
