@@ -1,9 +1,27 @@
 configfile: "config.json"
-configfile: "fract_config.json"
+#configfile: "fract_config.json"
+
+import os
+import re
+
+def get_sample_paths():
+    sample_paths = []
+    for root, dirs, files in os.walk("data/raw/fastq/"):
+        for file in files:
+            if re.match(r".*_S\d+_L002_R[12]_001\.fastq\.gz$", file):
+                # Get the full path without the .fastq.gz extension
+                full_path = os.path.join(root, file)
+                sample_path = re.sub(r"\.fastq\.gz$", "", full_path)
+                sample_paths.append(sample_path)
+    return sample_paths
+
+# Generate the expected HTML file names
+sample_paths = get_sample_paths()
+expected_html_files = [sample_path + ".fastqc.html" for sample_path in sample_paths]
+
 rule all:
     input:
-        expand("data/raw/fastq/{samples_fract}/{samples_fract}_S32_L002_R2_001.fastqc.html", 
-               samples_fract = config["samples_fract"]),
+        expected_html_files,
         expand("data/processed/single_cell/no_doublets/{samples}_no_doublets.h5seurat", 
                samples = config["samples"]),
         "results/7_plot_comps/pure_cell_types.png",
@@ -11,12 +29,15 @@ rule all:
         "results/7_plot_comps/sample_comps_relative.png",
         "data/processed/models/dirichelet_coefficients.csv",
         "results/10_plot_de/volcano_adjusted.png"
+
 rule fastqc:
+    input:
+        "{sample_path}.fastq.gz"
     output:
-        "data/raw/fastq/{samples_fract}/{samples_fract}_S32_L002_R2_001_fastqc.html",
-        "data/raw/fastq/{samples_fract}/{samples_fract}_S32_L002_R2_001_fastqc.zip"
+        html = "{sample_path}.fastqc.html",
+        zip = "{sample_path}.fastqc.zip"
     shell:
-        "fastqc data/raw/fastq/{wildcards.samples_fract}/{wildcards.samples_fract}_S32_L002_R2_001.fastq.gz"
+        "fastqc {input} --outdir=$(dirname {input})"
 rule load_sn:
     output: 
         "data/processed/single_cell/unprocessed/{samples}.h5seurat"
