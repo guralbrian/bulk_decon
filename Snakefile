@@ -1,9 +1,9 @@
 configfile: "config.json"
-#configfile: "fract_config.json"
 
 import os
 import re
 
+# This is a function to flexibly list paths of samples following Christoph Rau's fractions nomenclature
 def get_sample_paths():
     sample_paths = []
     for root, dirs, files in os.walk("data/raw/fastq/"):
@@ -17,7 +17,7 @@ def get_sample_paths():
 
 # Generate the expected HTML file names
 sample_paths = get_sample_paths()
-expected_html_files = [sample_path + ".fastqc.html" for sample_path in sample_paths]
+expected_html_files = [sample_path + "_fastqc.html" for sample_path in sample_paths]
 
 rule all:
     input:
@@ -28,16 +28,29 @@ rule all:
         "results/7_plot_comps/sample_comps.png",
         "results/7_plot_comps/sample_comps_relative.png",
         "data/processed/models/dirichelet_coefficients.csv",
-        "results/10_plot_de/volcano_adjusted.png"
+        "results/10_plot_de/volcano_adjusted.png",
+        "data/raw/anno/gencode.vM34.salmon/"
 
 rule fastqc:
     input:
         "{sample_path}.fastq.gz"
     output:
-        html = "{sample_path}.fastqc.html",
-        zip = "{sample_path}.fastqc.zip"
+        html = "{sample_path}_fastqc.html",
+        zip = "{sample_path}_fastqc.zip"
     shell:
         "fastqc {input} --outdir=$(dirname {input})"
+rule load_index:
+    output: 
+        "data/raw/anno/gencode.vM34.transcripts.fa.gz"
+    shell: 
+        "wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/gencode.vM34.transcripts.fa.gz -P data/raw/anno"
+rule salmon_index:
+    input:
+        "data/raw/anno/gencode.vM34.transcripts.fa.gz"
+    output:
+        "data/raw/anno/gencode.vM34.salmon"
+    shell:
+        "salmon index --gencode -p 12 -t {input} -i {output}"
 rule load_sn:
     output: 
         "data/processed/single_cell/unprocessed/{samples}.h5seurat"
