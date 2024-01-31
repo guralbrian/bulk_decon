@@ -1,7 +1,8 @@
 configfile: "config.json"
-
 import os
 import re
+
+READS = ["_R1", "_R2"]
 
 # This is a function to flexibly list paths of samples following Christoph Rau's fractions nomenclature
 def get_sample_paths():
@@ -15,13 +16,24 @@ def get_sample_paths():
                 sample_paths.append(sample_path)
     return sample_paths
 
+def get_sample_paths():
+    sample_set = set()
+    pattern = re.compile(r"(.*/.*_S\d+_L002_R*")
+    for root, dirs, files in os.walk("data/raw/fastq/"):
+        for file in files:
+            match = pattern.match(file)
+            if match:
+                # Extracts the directory and the part of the filename up to _R1 or _R2
+                sample_set.add(match.group(1))
+    return list(sample_set)
+
 # Generate the expected HTML file names
 sample_paths = get_sample_paths()
 expected_html_files = [sample_path + "_fastqc.html" for sample_path in sample_paths]
 
 rule all:
     input:
-        expected_html_files,
+        "data/raw/fastq/multiqc/multiqc_report.html",
         expand("data/processed/single_cell/no_doublets/{samples}_no_doublets.h5seurat", 
                samples = config["samples"]),
         "results/7_plot_comps/pure_cell_types.png",
@@ -33,7 +45,7 @@ rule all:
 
 rule fastqc:
     input:
-        "{sample_path}.fastq.gz"
+        "data/raw/fastq/{sample_path}.fastq.gz"
     output:
         html = "{sample_path}_fastqc.html",
         zip = "{sample_path}_fastqc.zip"
@@ -51,6 +63,19 @@ rule salmon_index:
         "data/raw/anno/gencode.vM34.salmon"
     shell:
         "salmon index --gencode -p 12 -t {input} -i {output}"
+rule salmon_quant:
+    input:
+        r1 = "fastq/{sample}_1.fastq.gz",
+        r2 = "fastq/{sample}_2.fastq.gz",
+        index = "/proj/milovelab/anno/gencode.v38-salmon_1.4.0"
+    output:
+        "quants/{sample}/quant.sf"
+    params:
+        dir = "quants/{sample}"
+    shell:
+        "{SALMON} quant -i {input.index} -l A -p 12 --gcBias "
+        "--numGibbsSamples 20 --thinningFactor 100 "
+        "-o {params.dir} -1 {input.r1} -2 {input.r2}"
 rule load_sn:
     output: 
         "data/processed/single_cell/unprocessed/{samples}.h5seurat"
