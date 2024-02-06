@@ -13,6 +13,6 @@ module load salmon
 # Add this line when data upload is ready:
 # bash scripts/setup/make_config.sh
 
-snakemake -j 4 --latency-wait 30 --cluster "sbatch --mem=10000 -N 1 -n 12 -o ./.slurmlogs/%j.out"
+snakemake -j 4 --latency-wait 60 --cluster "sbatch --mem=10000 -N 1 -n 12 -o ./.slurmlogs/%j.out"
 
 snakemake --dag | dot -Tsvg > dag.svg

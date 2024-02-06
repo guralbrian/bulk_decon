@@ -68,7 +68,6 @@ cell.types <- c("Endothelial Cells",
 # Rename the clusters to match the cell types
 sn.mark <- sn |>
   subset(idents = seq(0,length(cell.types)-1,1)) 
-#subset(idents = c(0,1,2,4,5))
 names(cell.types) <- levels(sn.mark)
 sn.mark <- RenameIdents(sn.mark, cell.types)
 
