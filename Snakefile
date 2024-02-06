@@ -1,35 +1,10 @@
 configfile: "config.json"
+configfile: "fract_config.json"
 import os
 import re
 
-READS = ["_R1", "_R2"]
-
-# This is a function to flexibly list paths of samples following Christoph Rau's fractions nomenclature
-def get_sample_paths():
-    sample_paths = []
-    for root, dirs, files in os.walk("data/raw/fastq/"):
-        for file in files:
-            if re.match(r".*_S\d+_L002_R[12]_001\.fastq\.gz$", file):
-                # Get the full path without the .fastq.gz extension
-                full_path = os.path.join(root, file)
-                sample_path = re.sub(r"\.fastq\.gz$", "", full_path)
-                sample_paths.append(sample_path)
-    return sample_paths
-
-def get_sample_paths():
-    sample_set = set()
-    pattern = re.compile(r"(.*/.*_S\d+_L002_R*")
-    for root, dirs, files in os.walk("data/raw/fastq/"):
-        for file in files:
-            match = pattern.match(file)
-            if match:
-                # Extracts the directory and the part of the filename up to _R1 or _R2
-                sample_set.add(match.group(1))
-    return list(sample_set)
-
-# Generate the expected HTML file names
-sample_paths = get_sample_paths()
-expected_html_files = [sample_path + "_fastqc.html" for sample_path in sample_paths]
+READS = ["_1", "_2"]
+F_SAMPLES = config["samples_fract"]
 
 rule all:
     input:
@@ -43,14 +18,6 @@ rule all:
         "results/10_plot_de/volcano_adjusted.png",
         "data/raw/anno/gencode.vM34.salmon/"
 
-rule fastqc:
-    input:
-        "data/raw/fastq/{sample_path}.fastq.gz"
-    output:
-        html = "{sample_path}_fastqc.html",
-        zip = "{sample_path}_fastqc.zip"
-    shell:
-        "fastqc {input} --outdir=$(dirname {input})"
 rule load_index:
     output: 
         "data/raw/anno/gencode.vM34.transcripts.fa.gz"
@@ -65,17 +32,34 @@ rule salmon_index:
         "salmon index --gencode -p 12 -t {input} -i {output}"
 rule salmon_quant:
     input:
-        r1 = "fastq/{sample}_1.fastq.gz",
-        r2 = "fastq/{sample}_2.fastq.gz",
-        index = "/proj/milovelab/anno/gencode.v38-salmon_1.4.0"
+        r1 = "data/raw/fastq/{F_SAMPLES}/{F_SAMPLES}_1.fastq.gz",
+        r2 = "data/raw/fastq/{F_SAMPLES}/{F_SAMPLES}_2.fastq.gz",
+        index = "data/raw/anno/gencode.vM34.salmon"
     output:
-        "quants/{sample}/quant.sf"
+        "data/raw/fastq/{F_SAMPLES}/quant.sf"
     params:
-        dir = "quants/{sample}"
+        dir = "data/raw/fastq/{F_SAMPLES}"
     shell:
-        "{SALMON} quant -i {input.index} -l A -p 12 --gcBias "
+        "salmon quant -i {input.index} -l A -p 12 --gcBias "
         "--numGibbsSamples 20 --thinningFactor 100 "
         "-o {params.dir} -1 {input.r1} -2 {input.r2}"
+rule fastqc:
+    input:
+        "data/raw/fastq/{F_SAMPLES}/{F_SAMPLES}{READS}.fastq.gz"
+    output:
+        html = "data/raw/fastq/{F_SAMPLES}/{F_SAMPLES}{READS}_fastqc.html",
+        zip = "data/raw/fastq/{F_SAMPLES}/{F_SAMPLES}{READS}_fastqc.zip"
+    shell:
+        "fastqc {input} --outdir=$(dirname {input})"
+rule multiqc:
+    input:
+        expand(["data/raw/fastq/{sample}/quant.sf",
+                "data/raw/fastq/{sample}/{sample}{read}_fastqc.html"],
+               sample=F_SAMPLES, read=READS)
+    output:
+        "data/raw/fastq/multiqc/multiqc_report.html"
+    shell:
+        "multiqc . -o data/raw/fastq/multiqc"
 rule load_sn:
     output: 
         "data/processed/single_cell/unprocessed/{samples}.h5seurat"
