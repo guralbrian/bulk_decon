@@ -15,4 +15,4 @@ module load salmon
 
 snakemake -j 4 --latency-wait 60 --cluster "sbatch --mem=10000 -N 1 -n 12 -o ./.slurmlogs/%j.out"
 
-snakemake --dag | dot -Tsvg > dag.svg
+snakemake --rulegraph | dot -Tsvg > dag.svg

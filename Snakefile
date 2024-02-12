@@ -11,18 +11,25 @@ rule all:
         "data/raw/fastq/multiqc/multiqc_report.html",
         expand("data/processed/single_cell/no_doublets/{samples}_no_doublets.h5seurat", 
                samples = config["samples"]),
+        "data/processed/bulk/rau_fractions_gse.RData",
         "results/7_plot_comps/pure_cell_types.png",
         "results/7_plot_comps/sample_comps.png",
         "results/7_plot_comps/sample_comps_relative.png",
         "data/processed/models/dirichelet_coefficients.csv",
         "results/10_plot_de/volcano_adjusted.png",
-        "data/raw/anno/gencode.vM34.salmon/"
+        "data/raw/anno/gencode.vM34.salmon/",
+        "data/raw/anno/gencode.vM34.annotation.gtf.gz"
 
 rule load_index:
     output: 
-        "data/raw/anno/gencode.vM34.transcripts.fa.gz"
+        "data/raw/anno/gencode.vM34.transcripts.fa.gz",
     shell: 
         "wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/gencode.vM34.transcripts.fa.gz -P data/raw/anno"
+rule load_gtf:
+    output: 
+        "data/raw/anno/gencode.vM34.annotation.gtf.gz"
+    shell: 
+        "wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/gencode.vM34.annotation.gtf.gz -P data/raw/anno"
 rule salmon_index:
     input:
         "data/raw/anno/gencode.vM34.transcripts.fa.gz"
@@ -55,11 +62,20 @@ rule multiqc:
     input:
         expand(["data/raw/fastq/{sample}/quant.sf",
                 "data/raw/fastq/{sample}/{sample}{read}_fastqc.html"],
-               sample=F_SAMPLES, read=READS)
+                sample=F_SAMPLES, read=READS)
     output:
         "data/raw/fastq/multiqc/multiqc_report.html"
     shell:
         "multiqc . -o data/raw/fastq/multiqc"
+rule tximport:
+    input:
+        expand(["data/raw/fastq/{sample}/quant.sf",
+                "data/raw/fastq/{sample}/{sample}{read}_fastqc.html"],
+                sample=F_SAMPLES, read=READS)
+    output:
+        "data/processed/bulk/rau_fractions_gse.RData"
+    shell:
+        "Rscript scripts/0_transcripts_to_genes.R"
 rule load_sn:
     output: 
         "data/processed/single_cell/unprocessed/{samples}.h5seurat"
