@@ -4,9 +4,8 @@
 #SBATCH --time=240
 #SBATCH --mem=1000
 
-module load r r/4.2.1
+module load r r/4.3.1
 module load python
-module load fastqc
 module load fastqc
 module load salmon
 

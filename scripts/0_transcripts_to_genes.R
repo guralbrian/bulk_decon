@@ -5,7 +5,7 @@
 # Load libs
 #BiocManager::install("tximeta")
 #BiocManager::install("BiocFileCache", version = "3.18")
-libs <- c("tximport", "tximeta","BiocFileCache") # list libraries here
+libs <- c("tximport", "tximeta","BiocFileCache", "tidyverse", "SummarizedExperiment") # list libraries here
 lapply(libs, require, character.only = T)
 rm(libs)
 
@@ -41,4 +41,4 @@ gse <- summarizeToGene(se)
 
 # Save to processed data
 save(gse, file="data/processed/bulk/rau_fractions_gse.RData")
-
+write.csv(assay(gse),"data/processed/bulk/rau_fractions.csv")
