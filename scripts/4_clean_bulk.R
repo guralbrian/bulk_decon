@@ -2,10 +2,10 @@ libs <- c("tidyverse",  "reshape2",  "makeunique") # list libraries here
 lapply(libs, require, character.only = T)
 rm(libs)
 
-
 #Load cell type fraction bulk RNAseq dataset
-fractions <- read.csv("data/raw/rau_fractions/celltype_counts.csv", row.names = 1)
-fractions.pheno <- read.csv("data/raw/rau_fractions/celltype_pheno.csv")
+
+fractions <- read.csv("data/processed/bulk/rau_fractions_gene.csv", row.names = 1)
+#fractions.pheno <- read.csv("data/raw/rau_fractions/celltype_pheno.csv")
 
 # Load whole bulk RNAseq
 jensen_bulk <- readxl::read_xlsx("data/raw/jensen/jensen_counts_correct.xlsx")[,-c(20,21)]|>
@@ -20,7 +20,7 @@ phenotypes_real <- jensen_bulk[1,] |>
                names_to = "gene_treat", 
                values_to = "id") |>
   mutate(gene_treat = str_remove(gene_treat, "\\..*")) |>
-  select(gene_treat, id)
+  dplyr::select(gene_treat, id)
 
 jensen_bulk <- jensen_bulk[-1,-c(1:4)]
 colnames(jensen_bulk) <- c("gene", make_unique(unlist(phenotypes_real$gene_treat)))

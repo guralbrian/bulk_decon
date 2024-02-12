@@ -73,9 +73,16 @@ rule tximport:
                 "data/raw/fastq/{sample}/{sample}{read}_fastqc.html"],
                 sample=F_SAMPLES, read=READS)
     output:
-        "data/processed/bulk/rau_fractions_gse.RData"
+        "data/processed/bulk/rau_fractions_ensembl.csv"
     shell:
         "Rscript scripts/0_transcripts_to_genes.R"
+rule ensb2gene:
+    input:
+        "data/processed/bulk/rau_fractions_ensembl.csv"
+    output:
+        "data/processed/bulk/rau_fractions_gene.csv"
+    shell:
+        "Rscript scripts/4_1_ens_to_gene.R"
 rule load_sn:
     output: 
         "data/processed/single_cell/unprocessed/{samples}.h5seurat"
@@ -99,8 +106,7 @@ rule merge_sn:
         "Rscript scripts/3_merge_sn.R"
 rule clean_bulk:
     input:
-        "data/raw/rau_fractions/celltype_counts.csv",
-        "data/raw/rau_fractions/celltype_pheno.csv",
+        "data/processed/bulk/rau_fractions_gene.csv",
         "data/raw/jensen/jensen_counts_correct.xlsx"
     output: 
         "data/processed/bulk/all_counts.csv",
@@ -116,7 +122,10 @@ rule findMarkers:
         "data/processed/single_cell/celltype_labeled.h5seurat",
         "data/processed/single_cell/cluster_markers.csv"
     shell:
-        "Rscript scripts/5_findMarkers.R"
+        """
+        module load r r/4.2.1
+        Rscript scripts/5_findMarkers.R
+        """
 rule deconvolute:
     input:
         "data/processed/single_cell/celltype_labeled.h5seurat",

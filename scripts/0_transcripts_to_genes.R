@@ -41,4 +41,4 @@ gse <- summarizeToGene(se)
 
 # Save to processed data
 save(gse, file="data/processed/bulk/rau_fractions_gse.RData")
-write.csv(assay(gse),"data/processed/bulk/rau_fractions.csv")
+write.csv(assay(gse),"data/processed/bulk/rau_fractions_ensembl.csv")
