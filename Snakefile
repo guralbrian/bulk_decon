@@ -1,5 +1,5 @@
-configfile: "config.json"
-configfile: "fract_config.json"
+configfile: "scripts/setup/config.json"
+configfile: "scripts/setup/fract_config.json"
 import os
 import re
 
@@ -9,8 +9,6 @@ F_SAMPLES = config["samples_fract"]
 rule all:
     input:
         "data/raw/fastq/multiqc/multiqc_report.html",
-        expand("data/processed/single_cell/no_doublets/{samples}_no_doublets.h5seurat", 
-               samples = config["samples"]),
         "data/processed/bulk/rau_fractions_gse.RData",
         "results/7_plot_comps/pure_cell_types.png",
         "results/7_plot_comps/sample_comps.png",
@@ -69,6 +67,7 @@ rule multiqc:
         "multiqc . -o data/raw/fastq/multiqc"
 rule tximport:
     input:
+        "data/raw/anno/gencode.vM34.annotation.gtf.gz",
         expand(["data/raw/fastq/{sample}/quant.sf",
                 "data/raw/fastq/{sample}/{sample}{read}_fastqc.html"],
                 sample=F_SAMPLES, read=READS)
@@ -122,10 +121,7 @@ rule findMarkers:
         "data/processed/single_cell/celltype_labeled.h5seurat",
         "data/processed/single_cell/cluster_markers.csv"
     shell:
-        """
-        module load r r/4.2.1
-        Rscript scripts/5_findMarkers.R
-        """
+        "Rscript scripts/5_findMarkers.R"
 rule deconvolute:
     input:
         "data/processed/single_cell/celltype_labeled.h5seurat",
