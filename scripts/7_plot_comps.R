@@ -66,6 +66,16 @@ p.frac
 dev.off()
 
 
+png(file = "results/7_plot_comps/pure_cell_types.png",
+    width = 1600, 
+    height = 800,
+    units = "px",
+    res = 100)
+
+p.frac
+
+dev.off()
+
 #### Plot whole samples ####
 #brewer.pal(n=8,"Paired")
 
