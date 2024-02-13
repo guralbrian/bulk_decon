@@ -1,6 +1,6 @@
-libs <- c("tidyverse", "Seurat", "SeuratDisk", "SCpubr", "Biobase", "MuSiC", 
+libs <- c("tidyverse", "Seurat", "SeuratDisk", "Biobase", "MuSiC", 
 "reshape2", "SingleCellExperiment") # list libraries here
-lapply(libs, require, character.only = T, quietly = T)
+lapply(libs, function(x){library(x, character.only = T, quietly = T, verbose = F)})
 rm(libs)
 
 # Load snRNAseq
@@ -40,9 +40,6 @@ decon.melt <- reshape2::melt(decon$Est.prop.weighted)
 colnames(decon.melt) = c('Sub', 'CellType', 'Prop')
 
 # Divide fraction and whole data
-#decon.melt$version <- "music" 
-#decon.melt <- rbind(decon.melt, props.bisque)
-colnames(fractions.pheno)[4] <- "Sub"
 decon.frac <- decon.melt|> 
   subset(Sub %in% fractions.pheno$Sub) |> 
   merge(fractions.pheno)

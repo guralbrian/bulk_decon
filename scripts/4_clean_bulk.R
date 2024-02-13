@@ -54,3 +54,20 @@ bulk.all <- cbind(jensen_bulk[common.genes,], fractions[common.genes,])
 write.csv(bulk.all, "data/processed/bulk/all_counts.csv", row.names = T)
 write.csv(phenotypes_real, "data/processed/bulk/jensen_pheno.csv", row.names = F)
 write.csv(jensen_bulk, "data/processed/bulk/jensen_bulk_clean.csv")
+
+
+# Make fractions phenotypes file
+# list files
+files <- list.files("data/raw/fastq")[str_detect(list.files("data/raw/fastq"), "B6_")]
+
+# Split name details
+files.split <- str_split(files, "_")
+
+# Compile in df
+files.df <- data.frame(Sub = files)
+files.df$sex <- lapply(files.split, "[[", 2) |> unlist()
+files.df$cell.type <- lapply(files.split, "[[", 3) |> unlist()
+files.df$replicate <- lapply(files.split, "[[", 5) |> unlist()
+
+# Save
+write.csv(files.df, "data/raw/rau_fractions/celltype_pheno.csv", row.names = F)
