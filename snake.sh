@@ -5,9 +5,9 @@
 #SBATCH --mem=1000
 
 module load r r/4.3.1
-module load python
-module load fastqc
-module load salmon
+module load python/3.5.1
+module load fastqc/0.12.1
+module load salmon/1.10.2
 
 # Add this line when data upload is ready:
 # bash scripts/setup/make_config.sh
