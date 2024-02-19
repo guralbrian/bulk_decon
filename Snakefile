@@ -13,9 +13,8 @@ rule all:
         "results/7_plot_comps/pure_cell_types.png",
         "results/7_plot_comps/sample_comps.png",
         "results/7_plot_comps/sample_comps_relative.png",
-        "data/processed/models/dirichelet_coefficients.csv",
         "results/10_plot_de/volcano_adjusted.png",
-        "data/raw/anno/gencode.vM34.salmon/",
+        "results/5_findMarkers/cell_clusters.png",
         "data/raw/anno/gencode.vM34.annotation.gtf.gz"
 
 rule load_index:
@@ -119,7 +118,8 @@ rule findMarkers:
         "data/processed/bulk/all_counts.csv"
     output: 
         "data/processed/single_cell/celltype_labeled.h5seurat",
-        "data/processed/single_cell/cluster_markers.csv"
+        "data/processed/single_cell/cluster_markers.csv",
+        "results/5_findMarkers/cell_clusters.png"
     shell:
         "Rscript scripts/5_findMarkers.R"
 rule deconvolute:

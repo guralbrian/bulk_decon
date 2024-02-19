@@ -1,7 +1,7 @@
 # Find markers + annotate clusters
 
 libs <- c("tidyverse", "Seurat", "SeuratDisk",  "Biobase", 
-          "reshape2", "SingleCellExperiment") # list libraries here
+          "reshape2", "SingleCellExperiment", "RColorBrewer", "cowplot") # list libraries here
 lapply(libs, require, character.only = T)
 rm(libs)
 
@@ -62,7 +62,6 @@ cell.types <- c("Endothelial Cells",
                 "Endothelial Cells 2",
                 "Macrophages",
                 "SMC")
-#"Cardiac Neuron", # Neuron is the last cell type to be identified with confidence
 
 # Subset to the high-confidence clusters
 # Rename the clusters to match the cell types
@@ -70,6 +69,28 @@ sn.mark <- sn |>
   subset(idents = seq(0,length(cell.types)-1,1)) 
 names(cell.types) <- levels(sn.mark)
 sn.mark <- RenameIdents(sn.mark, cell.types)
+sn.mark$cell.type <- Idents(sn.mark)
+
+# Save UMAP plot
+# Color scheme
+cols <-  brewer.pal(length(cell.types), "Set2")
+names(cols) <- cell.types
+# Save 
+png(file = "results/5_findMarkers/cell_clusters.png",
+    width = 1000, 
+    height = 800,
+    units = "px",
+    res = 100)
+
+DimPlot(sn.mark, group.by = "cell.type", cols = cols, pt.size = 1) |>
+  LabelClusters(id = "cell.type", size = 6, repel = T, box = T, force = 100) +
+  ggtitle(NULL) +
+  theme_cowplot(font_size = 18) +
+  NoLegend()
+
+
+dev.off()
+
 
 # Save markers, add cell types and removed unused cell types
 all.markers <- all.markers |>
