@@ -15,6 +15,7 @@ bulk.all <- read.csv("data/processed/bulk/all_counts.csv", row.names = 1)
 # Find markers for sn clusters, annotate to cell types
 sn.mark <- sn |>
   subset(features = rownames(sn)[rownames(sn) %in% rownames(bulk.all)])
+Idents(sn.mark)[which(Idents(sn.mark) == "4")] <- "0"
 
 sn.sce <- sn.mark |> 
   as.SingleCellExperiment(assay = "RNA") |>
@@ -31,10 +32,10 @@ scn.markers  <- scran::findMarkers(sn.sce, groups = Idents(sn.mark), pval.type =
 .getMarkers <- function(type){
   marker <- scn.markers@listData[[type]] |>
     as.data.frame() %>%
-    dplyr::filter(summary.logFC >= 1 |
-                    summary.logFC <= -1) |>
+    #dplyr::filter(summary.logFC >= 1 |
+    #                summary.logFC <= -1) |>
     arrange(FDR) |>
-    slice_head(n = 10) |>
+    #slice_head(n = 10) |>
     dplyr::select(p.value, FDR, summary.logFC) |>
     mutate(celltype = type) |> 
     rownames_to_column(var = "gene")
@@ -44,11 +45,17 @@ scn.markers  <- scran::findMarkers(sn.sce, groups = Idents(sn.mark), pval.type =
 all.markers <- lapply(levels(Idents(sn.mark)), function(x){.getMarkers(x)}) |>
   purrr::reduce(full_join)
 
+# get the top markers
+top.markers <- all.markers |> 
+  dplyr::filter(summary.logFC >= 1 |
+                  summary.logFC <= -1) |>
+  arrange(FDR) |>
+  slice_head(n = 10) 
 gc()
 
 # Genes here are printed and manually entered into ToppGene
 # https://toppgene.cchmc.org/
-genes <- function(x){ all.markers |> 
+genes <- function(x){ top.markers |> 
     subset(celltype == x) |> 
     pull(gene) |> 
     as.data.frame() |> 
@@ -59,7 +66,7 @@ cell.types <- c("Endothelial Cells",
                 "Cardiomyocytes",
                 "Fibroblast",
                 "VSMC/Pericytes",
-                "Endothelial Cells 2",
+                "Endothelial Cells",
                 "Macrophages",
                 "SMC")
 
@@ -68,13 +75,14 @@ cell.types <- c("Endothelial Cells",
 sn.mark <- sn |>
   subset(idents = seq(0,length(cell.types)-1,1)) 
 names(cell.types) <- levels(sn.mark)
-sn.mark <- RenameIdents(sn.mark, cell.types)
+  sn.mark <- RenameIdents(sn.mark, cell.types)
 sn.mark$cell.type <- Idents(sn.mark)
 
 # Save UMAP plot
 # Color scheme
 cols <-  brewer.pal(length(cell.types), "Set2")
 names(cols) <- cell.types
+
 # Save 
 png(file = "results/5_findMarkers/cell_clusters.png",
     width = 1000, 
@@ -93,10 +101,16 @@ dev.off()
 
 
 # Save markers, add cell types and removed unused cell types
+top.markers <- top.markers |>
+  mutate(annotation = cell.types[as.character(celltype)]) |>
+  subset(!is.na(annotation))
+
+# Save markers, add cell types and removed unused cell types
 all.markers <- all.markers |>
   mutate(annotation = cell.types[as.character(celltype)]) |>
   subset(!is.na(annotation))
 
 # Save the data
-write.csv(all.markers, "data/processed/single_cell/cluster_markers.csv", row.names = F)
-SaveH5Seurat(sn.mark, "data/processed/single_cell/celltype_labeled")
+write.csv(all.markers, "data/processed/single_cell/all_markers.csv", row.names = F)
+write.csv(top.markers, "data/processed/single_cell/cluster_markers.csv", row.names = F)
+SaveH5Seurat(sn.mark, "data/processed/single_cell/celltype_labeled",  overwrite = T)
