@@ -15,6 +15,7 @@ rule all:
         "results/7_plot_comps/sample_comps_relative.png",
         "results/10_plot_de/volcano_adjusted.png",
         "results/5_findMarkers/cell_clusters.png",
+        "results/5_findMarkers/marker_specificity.png",
         "data/raw/anno/gencode.vM34.annotation.gtf.gz"
 
 rule load_index:
@@ -117,11 +118,17 @@ rule findMarkers:
         "data/processed/single_cell/merged_no_doublets.h5seurat",
         "data/processed/bulk/all_counts.csv"
     output: 
-        "data/processed/single_cell/celltype_labeled.h5seurat",
-        "data/processed/single_cell/cluster_markers.csv",
         "results/5_findMarkers/cell_clusters.png"
     shell:
         "Rscript scripts/5_findMarkers.R"
+rule plotMarkers:
+    input:
+        "data/processed/single_cell/celltype_labeled.h5seurat",
+        "data/processed/single_cell/cluster_markers.csv",
+    output: 
+        "results/5_findMarkers/marker_specificity.png"
+    shell:
+        "Rscript scripts/5_1_plot_markers.R"
 rule deconvolute:
     input:
         "data/processed/single_cell/celltype_labeled.h5seurat",
