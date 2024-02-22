@@ -32,10 +32,6 @@ scn.markers  <- scran::findMarkers(sn.sce, groups = Idents(sn.mark), pval.type =
 .getMarkers <- function(type){
   marker <- scn.markers@listData[[type]] |>
     as.data.frame() %>%
-    #dplyr::filter(summary.logFC >= 1 |
-    #                summary.logFC <= -1) |>
-    arrange(FDR) |>
-    #slice_head(n = 10) |>
     dplyr::select(p.value, FDR, summary.logFC) |>
     mutate(celltype = type) |> 
     rownames_to_column(var = "gene")
@@ -47,9 +43,10 @@ all.markers <- lapply(levels(Idents(sn.mark)), function(x){.getMarkers(x)}) |>
 
 # get the top markers
 top.markers <- all.markers |> 
+  group_by(celltype) |> 
   dplyr::filter(summary.logFC >= 1 |
                   summary.logFC <= -1) |>
-  arrange(FDR) |>
+  arrange(p.value) |>
   slice_head(n = 10) 
 gc()
 

@@ -4,34 +4,34 @@ lapply(libs, function(x){library(x, character.only = T, quietly = T, verbose = F
 rm(libs)
 
 # Load snRNAseq
-sn <- LoadH5Seurat("data/processed/single_cell/celltype_labeled.h5seurat")
+sn.anno <- LoadH5Seurat("data/processed/single_cell/celltype_labeled.h5seurat")
 
 # Load phenotype data + markers
 fractions.pheno <- read.csv("data/raw/rau_fractions/celltype_pheno.csv")
 phenotypes_real <- read.csv("data/processed/bulk/jensen_pheno.csv")
-all.markers <- read.csv("data/processed/single_cell/cluster_markers.csv")
+markers <- read.csv("data/processed/single_cell/cluster_markers.csv")
 
 # Load whole bulk RNAseq
 bulk.all <- read.csv("data/processed/bulk/all_counts.csv", row.names = 1, check.names = F)
 
 # Run MuSiC with subset genes
-bulk.es.exp <- bulk.all[all.markers$gene,] |> 
+bulk.es.exp <- bulk.all[markers$gene,] |> 
   sapply(as.integer) %>%
   ExpressionSet(assayData = .) |> 
   exprs()
-row.names(bulk.es.exp) <- all.markers$gene
+row.names(bulk.es.exp) <- markers$gene
 
 # Convert to SingleCellExperiment
-sce <- as.SingleCellExperiment(sn, assay = "RNA")
+sce <- as.SingleCellExperiment(sn.anno, assay = "RNA")
 
 # Exclude specified clusters
-cells <- levels(Idents(sn))
+cells <- levels(Idents(sn.anno))
 
 # Subset to measured genes
 bulk.es.exp <- bulk.es.exp[!is.na(rowMeans(bulk.es.exp)), ]
 
 # Use MuSiC to estimate cell type proportions
-decon <- music_prop(bulk.mtx = bulk.es.exp, sc.sce = sce, markers = all.markers$gene,
+decon <- music_prop(bulk.mtx = bulk.es.exp, sc.sce = sce, markers = markers$gene,
                     clusters = "ident", samples = "orig.ident",
                     select.ct = cells)
 

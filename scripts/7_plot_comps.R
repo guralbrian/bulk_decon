@@ -191,10 +191,10 @@ p.box <- control.means   %>%
 
 # Save 
 png(file = "results/7_plot_comps/sample_comps_relative.png",
-    width = 1600, 
-    height = 800,
-    units = "px",
-    res = 100)
+    width = 10, 
+    height = 5,
+    units = "in",
+    res = 300)
 
 p.box
 
