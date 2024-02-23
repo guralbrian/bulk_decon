@@ -34,9 +34,9 @@ sn.markers$cell.type <- factor(sn.markers$cell.type, levels=cell.list)
 # get % of cell expressing the gene and average expression of clusters
 p.mark <- sn.markers |> 
   ggplot(aes(x = .feature, y = cell.type)) +
-  geom_point(aes(size = cells_expressing + cells_expressing*0.5)) +
+  geom_point(aes(size = cells_expressing * 1.2)) +
   geom_point(aes(size = cells_expressing, color = cells_expressing)) +
-  scale_color_viridis(option="plasma", direction = -1) +
+  scale_color_viridis(option = "magma") +
   theme(
     axis.text.x = element_text(angle = 90),
     axis.title = element_blank(),
@@ -45,10 +45,11 @@ p.mark <- sn.markers |>
   ) +
   labs(color = "Average\nExpression", size = "Proportion of\nnuclei expressing")
 
+p.mark
 # Save 
 png(file = "results/5_findMarkers/marker_specificity.png",
-    width = 10, 
-    height = 5,
+    width = 8, 
+    height = 4.5,
     units = "in",
     res = 500)
 

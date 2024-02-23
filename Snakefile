@@ -118,13 +118,14 @@ rule findMarkers:
         "data/processed/single_cell/merged_no_doublets.h5seurat",
         "data/processed/bulk/all_counts.csv"
     output: 
-        "results/5_findMarkers/cell_clusters.png"
+        "results/5_findMarkers/cell_clusters.png",
+        "data/processed/single_cell/cluster_markers.csv"
     shell:
         "Rscript scripts/5_findMarkers.R"
 rule plotMarkers:
     input:
         "data/processed/single_cell/celltype_labeled.h5seurat",
-        "data/processed/single_cell/cluster_markers.csv",
+        "data/processed/single_cell/cluster_markers.csv"
     output: 
         "results/5_findMarkers/marker_specificity.png"
     shell:
