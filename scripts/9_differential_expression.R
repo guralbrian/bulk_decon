@@ -15,7 +15,7 @@ jensen.bulk <- read.csv("data/processed/bulk/jensen_bulk_clean.csv",  row.names 
 
 # Unmelt for clr transformation 
 decon.wide <- decon.whole  |> 
-  select(Sub, CellType, Prop) |> 
+  dplyr::select(Sub, CellType, Prop) |> 
   pivot_wider(names_from = "Sub", values_from = "Prop") |> 
   column_to_rownames("CellType") %>%
   mutate_all(as.numeric)
@@ -96,3 +96,18 @@ comparison.clr <- comparison.clr |>
 
 # Save the results 
 write.csv(comparison.clr, "data/processed/models/adjusted_de.csv", row.names = F)
+
+# Run simple additive model to contrast 
+## DESeq without compositions
+# Create a DESeqDataSet
+dds.raw <- DESeqDataSetFromMatrix(
+  countData = bulk,
+  colData = sample_info,
+  design = ~ treatment + genotype
+)
+
+# Run DESeq 
+dds.raw <- DESeq(dds.raw)
+
+# Save the results 
+saveRDS(dds.raw, "data/processed/models/unadjusted_de_additive.RDS")
