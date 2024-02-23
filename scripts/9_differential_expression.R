@@ -46,7 +46,7 @@ sample_info <- data.frame(
 )
 
 sample_info$treatment <- relevel(sample_info$treatment, ref = "Sham")
-sample_info$genotype <- relevel(sample_info$genotype, ref = "KO")
+sample_info$genotype <- relevel(sample_info$genotype, ref = "WT")
 
 # Add clr transforms to sample info
 sample.clr <- cbind(sample_info, comps.clr)
@@ -64,7 +64,7 @@ dds.clr <- DESeqDataSetFromMatrix(
 dds.clr <- DESeq(dds.clr)
 
 # Pull out interaction term results
-res.clr <- results(dds.clr, name="treatmentTAC.genotypeWT")
+res.clr <- results(dds.clr, name="treatmentTAC.genotypeKO")
 
 ## DESeq without compositions
 # Create a DESeqDataSet
@@ -78,7 +78,7 @@ dds.raw <- DESeqDataSetFromMatrix(
 dds.raw <- DESeq(dds.raw)
 
 # Pull out interaction term results
-res.raw <- results(dds.raw, name="treatmentTAC.genotypeWT")
+res.raw <- results(dds.raw, name="treatmentTAC.genotypeKO")
 
 #### Contrast DE results between clr and raw/unadjusted runs ####
 # Compare results
@@ -103,11 +103,11 @@ write.csv(comparison.clr, "data/processed/models/adjusted_de.csv", row.names = F
 dds.raw <- DESeqDataSetFromMatrix(
   countData = bulk,
   colData = sample_info,
-  design = ~ treatment + genotype
+  design = ~ treatment + genotype + treatment:genotype
 )
 
 # Run DESeq 
 dds.raw <- DESeq(dds.raw)
 
 # Save the results 
-saveRDS(dds.raw, "data/processed/models/unadjusted_de_additive.RDS")
+saveRDS(dds.raw, "data/processed/models/unadjusted_de_interaction.RDS")

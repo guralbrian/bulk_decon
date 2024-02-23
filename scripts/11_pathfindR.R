@@ -1,13 +1,10 @@
 # Pathfinder
-libs <- c("tidyverse", "pathfindR", "biomaRt") # list libraries here
+libs <- c("tidyverse", "pathfindR", "biomaRt", "DESeq2") # list libraries here
 lapply(libs, require, character.only = T)
 rm(libs)
 
 # Save the results 
-de.res <- read.csv("data/processed/models/adjusted_de.csv")
-
-raw.res <- de.res |> select(gene, log2FoldChange.raw, pvalue.raw) |> 
-  subset(!is.na(pvalue.raw))
+raw.res <- readRDS("data/processed/models/unadjusted_de_interaction.RDS")
 
 # Get mouse pathways
 # Import them if they don't yet exist
@@ -88,13 +85,23 @@ write.table(mmu_string_pin,
 path2SIF <- file.path("data/processed/pathway_genesets", "mmusculusPIN.sif")
 
 # Run pathfindR
+# Pull out interaction term results
+res.raw <- results(raw.res, name="treatmentTAC.genotypeKO") |> as.data.frame()
+res.raw <- data.frame(genes = row.names(res.raw),
+                      log2FC = res.raw$log2FoldChange,
+                      padj = res.raw$padj) |> 
+  subset(!is.na(padj))
+ 
 example_mmu_output <- run_pathfindR(
-  input = raw.res,
+  input = res.raw,
   convert2alias = FALSE,
   gene_sets = "Custom",
   custom_genes = mmu_kegg_genes,
   custom_descriptions = mmu_kegg_descriptions,
-  pin_name_path = path2SIF
+  pin_name_path = path2SIF,
+  p_val_threshold = 0.05
 )
 
 
+
+enrichment_chart(example_mmu_output,  top_terms = 50, plot_by_cluster = T)
