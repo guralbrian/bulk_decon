@@ -63,6 +63,9 @@ dds.clr <- DESeqDataSetFromMatrix(
 # Run DESeq
 dds.clr <- DESeq(dds.clr)
 
+# Save the results 
+saveRDS(dds.clr, "data/processed/models/adjusted_de_interaction.RDS")
+
 # Pull out interaction term results
 res.clr <- results(dds.clr, name="treatmentTAC.genotypeKO")
 
@@ -76,6 +79,9 @@ dds.raw <- DESeqDataSetFromMatrix(
 
 # Run DESeq 
 dds.raw <- DESeq(dds.raw)
+
+# Save the results 
+saveRDS(dds.raw, "data/processed/models/unadjusted_de_interaction.RDS")
 
 # Pull out interaction term results
 res.raw <- results(dds.raw, name="treatmentTAC.genotypeKO")
@@ -96,18 +102,3 @@ comparison.clr <- comparison.clr |>
 
 # Save the results 
 write.csv(comparison.clr, "data/processed/models/adjusted_de.csv", row.names = F)
-
-# Run simple additive model to contrast 
-## DESeq without compositions
-# Create a DESeqDataSet
-dds.raw <- DESeqDataSetFromMatrix(
-  countData = bulk,
-  colData = sample_info,
-  design = ~ treatment + genotype + treatment:genotype
-)
-
-# Run DESeq 
-dds.raw <- DESeq(dds.raw)
-
-# Save the results 
-saveRDS(dds.raw, "data/processed/models/unadjusted_de_interaction.RDS")

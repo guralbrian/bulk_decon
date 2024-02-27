@@ -3,10 +3,11 @@ libs <- c("tidyverse", "pathfindR", "biomaRt", "DESeq2") # list libraries here
 lapply(libs, require, character.only = T)
 rm(libs)
 
-# Save the results 
-raw.res <- readRDS("data/processed/models/unadjusted_de_interaction.RDS")
+# Load the results and expression matrix
+raw.res <- readRDS("data/processed/models/adjusted_de_interaction.RDS")
+jensen.bulk <- read.csv("data/processed/bulk/jensen_bulk_clean.csv",  row.names = 1, check.names = F)
 
-# Get mouse pathways
+### Get mouse pathways ####
 # Import them if they don't yet exist
 if(!file.exists("data/processed/pathway_genesets/mmu_kegg_genes.RDS") |
    !file.exists("data/processed/pathway_genesets/mmu_kegg_descriptions.RDS")){
@@ -84,7 +85,7 @@ write.table(mmu_string_pin,
 }
 path2SIF <- file.path("data/processed/pathway_genesets", "mmusculusPIN.sif")
 
-# Run pathfindR
+# Run pathfindR ####
 # Pull out interaction term results
 res.raw <- results(raw.res, name="treatmentTAC.genotypeKO") |> as.data.frame()
 res.raw <- data.frame(genes = row.names(res.raw),
@@ -99,9 +100,17 @@ example_mmu_output <- run_pathfindR(
   custom_genes = mmu_kegg_genes,
   custom_descriptions = mmu_kegg_descriptions,
   pin_name_path = path2SIF,
-  p_val_threshold = 0.05
+  p_val_threshold = 0.01
 )
 
 
 
 enrichment_chart(example_mmu_output,  top_terms = 50, plot_by_cluster = T)
+clustered_fuzzy <- cluster_enriched_terms(example_mmu_output, method = "fuzzy")
+
+enrichment_chart(clustered_fuzzy)
+
+example_mmu_output
+term_gene_heatmap(result_df = example_mmu_output, genes_df = res.raw)
+
+UpSet_plot(result_df = example_mmu_output, genes_df = res.raw)
