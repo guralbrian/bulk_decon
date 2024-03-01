@@ -6,8 +6,9 @@ rm(libs)
 
 # Load the results and expression matrix
 # Results from model with cell type proportions
+#  "treatment_TAC_vs_Sham" "genotype_KO_vs_WT""clr.Cardiomyocytes" "clr.Fibroblast" "treatmentTAC.genotypeKO"
 adj.res <- readRDS("data/processed/models/adjusted_de_interaction.RDS")  |> 
-  results(name="treatmentTAC.genotypeKO") |> 
+  results(name="genotype_KO_vs_WT") |> 
   as.data.frame()
 
 # Results from model without cell type proportions
@@ -40,7 +41,7 @@ ego <- enrichGO(gene          = gene.df$ENSEMBL,
 
 # Apply the function
 go.adj <- runGo(adj.res, "BP")
-go.unadj <- runGo(unadj.res, "BP")
+#go.unadj <- runGo(unadj.res, "BP")
 
 
 mutate(go.adj, qscore = -log(p.adjust, base=10)) %>% 

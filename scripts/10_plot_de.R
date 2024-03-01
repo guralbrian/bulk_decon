@@ -6,6 +6,21 @@ rm(libs)
 # Load the results 
 deseq.res <- read.csv("data/processed/models/adjusted_de.csv")
 pal <- wes_palette(name = "Zissou1", type = "continuous")
+jensen.bulk <- read.csv("data/processed/bulk/jensen_bulk_clean.csv",  row.names = 1, check.names = F)
+phenotypes <- read.csv("data/processed/bulk/jensen_pheno.csv")
+
+# Prepare for DESeq2
+bulk <- mutate_all(jensen.bulk, function(x) round(as.numeric(as.character(x)), digits = 0)) # round to integers
+
+# Set reference factor levels for phenotypes
+pheno.reorder <- phenotypes |> 
+  mutate(Sub = as.factor(de_id)) |> 
+  mutate(Genotype = factor(case_when(
+    str_detect(Sub, "WT") ~ "WT",
+    str_detect(Sub, "KO") ~ "KO")),
+    Treatment = factor(case_when(
+      str_detect(Sub, "sham") ~ "Sham",
+      str_detect(Sub, "MI") ~ "TAC")))
 
 # Unadjusted results first 
 
@@ -103,4 +118,63 @@ plot.clr
 
 dev.off()
 
+
+
+# Plot the PCA of samples
+
+# Run PCA
+pca <- prcomp(bulk)
+
+PoV <- pca$sdev^2/sum(pca$sdev^2) * 100  
+PoV <- round(PoV, digits = 1)
+# Merge with sample info, then plot
+pca <- pca$rotation |> 
+  as.data.frame() |> 
+  dplyr::select(PC1, PC2) 
+pca$Sub <- row.names(pca)
+
+
+my_palette <- c("#A6CEE3", "#1F78B4", "#FDBF6F", "#FF7F00")
+legend.names <- c("Sham_1","Sham_2", "TAC_1", "TAC_2")
+
+pca.plot <- pca |> left_join(pheno.reorder) |> 
+  ggplot(aes(x = PC1, y = PC2, color = gene_treat)) +
+  
+  geom_point(size = 8, color = "black") +
+  geom_point(size = 7) +
+  
+  geom_label_repel(aes(fill = gene_treat),
+                   label = pca$Sub, color = "black", alpha = 0.8,
+                   box.padding = 0.5, segment.curvature = -0.2,
+                   segment.ncp = 3, segment.angle = 20, force = 10, 
+                   max.overlaps = 10, force_pull = 0.01, size = 6,
+                   nudge_x = 0.015, nudge_y = 0.02) +
+  scale_color_manual(values = my_palette) +
+  scale_fill_manual(values = my_palette) +
+  scale_x_continuous(expand = expansion(mult = 0.3), name = paste0("PC1", " (", PoV[1], " % of total variance)")) +
+  scale_y_continuous(expand = expansion(mult = 0.3), name = paste0("PC2", " (", PoV[2], " % of total variance)")) +
+  theme(axis.text.x = element_text(vjust = 0.5),
+        axis.ticks = element_blank(),
+        legend.position = "none",
+        legend.justification = c("right", "top"),
+        legend.box.just = "right",
+        legend.margin = margin(6, 6, 6, 6),
+        panel.background = element_rect(fill='transparent'),
+        plot.background = element_rect(fill='transparent', color=NA),
+        panel.grid.major = element_line(color = "darkgrey"),
+        panel.grid.minor = element_blank(),
+        legend.background = element_rect(fill='transparent'),
+        legend.box.background = element_rect(fill='transparent'),
+        plot.margin = unit(c(1,1,1,1), units = "cm"),
+        text = element_text(size = 25))
+# Save plot to results 
+png(file = "results/10_plot_de/pca.png",
+    width = 12, 
+    height = 9,
+    units = "in",
+    res = 300)
+
+pca.plot
+
+dev.off()
 
