@@ -4,7 +4,7 @@ lapply(libs, require, character.only = T)
 rm(libs)
 
 # Load in bulk fractions
-counts <- read.csv("data/processed/bulk/rau_fractions_ensembl.csv", row.names = 1)
+counts <- read.csv("data/processed/bulk/all_bulk_ensembl.csv", row.names = 1)
 
 # Load the Ensembl dataset for mouse genes
 mart <- useMart("ensembl", dataset = "mmusculus_gene_ensembl")
@@ -42,5 +42,5 @@ rownames(summarized_counts) <- summarized_counts$external_gene_name
 
 summarized_counts <- summarized_counts |> dplyr::select(c(-total, -ensembl_gene_id_version, -external_gene_name))
 
-write.csv(summarized_counts, "data/processed/bulk/rau_fractions_gene.csv")
+write.csv(summarized_counts, "data/processed/bulk/all_bulk_gene.csv")
 

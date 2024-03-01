@@ -64,7 +64,7 @@ dir.results <- dir.results |>
 # Plot non-intercept coefficients
 #! Need to add significance labels
 err.plot <- dir.results |> 
-  subset(Feature != "(Intercept)") |> #& `Pr(>|z|)` < 0.05) |> 
+  subset(Feature != "(Intercept)" & `Pr(>|z|)` < 0.1) |> 
   ggplot(aes(y = Feature_wrap, x = Estimate, color = CellType)) +
   geom_point(position = position_dodge(width = 0.6), size = 6) +
   geom_errorbarh(aes(xmin = Estimate - StdError, xmax = Estimate + StdError),
