@@ -6,7 +6,7 @@ rm(libs)
 
 fractions <- read.csv("data/processed/bulk/rau_fractions_gene.csv", row.names = 1)
 #fractions.pheno <- read.csv("data/raw/rau_fractions/celltype_pheno.csv")
-
+all_bulk <-  read.csv("data/processed/bulk/all_bulk_gene.csv", row.names = 1)
 # Load whole bulk RNAseq
 jensen_bulk <- readxl::read_xlsx("data/raw/jensen/jensen_counts_correct.xlsx")[,-c(20,21)]|>
   as.data.frame()

@@ -6,7 +6,7 @@ import shutil
 import zipfile
 
 # Define the path to the zip file and the extraction directory
-zip_path = 'data/raw/fastq/OneDrive_2_3-1-2024.zip'
+zip_path = 'data/raw/fastq/RNAseq.zip'
 extract_dir = os.path.dirname(zip_path)
 
 # Extract the zip file
