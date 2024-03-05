@@ -1,5 +1,5 @@
 # Upset plot of DESeq2 results
-libs <- c("tidyverse", "DESeq2","ComplexUpset") # list libraries here
+libs <- c("tidyverse", "DESeq2","ComplexUpset", "patchwork") # list libraries here
 lapply(libs, require, character.only = T)
 rm(libs)
 
@@ -27,11 +27,19 @@ for (type in res.types) {
 
 # Create a binary matrix for the UpSet plot
 # Each row represents a gene, and each column represents a condition (combination of type and regulation)
-d.upset <- significant_genes_df %>%
+down.upset <- significant_genes_df %>%
   filter(regulation == "Down")|> 
   select(-regulation) |> 
   table() |> 
   as.data.frame.matrix()
+
+up.upset <- significant_genes_df %>%
+  filter(regulation == "Up")|> 
+  select(-regulation) |> 
+  table() |> 
+  as.data.frame.matrix()
+
+colnames(up.upset) <- colnames(down.upset) <- c("cmAKO", "CAD", "cmAKO:CAD")
 
 
 presence = ComplexUpset:::get_mode_presence('exclusive_intersection')
@@ -44,17 +52,46 @@ summarise_values = function(df) {
   )
 }
 
-p.upset <-d.upset |> 
+p.upset.down <- down.upset |> 
   ComplexUpset::upset(intersect = colnames(d.upset),
                       base_annotations=list(
     'log10(intersection size)'=(
       ggplot()
-      + geom_bar(data=summarise_values, stat='identity', aes(y=!!presence))
-      + ylab('Significant Genes')
+      + geom_bar(data=summarise_values, stat='identity', aes(y=!!presence), 
+                 color = "black", fill = "#d15469") 
+      + ylab('Downregulated Genes')
       + scale_y_continuous(trans='log10')
     )
   ),
   min_size=5,
-  width_ratio=0.1
+  width_ratio=0.1,
+  set_sizes = F
   )
-p.upset
+
+p.upset.up <- up.upset |> 
+  ComplexUpset::upset(intersect = colnames(d.upset),
+                      base_annotations=list(
+                        'log10(intersection size)'=(
+                          ggplot()
+                          + geom_bar(data=summarise_values, stat='identity', aes(y=!!presence), 
+                                     color = "black", fill = "lightblue") 
+                          + ylab('Upregulated Genes')
+                          + scale_y_continuous(trans='log10')
+                        )
+                      ),
+                      min_size=5,
+                      width_ratio=0.1,
+                      set_sizes = F
+  )
+
+
+# Save plot to results 
+png(file = "results/10_plot_de/upset_unadj.png",
+    width = 8, 
+    height = 5,
+    units = "in",
+    res = 400)
+
+wrap_plots(p.upset.up, p.upset.down)
+
+dev.off()
