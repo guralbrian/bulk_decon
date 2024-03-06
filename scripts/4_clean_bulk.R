@@ -2,15 +2,45 @@ libs <- c("tidyverse",  "reshape2",  "makeunique") # list libraries here
 lapply(libs, require, character.only = T)
 rm(libs)
 
-#Load cell type fraction bulk RNAseq dataset
+#Load bulk RNAseq dataset
 
-fractions <- read.csv("data/processed/bulk/rau_fractions_gene.csv", row.names = 1)
 #fractions.pheno <- read.csv("data/raw/rau_fractions/celltype_pheno.csv")
 all_bulk <-  read.csv("data/processed/bulk/all_bulk_gene.csv", row.names = 1)
-# Load whole bulk RNAseq
-jensen_bulk <- readxl::read_xlsx("data/raw/jensen/jensen_counts_correct.xlsx")[,-c(20,21)]|>
-  as.data.frame()
 
+# Load whole bulk RNAseq
+#jensen_bulk <- readxl::read_xlsx("data/raw/jensen/jensen_counts_correct.xlsx")[,-c(20,21)]|>
+#  as.data.frame()
+
+phenotypes <- data.frame(id = colnames(all_bulk))
+
+# Add origin column
+phenotypes |> 
+  mutate(
+    type = case_when(
+      str_detect(id, "B6_") ~ "fraction",
+      .default = "whole"),
+    cell.type = case_when(
+      str_detect(id, "CM_") ~ "Cardiomyocyte",
+      str_detect(id, "Fib_") ~ "Fibroblast",
+      str_detect(id, "Endo") ~ "Endothelial Cell",
+      .default = NA),
+    sex = case_when(
+      str_detect(id, "_M_") ~ "Male",
+      str_detect(id, "_F_") ~ "Female",
+      .default = NA),
+    sex = case_when(
+      str_detect(id, "_M_") ~ "Male",
+      str_detect(id, "_F_") ~ "Female",
+      .default = NA),
+    genotype = case_when(
+      str_detect(id, "WT") | str_detect(id, "Ako_") ~ "WT",
+      str_detect(id, "AKO") | str_detect(id, "wt_")~ "cmAKO",
+      .default = NA),
+    treatment = case_when(
+      str_detect(id, "Lx") ~ "CAD",
+      str_detect(id, "B6_") ~ NA,
+      .default = "Sham")
+  )
 # Reformat names and such
 # Will be changed after in-house alignment pipeline is complete
 colnames(jensen_bulk)[c(20,21)] <- c("WT MI", "KO MI")

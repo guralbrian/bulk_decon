@@ -30,8 +30,6 @@ makeLinkedTxome(indexDir=indexDir,
 names <- list.files("data/raw/fastq")
 
 # excluded multiqc folder
-names <- names[!str_detect(names, "multiqc")]
-names <- names[!str_detect(names, "OneDrive")]
 files <- file.path("data/raw/fastq", names, "quant.sf")
 
 # Check that they exist
@@ -43,5 +41,5 @@ se <- tximeta(coldata)
 gse <- summarizeToGene(se)
 
 # Save to processed data
-save(gse, file="data/processed/bulk/rau_fractions_gse.RData")
-write.csv(assay(gse),"data/processed/bulk/all_bulk_ensembl.csv")
+save(gse, file="data/processed/bulk//all_bulk_gse.RData")
+write.csv(assay(gse), "data/processed/bulk/all_bulk_ensembl.csv")

@@ -28,7 +28,7 @@ unadj.res <- lapply(unadj.names, function(x){
 runGo <- function(data, onto){
 # Get a list of significant genes
 sig.genes <- data |> 
-  filter(padj < 0.1 & abs(log2FoldChange) >= 0.583) |> 
+  filter(padj < 0.05 ) |> #& abs(log2FoldChange) >= 0.263) |> 
   row.names()
 # Convert common gene names to ENSEMBLE IDs for clusterProfiler
 gene.df <- bitr(sig.genes, fromType = "SYMBOL",
