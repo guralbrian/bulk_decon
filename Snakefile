@@ -1,14 +1,14 @@
 configfile: "scripts/setup/config.json"
-configfile: "scripts/setup/fract_config.json"
+configfile: "scripts/setup/fastq_config.json"
 import os
 import re
 
 READS = ["_1", "_2"]
-F_SAMPLES = config["samples_fract"]
+F_SAMPLES = config["samples_fastq"]
 
 rule all:
     input:
-        "data/raw/fastq/multiqc/multiqc_report.html",
+        "data/raw/multiqc/multiqc_report.html",
         "data/processed/bulk/rau_fractions_gse.RData",
         "results/7_plot_comps/pure_cell_types.png",
         "results/7_plot_comps/sample_comps.png",
@@ -62,9 +62,9 @@ rule multiqc:
                 "data/raw/fastq/{sample}/{sample}{read}_fastqc.html"],
                 sample=F_SAMPLES, read=READS)
     output:
-        "data/raw/fastq/multiqc/multiqc_report.html"
+        "data/raw/multiqc/multiqc_report.html"
     shell:
-        "multiqc . -o data/raw/fastq/multiqc"
+        "multiqc . -o data/raw/multiqc"
 rule tximport:
     input:
         "data/raw/anno/gencode.vM34.annotation.gtf.gz",

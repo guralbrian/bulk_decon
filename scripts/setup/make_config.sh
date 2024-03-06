@@ -16,11 +16,11 @@ samples=$(echo $dirs | tr '-' '_' | tr -d '/')
 json_samples=$(echo $samples | sed 's/ /", "/g')
 
 # Create the JSON Structure
-json_content="{\"samples_fract\": [\"$json_samples\"]}"
+json_content="{\"samples_fastq\": [\"$json_samples\"]}"
 
 # Navigate back to the parent directory
 cd $parent_dir
 
-# Write to fract_config.json in the parent directory
-echo $json_content > fract_config.json
+# Write to fastq_config.json in the parent directory
+echo $json_content > scripts/setup/fastq_config.json
 
