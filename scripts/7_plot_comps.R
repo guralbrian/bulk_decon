@@ -10,23 +10,20 @@ decon.frac <- read.csv("data/processed/compositions/fraction_samples.csv")
 
 # Unmelt for clustering 
 decon.wide <- decon.whole  |> 
-  select(Sub, CellType, Prop) |> 
-  pivot_wider(names_from = "Sub", values_from = "Prop") |> 
+  dplyr::select(new.id, CellType, Prop) |> 
+  pivot_wider(names_from = "new.id", values_from = "Prop") |> 
   column_to_rownames("CellType") %>%
   mutate_all(as.numeric)
 
 # refactorize the cell type levels
 decon.frac <- decon.frac |> 
-  mutate(cell.type = factor(case_when(
-    str_detect(cell.type, "CM") ~ "Cardiomyocytes",
-    str_detect(cell.type, "Endo") ~ "Endothelial Cells",
-    str_detect(cell.type, "Fib") ~ "Fibroblasts")))
+  mutate(cell.type = factor(cell.type))
 
 
 #### Plot fractions ####
 
 p.frac <- decon.frac |>
-  ggplot(aes(x=Sub, y=Prop, fill=CellType))  +
+  ggplot(aes(x=new.id, y=Prop, fill=CellType))  +
   geom_bar(stat='identity',
            position = "fill",
            width = 1,
@@ -80,25 +77,25 @@ dev.off()
 #brewer.pal(n=8,"Paired")
 
 my_palette <- c("#A6CEE3", "#1F78B4", "#FDBF6F", "#FF7F00")
-legend.names <- c("Sham_1","Sham_2", "TAC_1", "TAC_2")
+legend.names <- c("Sham_1","Sham_2", "CAD_1", "CAD_2")
 
 
 ordered_df <- decon.whole %>%
   filter(CellType == "Cardiomyocytes") %>%  # Filter rows where CellType is "Cardiomyocytes"
   arrange(Prop) %>%  # Sort these rows by Prop in descending order
-  pull(Sub)  # Extract the Sub values in this order
-# Use the ordered Sub values to reorder the original data frame
+  pull(new.id)  # Extract the new.id values in this order
+# Use the ordered new.id values to reorder the original data frame
 decon.whole <- decon.whole %>%
-  mutate(Sub = factor(Sub, levels = ordered_df)) %>%
-  arrange(Sub)
+  mutate(new.id = factor(new.id, levels = ordered_df)) %>%
+  arrange(new.id)
 decon.whole$CellType_wrap = str_wrap(decon.whole$CellType, width = 12)
 
 
-# Use the ordered Sub values to reorder the original data frame
+# Use the ordered new.id values to reorder the original data frame
 decon.whole <- decon.whole %>%
-  mutate(Sub = factor(Sub, levels = ordered_df)) %>%
-  arrange(Sub) |> 
-  mutate(Genotype_Treatment = paste(Genotype, " - ", Treatment))
+  mutate(new.id = factor(new.id, levels = ordered_df)) %>%
+  arrange(new.id) |> 
+  mutate(Genotype_Treatment = paste(genotype, " - ", treatment))
 
 
 cell.type.order <-  decon.whole %>%
@@ -152,51 +149,3 @@ png(file = "results/7_plot_comps/sample_comps.png",
 comp_celltype
 
 dev.off()
-
-#### Plot change relative to control ####
-
-control.means <- decon.whole |> group_by(CellType, Genotype) |> 
-  subset(Treatment == "Sham") |> 
-  summarize(cont.mean = mean(Prop)) %>%
-  left_join(decon.whole, .) |>
-  mutate(props.norm = Prop/cont.mean) 
-
-
-# Generate boxplot
-p.box <- control.means   %>%
-  subset(Treatment == "TAC") |> 
-  ggplot(aes(x = factor(CellType_wrap, levels = as.character(cell.type.order)), y = props.norm, fill = Genotype)) +
-  geom_boxplot(position = position_dodge(0.8), width = 0.8, color = "black") +
-  geom_hline(yintercept = 1, linetype = "dashed", color = "gray", linewidth = 2) + 
-  theme(axis.text.x = element_text(color = "black", size = 28, angle =25, vjust = 0.5),
-        axis.text.y = element_text(color = "black", size = 28),
-        legend.position = c(0.9,0.9),
-        legend.margin = margin(6, 6, 6, 6),
-        strip.text = element_blank(),
-        title = element_text(size = 30),
-        legend.text = element_text(size = 32),
-        legend.title = element_text(size = 32),
-        panel.background = element_rect(fill='white'),
-        panel.grid.major = element_line(color = "darkgrey",
-                                        size = 0.5),
-        panel.grid.minor = element_blank(),
-        legend.box.background = element_rect(fill='transparent'),
-        axis.title.x = element_blank(),
-        plot.margin = unit(c(1,2,1,1), units = "cm"),
-        axis.title.y = element_text(size = 30),
-        axis.text.x.top = ) +
-  labs(y = "Proportion change\nrelative to control", 
-       fill = "Treatment") +
-  scale_fill_manual(values = my_palette) 
-
-# Save 
-png(file = "results/7_plot_comps/sample_comps_relative.png",
-    width = 10, 
-    height = 5,
-    units = "in",
-    res = 300)
-
-p.box
-
-dev.off()
-

@@ -7,8 +7,8 @@ rm(libs)
 sn.anno <- LoadH5Seurat("data/processed/single_cell/celltype_labeled.h5seurat")
 
 # Load phenotype data + markers
-fractions.pheno <- read.csv("data/raw/rau_fractions/celltype_pheno.csv")
-phenotypes_real <- read.csv("data/processed/bulk/jensen_pheno.csv")
+
+phenotypes <- read.csv("data/processed/bulk/pheno_table.csv")
 markers <- read.csv("data/processed/single_cell/cluster_markers.csv")
 
 # Load whole bulk RNAseq
@@ -37,23 +37,18 @@ decon <- music_prop(bulk.mtx = bulk.es.exp, sc.sce = sce, markers = markers$gene
 
 # Turn MuSiC output into graph-friendly dataframe
 decon.melt <- reshape2::melt(decon$Est.prop.weighted)
-colnames(decon.melt) = c('Sub', 'CellType', 'Prop')
+colnames(decon.melt) = c('new.id', 'CellType', 'Prop')
+
 
 # Divide fraction and whole data
 decon.frac <- decon.melt|> 
-  subset(Sub %in% fractions.pheno$Sub) |> 
-  merge(fractions.pheno)
+  merge(phenotypes) |> 
+  subset(type == "fraction")
 
 
 decon.whole <- decon.melt|> 
-  #mutate(Sub = paste0("S", Sub)) |> 
-  subset(Sub %in% phenotypes_real$de_id) |> 
-  mutate(Genotype = factor(case_when(
-    str_detect(Sub, "WT") ~ "WT",
-    str_detect(Sub, "KO") ~ "KO")),
-    Treatment = factor(case_when(
-      str_detect(Sub, "sham") ~ "Sham",
-      str_detect(Sub, "MI") ~ "TAC")))
+  merge(phenotypes) |> 
+  subset(type == "whole")
 
 
 #Save outputs
