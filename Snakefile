@@ -16,7 +16,8 @@ rule all:
         "results/10_plot_de/volcano_adjusted.png",
         "results/5_findMarkers/cell_clusters.png",
         "results/5_findMarkers/marker_specificity.png",
-        "data/raw/anno/gencode.vM34.annotation.gtf.gz"
+        "data/raw/anno/gencode.vM34.annotation.gtf.gz",
+        "data/processed/bulk/all_counts.csv"
 
 rule load_index:
     output: 
@@ -72,14 +73,14 @@ rule tximport:
                 "data/raw/fastq/{sample}/{sample}{read}_fastqc.html"],
                 sample=F_SAMPLES, read=READS)
     output:
-        "data/processed/bulk/rau_fractions_ensembl.csv"
+        "data/processed/bulk/all_bulk_ensembl.csv"
     shell:
         "Rscript scripts/0_transcripts_to_genes.R"
 rule ensb2gene:
     input:
-        "data/processed/bulk/rau_fractions_ensembl.csv"
+        "data/processed/bulk/all_bulk_ensembl.csv"
     output:
-        "data/processed/bulk/rau_fractions_gene.csv"
+        "data/processed/bulk/all_bulk_gene.csv"
     shell:
         "Rscript scripts/4_1_ens_to_gene.R"
 rule load_sn:
@@ -105,12 +106,10 @@ rule merge_sn:
         "Rscript scripts/3_merge_sn.R"
 rule clean_bulk:
     input:
-        "data/processed/bulk/rau_fractions_gene.csv",
-        "data/raw/jensen/jensen_counts_correct.xlsx"
+        "data/processed/bulk/all_bulk_gene.csv"
     output: 
         "data/processed/bulk/all_counts.csv",
-        "data/processed/bulk/jensen_pheno.csv",
-        "data/processed/bulk/jensen_bulk_clean.csv"
+        "data/processed/bulk/pheno_table.csv"
     shell:
         "Rscript scripts/4_clean_bulk.R"
 rule findMarkers:
@@ -133,8 +132,7 @@ rule plotMarkers:
 rule deconvolute:
     input:
         "data/processed/single_cell/celltype_labeled.h5seurat",
-        "data/raw/rau_fractions/celltype_pheno.csv",
-        "data/processed/bulk/jensen_pheno.csv",
+        "data/processed/bulk/pheno_table.csv",
         "data/processed/single_cell/cluster_markers.csv",
         "data/processed/bulk/all_counts.csv"
     output: 
@@ -163,8 +161,8 @@ rule dirichlet:
 rule diffential_expression:
     input:
         "data/processed/compositions/whole_samples.csv",
-        "data/processed/bulk/jensen_pheno.csv",
-        "data/processed/bulk/jensen_bulk_clean.csv"
+        "data/processed/bulk/pheno_table.csv",
+        "data/processed/bulk/all_counts.csv"
     output: 
         "data/processed/models/adjusted_de.csv"
     shell:
