@@ -9,14 +9,18 @@ rm(libs)
 #### Loading and formatting of data ####
 # Load compositions, expression, and phenotype data
 decon.whole <- read.csv("data/processed/compositions/whole_samples.csv")
-phenotypes.real <- read.csv("data/processed/bulk/jensen_pheno.csv")
-jensen.bulk <- read.csv("data/processed/bulk/jensen_bulk_clean.csv",  row.names = 1, check.names = F)
+phenotypes <- read.csv("data/processed/bulk/pheno_table.csv")
+bulk.all <- read.csv("data/processed/bulk/all_counts.csv", row.names = 1, check.names = F)
 
+# Subset to whole samples
+bulk.all <- bulk.all[,c(unique(decon.whole$new.id)),]
+phenotypes <- phenotypes |> 
+  filter(type == "whole")
 
 # Unmelt for clr transformation 
 decon.wide <- decon.whole  |> 
-  dplyr::select(Sub, CellType, Prop) |> 
-  pivot_wider(names_from = "Sub", values_from = "Prop") |> 
+  dplyr::select(new.id, CellType, Prop) |> 
+  pivot_wider(names_from = "new.id", values_from = "Prop") |> 
   column_to_rownames("CellType") %>%
   mutate_all(as.numeric)
 
@@ -26,30 +30,27 @@ comps.clr <- compositions::clr(t(decon.wide))
 colnames(comps.clr) <- paste0("clr.", colnames(comps.clr))
 
 # Prepare for DESeq2
-bulk <- mutate_all(jensen.bulk, function(x) round(as.numeric(as.character(x)), digits = 0)) # round to integers
+bulk <- mutate_all(bulk.all, function(x) round(as.numeric(as.character(x)), digits = 0)) # round to integers
 
 # Set reference factor levels for phenotypes
-pheno.reorder <- phenotypes.real |> 
-  mutate(Sub = as.factor(de_id)) |> 
-  mutate(Genotype = factor(case_when(
-    str_detect(Sub, "WT") ~ "WT",
-    str_detect(Sub, "KO") ~ "KO")),
-    Treatment = factor(case_when(
-      str_detect(Sub, "sham") ~ "Sham",
-      str_detect(Sub, "MI") ~ "TAC")))
+pheno.reorder <- phenotypes |> 
+  mutate(new.id = as.factor(new.id),
+         genotype = as.factor(genotype),
+         treatment = as.factor(treatment))
 
 # Prepare sample information
 sample_info <- data.frame(
-  row.names = colnames(bulk),
-  genotype = as.factor(pheno.reorder$Genotype),
-  treatment = as.factor(pheno.reorder$Treatment)
+  row.names = pheno.reorder$new.id,
+  genotype = pheno.reorder$genotype,
+  treatment = pheno.reorder$treatment
 )
 
 sample_info$treatment <- relevel(sample_info$treatment, ref = "Sham")
 sample_info$genotype <- relevel(sample_info$genotype, ref = "WT")
+sample_info <- sample_info[colnames(bulk),]
 
 # Add clr transforms to sample info
-sample.clr <- cbind(sample_info, comps.clr)
+sample.clr <- cbind(sample_info, comps.clr[colnames(bulk),])
 
 #### Run DESeq2 ####
 ## DESeq with compositions
@@ -67,7 +68,7 @@ dds.clr <- DESeq(dds.clr)
 saveRDS(dds.clr, "data/processed/models/adjusted_de_interaction.RDS")
 
 # Pull out interaction term results
-res.clr <- results(dds.clr, name="treatmentTAC.genotypeKO")
+res.clr <- results(dds.clr, name="treatmentCAD.genotypecmAKO")
 
 ## DESeq without compositions
 # Create a DESeqDataSet
@@ -84,7 +85,7 @@ dds.raw <- DESeq(dds.raw)
 saveRDS(dds.raw, "data/processed/models/unadjusted_de_interaction.RDS")
 
 # Pull out interaction term results
-res.raw <- results(dds.raw, name="treatmentTAC.genotypeKO")
+res.raw <- results(dds.raw, name="treatmentCAD.genotypecmAKO")
 
 #### Contrast DE results between clr and raw/unadjusted runs ####
 # Compare results

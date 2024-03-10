@@ -11,8 +11,8 @@ decon.whole <- read.csv("data/processed/compositions/whole_samples.csv")
 
 dir.model <- decon.whole |> 
   mutate(CellType = factor(CellType),
-         Genotype = factor(Genotype),
-         Treatment = factor(Treatment)
+         Genotype = factor(genotype),
+         Treatment = factor(treatment)
   ) 
 
 ## Prep DirichletReg matrix
@@ -22,8 +22,8 @@ dir.model$Prop <- dir.model$Prop + 0.0001
 
 # Make model matrix
 dir.mat <- dir.model |>
-  subset(select = c("Sub", "CellType", "Prop", "Treatment", "Genotype")) |>
-  dcast(Sub + Treatment + Genotype ~ CellType, value.var = "Prop")
+  subset(select = c("new.id", "CellType", "Prop", "Treatment", "Genotype")) |>
+  dcast(new.id + Treatment + Genotype ~ CellType, value.var = "Prop")
 
 # Convert data to DirichletRegData object
 dir.mat$CellTypes <- DR_data(dir.mat[,c(4:length(dir.mat))])
@@ -55,9 +55,9 @@ write.csv(dir.results, "data/processed/models/dirichelet_coefficients.csv", row.
 # Prep labels for plot
 dir.results <- dir.results |> 
   mutate(Feature_wrap = case_when(
-    str_detect(Feature, "TreatmentTAC$") ~ "Myocardial\nInfarction",
-    str_detect(Feature, ":") ~ "Myocardial\nInfarction\nand KO",
-    str_detect(Feature, "GenotypeKO$") ~ "A1-AR KO",
+    str_detect(Feature, "TreatmentCAD$") ~ "LCA Ligation",
+    str_detect(Feature, ":") ~ "LCA Ligation\nand cmAKO",
+    str_detect(Feature, "GenotypecmAKO$") ~ "cmAKO",
     str_detect(Feature, "Intercept") ~ "Intercept"
   ))
 
@@ -79,13 +79,13 @@ err.plot <- dir.results |>
   theme(axis.text.x = element_text(color = "black", size = 20),
         axis.text.y = element_text(color = "black", size = 20, angle = 0),
         axis.ticks = element_blank(),
-        legend.position = c(0.05,0.2),
+        legend.position = "bottom",
         legend.justification = c("left", "bottom"),
         legend.box.just = "right",
         legend.margin = margin(6, 6, 6, 6),
         title = element_text(size = 20),
         legend.text = element_text(size = 20),
-        axis.title.y = element_text(color = "black", size = 24),
+        axis.title.y = element_blank(),
         axis.title.x = element_text(color = "black", size = 24),
         #panel.background = element_rect(fill='transparent'),
         plot.background = element_rect(fill='transparent', color=NA),
@@ -94,15 +94,14 @@ err.plot <- dir.results |>
         legend.background = element_rect(fill='transparent'),
         legend.box.background = element_rect(fill='white')) +
   labs(x = "Coeffiecients (estimates of effect)", 
-       y = "Predictor Variables", 
        legend = "Cell Types") 
 
 # Save 
 png(file = "results/8_dirichlet/dirichlet_coeff.png",
-    width = 1200, 
-    height = 800,
-    units = "px",
-    res = 100)
+    width = 12, 
+    height = 7,
+    units = "in",
+    res = 300)
 
 err.plot
 

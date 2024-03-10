@@ -6,21 +6,17 @@ rm(libs)
 # Load the results 
 deseq.res <- read.csv("data/processed/models/adjusted_de.csv")
 pal <- wes_palette(name = "Zissou1", type = "continuous")
-jensen.bulk <- read.csv("data/processed/bulk/jensen_bulk_clean.csv",  row.names = 1, check.names = F)
-phenotypes <- read.csv("data/processed/bulk/jensen_pheno.csv")
-
-# Prepare for DESeq2
-bulk <- mutate_all(jensen.bulk, function(x) round(as.numeric(as.character(x)), digits = 0)) # round to integers
+phenotypes <- read.csv("data/processed/bulk/pheno_table.csv")
 
 # Set reference factor levels for phenotypes
 pheno.reorder <- phenotypes |> 
-  mutate(Sub = as.factor(de_id)) |> 
+  mutate(new.id = as.factor(new.id)) |> 
   mutate(Genotype = factor(case_when(
-    str_detect(Sub, "WT") ~ "WT",
-    str_detect(Sub, "KO") ~ "KO")),
+    str_detect(new.id, "WT") ~ "WT",
+    str_detect(new.id, "cmAKO") ~ "cmAKO")),
     Treatment = factor(case_when(
-      str_detect(Sub, "sham") ~ "Sham",
-      str_detect(Sub, "MI") ~ "TAC")))
+      str_detect(new.id, "Sham") ~ "Sham",
+      str_detect(new.id, "CAD") ~ "CAD")))
 
 # Unadjusted results first 
 
