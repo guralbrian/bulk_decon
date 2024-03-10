@@ -53,7 +53,7 @@ summarise_values = function(df) {
 }
 
 p.upset.down <- down.upset |> 
-  ComplexUpset::upset(intersect = colnames(d.upset),
+  ComplexUpset::upset(intersect = colnames(down.upset),
                       base_annotations=list(
     'log10(intersection size)'=(
       ggplot()
@@ -69,7 +69,7 @@ p.upset.down <- down.upset |>
   )
 
 p.upset.up <- up.upset |> 
-  ComplexUpset::upset(intersect = colnames(d.upset),
+  ComplexUpset::upset(intersect = colnames(up.upset),
                       base_annotations=list(
                         'log10(intersection size)'=(
                           ggplot()
