@@ -58,7 +58,7 @@ sample.clr <- cbind(sample_info, comps.clr[colnames(bulk),])
 dds.clr <- DESeqDataSetFromMatrix(
   countData = bulk,
   colData = sample.clr,
-  design = ~ treatment + genotype + treatment:genotype + clr.Cardiomyocytes + clr.Fibroblast
+  design = ~ treatment + genotype + treatment:genotype + clr.Fibroblast + clr.Cardiomyocytes
 )
 
 # Run DESeq

@@ -85,9 +85,9 @@ decon.whole$CellType_wrap = str_wrap(decon.whole$CellType, width = 12)
 decon.whole <- decon.whole %>%
   mutate(new.id = factor(new.id, levels = ordered_df)) %>%
   arrange(new.id) |> 
-  mutate(Genotype_Treatment = paste(genotype, " - ", treatment))
-
-
+  mutate(Genotype_Treatment = paste(genotype, "-", treatment)) |> 
+  mutate(Genotype_Treatment = factor(Genotype_Treatment, levels = c("WT - Sham", "WT - CAD", "cmAKO - Sham", "cmAKO - CAD")))
+                                     
 cell.type.order <-  decon.whole %>%
   group_by(CellType_wrap) |> 
   mutate(mean = mean(Prop)) |> 
@@ -106,35 +106,31 @@ comp_celltype <- decon.whole   %>%
   geom_jitter(inherit.aes = T, 
               position = position_jitterdodge(jitter.width = 0.005, dodge.width = 0.9),
               size = 4, alpha = 0.5) +
-  theme(axis.text.x = element_text(color = "black", size = 28, angle =25, vjust = 0.5),
-        axis.text.y = element_text(color = "black", size = 28),
+  theme(axis.text.x = element_text(color = "black", angle =25, vjust = 0.5),
+        axis.text.y = element_text(color = "black"),
         axis.ticks = element_blank(),
         legend.position = c(0.9, 1),
         legend.justification = c("right", "top"),
         legend.box.just = "right",
         legend.margin = margin(6, 6, 6, 6),
-        strip.text = element_text(size = 20),
-        title = element_text(size = 30),
-        legend.text = element_text(size = 32),
         panel.background = element_rect(fill='transparent'),
         plot.background = element_rect(fill='transparent', color=NA),
-        #panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         legend.background = element_rect(fill='transparent'),
         legend.box.background = element_rect(fill='transparent'),
         axis.title.x = element_blank(),
         plot.margin = unit(c(1,1,1,1), units = "cm"),
-        axis.title.y = element_text(size = 30)) +
+        text = element_text(size = 40)) +
   labs(y = "Proportion", 
        fill = "Treatment") +
   scale_fill_manual(values = my_palette)
 
 # Save plot to results 
 png(file = "results/7_plot_comps/sample_comps.png",
-    width = 1600, 
-    height = 800,
-    units = "px",
-    res = 100)
+    width = 16, 
+    height = 8,
+    units = "in",
+    res = 400)
 
 comp_celltype
 

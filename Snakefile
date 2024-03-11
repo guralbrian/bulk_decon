@@ -18,7 +18,6 @@ rule all:
         "results/5_findMarkers/marker_specificity.png",
         "data/raw/anno/gencode.vM34.annotation.gtf.gz",
         "data/processed/bulk/all_counts.csv"
-
 rule load_index:
     output: 
         "data/raw/anno/gencode.vM34.transcripts.fa.gz",
@@ -31,11 +30,13 @@ rule load_gtf:
         "wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/gencode.vM34.annotation.gtf.gz -P data/raw/anno"
 rule salmon_index:
     input:
-        "data/raw/anno/gencode.vM34.transcripts.fa.gz"
+       "data/raw/anno/gencode.vM34.transcripts.fa.gz"
     output:
-        "data/raw/anno/gencode.vM34.salmon"
+        directory("data/raw/anno/gencode.vM34.salmon")
+    resources:
+        mem_mb = 128000
     shell:
-        "salmon index --gencode -p 12 -t {input} -i {output}"
+        "salmon index --gencode -p 2 -t data/raw/anno/gentrome.fa.gz -d data/raw/anno/decoys.txt -i {output}"
 rule salmon_quant:
     input:
         r1 = "data/raw/fastq/{F_SAMPLES}/{F_SAMPLES}_1.fastq.gz",
@@ -146,8 +147,7 @@ rule plot_comps:
         "data/processed/compositions/fraction_samples.csv"
     output: 
         "results/7_plot_comps/pure_cell_types.png",
-        "results/7_plot_comps/sample_comps.png",
-        "results/7_plot_comps/sample_comps_relative.png"
+        "results/7_plot_comps/sample_comps.png"
     shell:
         "Rscript scripts/7_plot_comps.R"
 rule dirichlet:
