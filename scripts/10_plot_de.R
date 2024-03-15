@@ -7,7 +7,7 @@ rm(libs)
 deseq.res <- read.csv("data/processed/models/adjusted_de.csv")
 pal <- wes_palette(name = "Zissou1", type = "continuous")
 phenotypes <- read.csv("data/processed/bulk/pheno_table.csv")
-
+bulk <- read.csv("data/processed/bulk/all_counts.csv", row.names = 1, check.names = F)
 # Set reference factor levels for phenotypes
 pheno.reorder <- phenotypes |> 
   mutate(new.id = as.factor(new.id)) |> 
@@ -117,7 +117,6 @@ dev.off()
 
 
 # Plot the PCA of samples
-
 # Run PCA
 pca <- prcomp(bulk)
 
@@ -127,20 +126,21 @@ PoV <- round(PoV, digits = 1)
 pca <- pca$rotation |> 
   as.data.frame() |> 
   dplyr::select(PC1, PC2) 
-pca$Sub <- row.names(pca)
-
+pca$new.id <- row.names(pca)
 
 my_palette <- c("#A6CEE3", "#1F78B4", "#FDBF6F", "#FF7F00")
 legend.names <- c("Sham_1","Sham_2", "TAC_1", "TAC_2")
 
-pca.plot <- pca |> left_join(pheno.reorder) |> 
+pca <- pca |> left_join(pheno.reorder) |> 
+  mutate(gene_treat = paste(genotype, treatment)) |> 
+  filter(type == "whole") 
+pca.plot <- pca |> 
   ggplot(aes(x = PC1, y = PC2, color = gene_treat)) +
-  
   geom_point(size = 8, color = "black") +
   geom_point(size = 7) +
   
   geom_label_repel(aes(fill = gene_treat),
-                   label = pca$Sub, color = "black", alpha = 0.8,
+                   label = pca$new.id, color = "black", alpha = 0.8,
                    box.padding = 0.5, segment.curvature = -0.2,
                    segment.ncp = 3, segment.angle = 20, force = 10, 
                    max.overlaps = 10, force_pull = 0.01, size = 6,

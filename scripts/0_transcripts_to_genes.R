@@ -13,7 +13,7 @@ rm(libs)
 # https://bioconductor.org/packages/release/bioc/vignettes/tximeta/inst/doc/tximeta.html
 
 # Make linkedTxome for first run 
-indexDir <- file.path("data/raw/anno/gencode.vM34.salmon")
+indexDir <- file.path("data/raw/anno/decoyaware.vM34.salmon")
 fastaFTP <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/gencode.vM34.transcripts.fa.gz"
 gtfPath  <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/gencode.vM34.annotation.gtf.gz"
 suppressPackageStartupMessages(library(tximeta))
@@ -24,7 +24,7 @@ makeLinkedTxome(indexDir=indexDir,
                 genome="GRCm39",
                 fasta=fastaFTP,
                 gtf=gtfPath,
-                write=FALSE)
+                write=T)
 
 # List sample quant.sf files
 names <- list.files("data/raw/fastq")

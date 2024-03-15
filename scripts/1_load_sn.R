@@ -12,7 +12,6 @@ args <- commandArgs(trailingOnly = TRUE)
 sample_name <-  as.character(args[1])
 print(sample_name)
 
-
 rau.samples <- paste0("data/raw/single_cell/",sample_name)
 
 # read .mtx, barcodes, and features files + merge into Seurat
@@ -34,7 +33,7 @@ LoadRau <- function(sample){
   
   # Format to show origin for later if needed
   colnames(mtx.rau) <- paste0(bar.rau, "-rau")
-  rownames(mtx.rau) <- ft.rau$V2
+  rownames(mtx.rau) <- ft.rau$V2 |> make.unique()
   
   sn.rau <- Seurat::CreateSeuratObject(mtx.rau)
   sn.rau$origin <- "brian"
@@ -50,4 +49,6 @@ LoadRau <- function(sample){
 rau.sn <- LoadRau(rau.samples)
 
 # Save
-SeuratDisk::SaveH5Seurat(rau.sn, paste0("data/processed/single_cell/unprocessed/",sample_name))
+SeuratDisk::SaveH5Seurat(rau.sn, paste0("data/processed/single_cell/unprocessed/",sample_name),
+                         overwrite = T,
+                         verbose = T)
