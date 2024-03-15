@@ -5,6 +5,7 @@ import re
 
 READS = ["_1", "_2"]
 F_SAMPLES = config["samples_fastq"]
+SN_SAMPLES = ["B6_1", "B6_2"]
 
 rule all:
     input:
@@ -12,36 +13,39 @@ rule all:
         "data/processed/bulk/rau_fractions_gse.RData",
         "results/7_plot_comps/pure_cell_types.png",
         "results/7_plot_comps/sample_comps.png",
-        "results/7_plot_comps/sample_comps_relative.png",
         "results/10_plot_de/volcano_adjusted.png",
         "results/5_findMarkers/cell_clusters.png",
         "results/5_findMarkers/marker_specificity.png",
         "data/raw/anno/gencode.vM34.annotation.gtf.gz",
         "data/processed/bulk/all_counts.csv"
-rule load_index:
+#rule load_index:
+#    output: 
+#        "data/raw/anno/gencode.vM34.transcripts.fa.gz"
+#    shell: 
+#        "wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/gencode.vM34.transcripts.fa.gz -P data/raw/anno"
+rule load_decoy:
     output: 
-        "data/raw/anno/gencode.vM34.transcripts.fa.gz",
+        "data/raw/anno/salmon_sa_index"
     shell: 
-        "wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/gencode.vM34.transcripts.fa.gz -P data/raw/anno"
+        "wget http://refgenomes.databio.org/v3/assets/archive/0f10d83b1050c08dd53189986f60970b92a315aa7a16a6f1/salmon_sa_index?tag=default -P data/raw/anno -O salmon_sa_index"
 rule load_gtf:
     output: 
         "data/raw/anno/gencode.vM34.annotation.gtf.gz"
     shell: 
         "wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/gencode.vM34.annotation.gtf.gz -P data/raw/anno"
 rule salmon_index:
-    input:
-       "data/raw/anno/gencode.vM34.transcripts.fa.gz"
+#    input:
+#        trans = "data/raw/anno/decoy/gentrome.fa",
+#        decoy = "data/raw/anno/decoy/decoys.txt"
     output:
-        directory("data/raw/anno/gencode.vM34.salmon")
-    resources:
-        mem_mb = 128000
+        directory("data/raw/anno/decoyaware.vM34.salmon")
     shell:
-        "salmon index --gencode -p 2 -t data/raw/anno/gentrome.fa.gz -d data/raw/anno/decoys.txt -i {output}"
+        "salmon index --gencode -t data/raw/anno/decoy/gentrome.fa -d data/raw/anno/decoy/decoys.txt -i {output} -k 25"
 rule salmon_quant:
     input:
         r1 = "data/raw/fastq/{F_SAMPLES}/{F_SAMPLES}_1.fastq.gz",
         r2 = "data/raw/fastq/{F_SAMPLES}/{F_SAMPLES}_2.fastq.gz",
-        index = "data/raw/anno/gencode.vM34.salmon"
+        index = "data/raw/anno/decoyaware.vM34.salmon"
     output:
         "data/raw/fastq/{F_SAMPLES}/quant.sf"
     params:
@@ -86,23 +90,27 @@ rule ensb2gene:
         "Rscript scripts/4_1_ens_to_gene.R"
 rule load_sn:
     output: 
-        "data/processed/single_cell/unprocessed/{samples}.h5seurat"
+        "data/processed/single_cell/unprocessed/{SN_SAMPLES}.h5seurat"
+    resources:
+        mem_mb=6000
     shell:
-        "Rscript scripts/1_load_sn.R {wildcards.samples}"
+        "Rscript scripts/1_load_sn.R {SN_SAMPLES}"
 rule ambient_doublets:
     input:
-        "data/processed/single_cell/unprocessed/{samples}.h5seurat"
+        "data/processed/single_cell/unprocessed/{SN_SAMPLES}.h5seurat"
     output: 
-        "data/processed/single_cell/no_doublets/{samples}_no_doublets.h5seurat"
+        "data/processed/single_cell/no_doublets/{SN_SAMPLES}_no_doublets.h5seurat"
+    resources:
+        mem_mb=8000
     shell:
-        "Rscript scripts/2_ambient_doublets.R {wildcards.samples}"
+        "Rscript scripts/2_ambient_doublets.R {SN_SAMPLES}"
 rule merge_sn:
     input:
-        expand("data/processed/single_cell/no_doublets/{samples}_no_doublets.h5seurat", 
-               samples = config["samples"])
-    output: 
-        "results/3_merge_sn/cluster_features_3.png",
+        "data/processed/single_cell/no_doublets/{SN_SAMPLES}_no_doublets.h5seurat"
+    output:
         "data/processed/single_cell/merged_no_doublets.h5seurat"
+    resources:
+        mem_mb=16000
     shell:
         "Rscript scripts/3_merge_sn.R"
 rule clean_bulk:
@@ -119,7 +127,8 @@ rule findMarkers:
         "data/processed/bulk/all_counts.csv"
     output: 
         "results/5_findMarkers/cell_clusters.png",
-        "data/processed/single_cell/cluster_markers.csv"
+        "data/processed/single_cell/cluster_markers.csv",
+        "data/processed/single_cell/celltype_labeled.h5seurat"
     shell:
         "Rscript scripts/5_findMarkers.R"
 rule plotMarkers:
@@ -164,13 +173,30 @@ rule diffential_expression:
         "data/processed/bulk/pheno_table.csv",
         "data/processed/bulk/all_counts.csv"
     output: 
-        "data/processed/models/adjusted_de.csv"
+        "data/processed/models/adjusted_de_interaction.RDS",
+        "data/processed/models/unadjusted_de_interaction.RDS"
     shell:
         "Rscript scripts/9_differential_expression.R"
 rule plot_de:
     input:
-        "data/processed/models/adjusted_de.csv"
+        "data/processed/models/adjusted_de_interaction.RDS"
     output: 
         "results/10_plot_de/volcano_adjusted.png"
     shell:
         "Rscript scripts/10_plot_de.R"
+rule plot_upset:
+    input:
+        "data/processed/models/unadjusted_de_interaction.RDS"
+    output:
+        "results/10_plot_de/upset_unadj.png"
+    shell:
+        "Rscript scripts/10_1_upset_plot.R"
+rule gene_ont:
+    input:
+        "data/processed/models/adjusted_de_interaction.RDS",
+        "data/processed/models/adjusted_de_interaction.RDS"
+    output: 
+        "results/11_clusterProfiler/unadj_interaction_clusters.png",
+        "results/11_clusterProfiler/adj_interaction_clusters.png"
+    shell:
+        "Rscript scripts/11_clusterProfiler.R"
