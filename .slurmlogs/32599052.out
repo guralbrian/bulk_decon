@@ -1,0 +1,41 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 12
+Rules claiming more threads will be scaled down.
+Job counts:
+	count	jobs
+	1	fastqc
+	1
+
+[Wed Mar  6 12:45:50 2024]
+rule fastqc:
+    input: data/raw/fastq/Ako_Lx3/Ako_Lx3_2.fastq.gz
+    output: data/raw/fastq/Ako_Lx3/Ako_Lx3_2_fastqc.zip, data/raw/fastq/Ako_Lx3/Ako_Lx3_2_fastqc.html
+    jobid: 0
+    wildcards: READS=_2, F_SAMPLES=Ako_Lx3
+
+application/gzip
+Started analysis of Ako_Lx3_2.fastq.gz
+Approx 5% complete for Ako_Lx3_2.fastq.gz
+Approx 10% complete for Ako_Lx3_2.fastq.gz
+Approx 15% complete for Ako_Lx3_2.fastq.gz
+Approx 20% complete for Ako_Lx3_2.fastq.gz
+Approx 25% complete for Ako_Lx3_2.fastq.gz
+Approx 30% complete for Ako_Lx3_2.fastq.gz
+Approx 35% complete for Ako_Lx3_2.fastq.gz
+Approx 40% complete for Ako_Lx3_2.fastq.gz
+Approx 45% complete for Ako_Lx3_2.fastq.gz
+Approx 50% complete for Ako_Lx3_2.fastq.gz
+Approx 55% complete for Ako_Lx3_2.fastq.gz
+Approx 60% complete for Ako_Lx3_2.fastq.gz
+Approx 65% complete for Ako_Lx3_2.fastq.gz
+Approx 70% complete for Ako_Lx3_2.fastq.gz
+Approx 75% complete for Ako_Lx3_2.fastq.gz
+Approx 80% complete for Ako_Lx3_2.fastq.gz
+Approx 85% complete for Ako_Lx3_2.fastq.gz
+Approx 90% complete for Ako_Lx3_2.fastq.gz
+Approx 95% complete for Ako_Lx3_2.fastq.gz
+Analysis complete for Ako_Lx3_2.fastq.gz
+[Wed Mar  6 12:48:50 2024]
+Finished job 0.
+1 of 1 steps (100%) done

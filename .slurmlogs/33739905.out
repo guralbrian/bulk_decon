@@ -1,0 +1,41 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 12
+Rules claiming more threads will be scaled down.
+Provided resources: mem_mb=3480, mem_mib=3319, disk_mb=3480, disk_mib=3319
+Select jobs to execute...
+
+[Fri Mar 15 12:59:57 2024]
+rule fastqc:
+    input: data/raw/fastq/B6_F_Fib_RNA_4/B6_F_Fib_RNA_4_2.fastq.gz
+    output: data/raw/fastq/B6_F_Fib_RNA_4/B6_F_Fib_RNA_4_2_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_4/B6_F_Fib_RNA_4_2_fastqc.zip
+    jobid: 0
+    reason: Missing output files: data/raw/fastq/B6_F_Fib_RNA_4/B6_F_Fib_RNA_4_2_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_4/B6_F_Fib_RNA_4_2_fastqc.zip
+    wildcards: F_SAMPLES=B6_F_Fib_RNA_4, READS=_2
+    resources: mem_mb=3480, mem_mib=3319, disk_mb=3480, disk_mib=3319, tmpdir=/tmp
+
+application/gzip
+Started analysis of B6_F_Fib_RNA_4_2.fastq.gz
+Approx 5% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Approx 10% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Approx 15% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Approx 20% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Approx 25% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Approx 30% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Approx 35% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Approx 40% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Approx 45% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Approx 50% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Approx 55% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Approx 60% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Approx 65% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Approx 70% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Approx 75% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Approx 80% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Approx 85% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Approx 90% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Approx 95% complete for B6_F_Fib_RNA_4_2.fastq.gz
+Analysis complete for B6_F_Fib_RNA_4_2.fastq.gz
+[Fri Mar 15 13:02:08 2024]
+Finished job 0.
+1 of 1 steps (100%) done

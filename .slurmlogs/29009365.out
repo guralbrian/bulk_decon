@@ -1,0 +1,68 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 1 (use --cores to define parallelism)
+Rules claiming more threads will be scaled down.
+Job counts:
+	count	jobs
+	1	fastqc
+	1
+
+[Mon Jan 29 12:50:41 2024]
+rule fastqc:
+    output: data/raw/fastq/B6_F_CM_RNA_1/B6_F_CM_RNA_1_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_CM_RNA_2/B6_F_CM_RNA_2_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_CM_RNA_3/B6_F_CM_RNA_3_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_CM_RNA_4/B6_F_CM_RNA_4_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_CM_RNA_5/B6_F_CM_RNA_5_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_Fib_RNA_1/B6_F_Fib_RNA_1_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_Fib_RNA_2/B6_F_Fib_RNA_2_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_Fib_RNA_3/B6_F_Fib_RNA_3_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_Fib_RNA_4/B6_F_Fib_RNA_4_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_Fib_RNA_5/B6_F_Fib_RNA_5_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_M_CM_RNA_1/B6_M_CM_RNA_1_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_M_CM_RNA_3/B6_M_CM_RNA_3_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_M_CM_RNA_4/B6_M_CM_RNA_4_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_M_CM_RNA_5/B6_M_CM_RNA_5_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_M_Fib_RNA_1/B6_M_Fib_RNA_1_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_M_Fib_RNA_2/B6_M_Fib_RNA_2_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_M_Fib_RNA_3/B6_M_Fib_RNA_3_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_CM_RNA_1/B6_F_CM_RNA_1_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_F_CM_RNA_2/B6_F_CM_RNA_2_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_F_CM_RNA_3/B6_F_CM_RNA_3_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_F_CM_RNA_4/B6_F_CM_RNA_4_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_F_CM_RNA_5/B6_F_CM_RNA_5_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_F_Fib_RNA_1/B6_F_Fib_RNA_1_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_F_Fib_RNA_2/B6_F_Fib_RNA_2_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_F_Fib_RNA_3/B6_F_Fib_RNA_3_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_F_Fib_RNA_4/B6_F_Fib_RNA_4_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_F_Fib_RNA_5/B6_F_Fib_RNA_5_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_M_CM_RNA_1/B6_M_CM_RNA_1_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_M_CM_RNA_3/B6_M_CM_RNA_3_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_M_CM_RNA_4/B6_M_CM_RNA_4_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_M_CM_RNA_5/B6_M_CM_RNA_5_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_M_Fib_RNA_1/B6_M_Fib_RNA_1_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_M_Fib_RNA_2/B6_M_Fib_RNA_2_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_M_Fib_RNA_3/B6_M_Fib_RNA_3_S32_L002_R2_001.fastqc.zip
+    jobid: 0
+
+Skipping 'B6_F_CM_RNA_2' which didn't exist, or couldn't be read
+Skipping 'B6_F_CM_RNA_3' which didn't exist, or couldn't be read
+Skipping 'B6_F_CM_RNA_4' which didn't exist, or couldn't be read
+Skipping 'B6_F_CM_RNA_5' which didn't exist, or couldn't be read
+Skipping 'B6_F_Fib_RNA_1' which didn't exist, or couldn't be read
+Skipping 'B6_F_Fib_RNA_2' which didn't exist, or couldn't be read
+Skipping 'B6_F_Fib_RNA_3' which didn't exist, or couldn't be read
+Skipping 'B6_F_Fib_RNA_4' which didn't exist, or couldn't be read
+Skipping 'B6_F_Fib_RNA_5' which didn't exist, or couldn't be read
+Skipping 'B6_M_CM_RNA_1' which didn't exist, or couldn't be read
+Skipping 'B6_M_CM_RNA_3' which didn't exist, or couldn't be read
+Skipping 'B6_M_CM_RNA_4' which didn't exist, or couldn't be read
+Skipping 'B6_M_CM_RNA_5' which didn't exist, or couldn't be read
+Skipping 'B6_M_Fib_RNA_1' which didn't exist, or couldn't be read
+Skipping 'B6_M_Fib_RNA_2' which didn't exist, or couldn't be read
+Skipping 'B6_M_Fib_RNA_3/B6_F_CM_RNA_1' which didn't exist, or couldn't be read
+Skipping 'B6_F_CM_RNA_2' which didn't exist, or couldn't be read
+Skipping 'B6_F_CM_RNA_3' which didn't exist, or couldn't be read
+Skipping 'B6_F_CM_RNA_4' which didn't exist, or couldn't be read
+Skipping 'B6_F_CM_RNA_5' which didn't exist, or couldn't be read
+Skipping 'B6_F_Fib_RNA_1' which didn't exist, or couldn't be read
+Skipping 'B6_F_Fib_RNA_2' which didn't exist, or couldn't be read
+Skipping 'B6_F_Fib_RNA_3' which didn't exist, or couldn't be read
+Skipping 'B6_F_Fib_RNA_4' which didn't exist, or couldn't be read
+Skipping 'B6_F_Fib_RNA_5' which didn't exist, or couldn't be read
+Skipping 'B6_M_CM_RNA_1' which didn't exist, or couldn't be read
+Skipping 'B6_M_CM_RNA_3' which didn't exist, or couldn't be read
+Skipping 'B6_M_CM_RNA_4' which didn't exist, or couldn't be read
+Skipping 'B6_M_CM_RNA_5' which didn't exist, or couldn't be read
+Skipping 'B6_M_Fib_RNA_1' which didn't exist, or couldn't be read
+Skipping 'B6_M_Fib_RNA_2' which didn't exist, or couldn't be read
+Skipping 'B6_M_Fib_RNA_3_S32_L002_R2_001.fastq.gz' which didn't exist, or couldn't be read
+inode/directory
+Failed to process data/raw/fastq/B6_F_CM_RNA_1
+java.io.FileNotFoundException: data/raw/fastq/B6_F_CM_RNA_1 (Is a directory)
+	at java.io.FileInputStream.open0(Native Method)
+	at java.io.FileInputStream.open(FileInputStream.java:195)
+	at java.io.FileInputStream.<init>(FileInputStream.java:138)
+	at uk.ac.babraham.FastQC.Sequence.FastQFile.<init>(FastQFile.java:77)
+	at uk.ac.babraham.FastQC.Sequence.SequenceFactory.getSequenceFile(SequenceFactory.java:106)
+	at uk.ac.babraham.FastQC.Sequence.SequenceFactory.getSequenceFile(SequenceFactory.java:62)
+	at uk.ac.babraham.FastQC.Analysis.OfflineRunner.processFile(OfflineRunner.java:163)
+	at uk.ac.babraham.FastQC.Analysis.OfflineRunner.<init>(OfflineRunner.java:125)
+	at uk.ac.babraham.FastQC.FastQCApplication.main(FastQCApplication.java:316)
+[Mon Jan 29 12:50:42 2024]
+Error in rule fastqc:
+    jobid: 0
+    output: data/raw/fastq/B6_F_CM_RNA_1/B6_F_CM_RNA_1_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_CM_RNA_2/B6_F_CM_RNA_2_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_CM_RNA_3/B6_F_CM_RNA_3_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_CM_RNA_4/B6_F_CM_RNA_4_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_CM_RNA_5/B6_F_CM_RNA_5_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_Fib_RNA_1/B6_F_Fib_RNA_1_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_Fib_RNA_2/B6_F_Fib_RNA_2_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_Fib_RNA_3/B6_F_Fib_RNA_3_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_Fib_RNA_4/B6_F_Fib_RNA_4_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_Fib_RNA_5/B6_F_Fib_RNA_5_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_M_CM_RNA_1/B6_M_CM_RNA_1_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_M_CM_RNA_3/B6_M_CM_RNA_3_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_M_CM_RNA_4/B6_M_CM_RNA_4_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_M_CM_RNA_5/B6_M_CM_RNA_5_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_M_Fib_RNA_1/B6_M_Fib_RNA_1_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_M_Fib_RNA_2/B6_M_Fib_RNA_2_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_M_Fib_RNA_3/B6_M_Fib_RNA_3_S32_L002_R2_001.fastqc.html, data/raw/fastq/B6_F_CM_RNA_1/B6_F_CM_RNA_1_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_F_CM_RNA_2/B6_F_CM_RNA_2_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_F_CM_RNA_3/B6_F_CM_RNA_3_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_F_CM_RNA_4/B6_F_CM_RNA_4_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_F_CM_RNA_5/B6_F_CM_RNA_5_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_F_Fib_RNA_1/B6_F_Fib_RNA_1_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_F_Fib_RNA_2/B6_F_Fib_RNA_2_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_F_Fib_RNA_3/B6_F_Fib_RNA_3_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_F_Fib_RNA_4/B6_F_Fib_RNA_4_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_F_Fib_RNA_5/B6_F_Fib_RNA_5_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_M_CM_RNA_1/B6_M_CM_RNA_1_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_M_CM_RNA_3/B6_M_CM_RNA_3_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_M_CM_RNA_4/B6_M_CM_RNA_4_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_M_CM_RNA_5/B6_M_CM_RNA_5_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_M_Fib_RNA_1/B6_M_Fib_RNA_1_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_M_Fib_RNA_2/B6_M_Fib_RNA_2_S32_L002_R2_001.fastqc.zip, data/raw/fastq/B6_M_Fib_RNA_3/B6_M_Fib_RNA_3_S32_L002_R2_001.fastqc.zip
+    shell:
+        fastqc data/raw/fastq/B6_F_CM_RNA_1 B6_F_CM_RNA_2 B6_F_CM_RNA_3 B6_F_CM_RNA_4 B6_F_CM_RNA_5 B6_F_Fib_RNA_1 B6_F_Fib_RNA_2 B6_F_Fib_RNA_3 B6_F_Fib_RNA_4 B6_F_Fib_RNA_5 B6_M_CM_RNA_1 B6_M_CM_RNA_3 B6_M_CM_RNA_4 B6_M_CM_RNA_5 B6_M_Fib_RNA_1 B6_M_Fib_RNA_2 B6_M_Fib_RNA_3/B6_F_CM_RNA_1 B6_F_CM_RNA_2 B6_F_CM_RNA_3 B6_F_CM_RNA_4 B6_F_CM_RNA_5 B6_F_Fib_RNA_1 B6_F_Fib_RNA_2 B6_F_Fib_RNA_3 B6_F_Fib_RNA_4 B6_F_Fib_RNA_5 B6_M_CM_RNA_1 B6_M_CM_RNA_3 B6_M_CM_RNA_4 B6_M_CM_RNA_5 B6_M_Fib_RNA_1 B6_M_Fib_RNA_2 B6_M_Fib_RNA_3_S32_L002_R2_001.fastq.gz
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message

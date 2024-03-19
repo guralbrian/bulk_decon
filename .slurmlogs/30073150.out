@@ -1,0 +1,31 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 12
+Rules claiming more threads will be scaled down.
+Job counts:
+	count	jobs
+	1	multiqc
+	1
+
+[Wed Feb  7 10:30:51 2024]
+rule multiqc:
+    input: data/raw/fastq/B6_F_CM_RNA_1/quant.sf, data/raw/fastq/B6_F_CM_RNA_2/quant.sf, data/raw/fastq/B6_F_CM_RNA_3/quant.sf, data/raw/fastq/B6_F_CM_RNA_4/quant.sf, data/raw/fastq/B6_F_CM_RNA_5/quant.sf, data/raw/fastq/B6_F_Fib_RNA_1/quant.sf, data/raw/fastq/B6_F_Fib_RNA_2/quant.sf, data/raw/fastq/B6_F_Fib_RNA_3/quant.sf, data/raw/fastq/B6_F_Fib_RNA_4/quant.sf, data/raw/fastq/B6_F_Fib_RNA_5/quant.sf, data/raw/fastq/B6_M_CM_RNA_1/quant.sf, data/raw/fastq/B6_M_CM_RNA_3/quant.sf, data/raw/fastq/B6_M_CM_RNA_4/quant.sf, data/raw/fastq/B6_M_CM_RNA_5/quant.sf, data/raw/fastq/B6_M_Fib_RNA_1/quant.sf, data/raw/fastq/B6_M_Fib_RNA_2/quant.sf, data/raw/fastq/B6_M_Fib_RNA_3/quant.sf, data/raw/fastq/B6_F_CM_RNA_1/B6_F_CM_RNA_1_1_fastqc.html, data/raw/fastq/B6_F_CM_RNA_1/B6_F_CM_RNA_1_2_fastqc.html, data/raw/fastq/B6_F_CM_RNA_2/B6_F_CM_RNA_2_1_fastqc.html, data/raw/fastq/B6_F_CM_RNA_2/B6_F_CM_RNA_2_2_fastqc.html, data/raw/fastq/B6_F_CM_RNA_3/B6_F_CM_RNA_3_1_fastqc.html, data/raw/fastq/B6_F_CM_RNA_3/B6_F_CM_RNA_3_2_fastqc.html, data/raw/fastq/B6_F_CM_RNA_4/B6_F_CM_RNA_4_1_fastqc.html, data/raw/fastq/B6_F_CM_RNA_4/B6_F_CM_RNA_4_2_fastqc.html, data/raw/fastq/B6_F_CM_RNA_5/B6_F_CM_RNA_5_1_fastqc.html, data/raw/fastq/B6_F_CM_RNA_5/B6_F_CM_RNA_5_2_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_1/B6_F_Fib_RNA_1_1_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_1/B6_F_Fib_RNA_1_2_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_2/B6_F_Fib_RNA_2_1_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_2/B6_F_Fib_RNA_2_2_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_3/B6_F_Fib_RNA_3_1_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_3/B6_F_Fib_RNA_3_2_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_4/B6_F_Fib_RNA_4_1_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_4/B6_F_Fib_RNA_4_2_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_5/B6_F_Fib_RNA_5_1_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_5/B6_F_Fib_RNA_5_2_fastqc.html, data/raw/fastq/B6_M_CM_RNA_1/B6_M_CM_RNA_1_1_fastqc.html, data/raw/fastq/B6_M_CM_RNA_1/B6_M_CM_RNA_1_2_fastqc.html, data/raw/fastq/B6_M_CM_RNA_3/B6_M_CM_RNA_3_1_fastqc.html, data/raw/fastq/B6_M_CM_RNA_3/B6_M_CM_RNA_3_2_fastqc.html, data/raw/fastq/B6_M_CM_RNA_4/B6_M_CM_RNA_4_1_fastqc.html, data/raw/fastq/B6_M_CM_RNA_4/B6_M_CM_RNA_4_2_fastqc.html, data/raw/fastq/B6_M_CM_RNA_5/B6_M_CM_RNA_5_1_fastqc.html, data/raw/fastq/B6_M_CM_RNA_5/B6_M_CM_RNA_5_2_fastqc.html, data/raw/fastq/B6_M_Fib_RNA_1/B6_M_Fib_RNA_1_1_fastqc.html, data/raw/fastq/B6_M_Fib_RNA_1/B6_M_Fib_RNA_1_2_fastqc.html, data/raw/fastq/B6_M_Fib_RNA_2/B6_M_Fib_RNA_2_1_fastqc.html, data/raw/fastq/B6_M_Fib_RNA_2/B6_M_Fib_RNA_2_2_fastqc.html, data/raw/fastq/B6_M_Fib_RNA_3/B6_M_Fib_RNA_3_1_fastqc.html, data/raw/fastq/B6_M_Fib_RNA_3/B6_M_Fib_RNA_3_2_fastqc.html
+    output: data/raw/fastq/multiqc/multiqc_report.html
+    jobid: 0
+
+Traceback (most recent call last):
+  File "/nas/longleaf/apps/python/3.5.1/bin/multiqc", line 13, in <module>
+    import jinja2
+  File "/nas/longleaf/home/bgural/.local/lib/python3.5/site-packages/jinja2/__init__.py", line 6, in <module>
+    from markupsafe import escape
+ImportError: No module named 'markupsafe'
+[Wed Feb  7 10:30:51 2024]
+Error in rule multiqc:
+    jobid: 0
+    output: data/raw/fastq/multiqc/multiqc_report.html
+    shell:
+        multiqc . -o data/raw/fastq/multiqc
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message

@@ -1,0 +1,299 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 12
+Rules claiming more threads will be scaled down.
+Job counts:
+	count	jobs
+	1	deconvolute
+	1
+
+[Thu Mar  7 14:51:05 2024]
+rule deconvolute:
+    input: data/processed/single_cell/celltype_labeled.h5seurat, data/processed/bulk/pheno_table.csv, data/processed/single_cell/cluster_markers.csv, data/processed/bulk/all_counts.csv
+    output: data/processed/compositions/whole_samples.csv, data/processed/compositions/fraction_samples.csv
+    jobid: 0
+
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.4.4     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+‘SeuratObject’ was built with package ‘Matrix’ 1.6.3 but the current
+version is 1.6.5; it is recomended that you reinstall ‘SeuratObject’ as
+the ABI for ‘Matrix’ may have changed
+
+Attaching package: ‘SeuratObject’
+
+The following object is masked from ‘package:base’:
+
+    intersect
+
+Registered S3 method overwritten by 'SeuratDisk':
+  method            from  
+  as.sparse.H5Group Seurat
+
+Attaching package: ‘BiocGenerics’
+
+The following object is masked from ‘package:SeuratObject’:
+
+    intersect
+
+The following objects are masked from ‘package:lubridate’:
+
+    intersect, setdiff, union
+
+The following objects are masked from ‘package:dplyr’:
+
+    combine, intersect, setdiff, union
+
+The following objects are masked from ‘package:stats’:
+
+    IQR, mad, sd, var, xtabs
+
+The following objects are masked from ‘package:base’:
+
+    anyDuplicated, aperm, append, as.data.frame, basename, cbind,
+    colnames, dirname, do.call, duplicated, eval, evalq, Filter, Find,
+    get, grep, grepl, intersect, is.unsorted, lapply, Map, mapply,
+    match, mget, order, paste, pmax, pmax.int, pmin, pmin.int,
+    Position, rank, rbind, Reduce, rownames, sapply, setdiff, sort,
+    table, tapply, union, unique, unsplit, which.max, which.min
+
+Welcome to Bioconductor
+
+    Vignettes contain introductory material; view with
+    'browseVignettes()'. To cite Bioconductor, see
+    'citation("Biobase")', and for packages 'citation("pkgname")'.
+
+
+Attaching package: ‘limma’
+
+The following object is masked from ‘package:BiocGenerics’:
+
+    plotMA
+
+Registered S3 method overwritten by 'GGally':
+  method from   
+  +.gg   ggplot2
+MuSiC v1.0.0 support SingleCellExperiment! See Tutorial: https://xuranw.github.io/MuSiC/articles/MuSiC.html
+MuSiC2 for multi-condition bulk RNA-seq data is also available!
+
+Attaching package: ‘reshape2’
+
+The following object is masked from ‘package:tidyr’:
+
+    smiths
+
+
+Attaching package: ‘matrixStats’
+
+The following objects are masked from ‘package:Biobase’:
+
+    anyMissing, rowMedians
+
+The following object is masked from ‘package:dplyr’:
+
+    count
+
+
+Attaching package: ‘MatrixGenerics’
+
+The following objects are masked from ‘package:matrixStats’:
+
+    colAlls, colAnyNAs, colAnys, colAvgsPerRowSet, colCollapse,
+    colCounts, colCummaxs, colCummins, colCumprods, colCumsums,
+    colDiffs, colIQRDiffs, colIQRs, colLogSumExps, colMadDiffs,
+    colMads, colMaxs, colMeans2, colMedians, colMins, colOrderStats,
+    colProds, colQuantiles, colRanges, colRanks, colSdDiffs, colSds,
+    colSums2, colTabulates, colVarDiffs, colVars, colWeightedMads,
+    colWeightedMeans, colWeightedMedians, colWeightedSds,
+    colWeightedVars, rowAlls, rowAnyNAs, rowAnys, rowAvgsPerColSet,
+    rowCollapse, rowCounts, rowCummaxs, rowCummins, rowCumprods,
+    rowCumsums, rowDiffs, rowIQRDiffs, rowIQRs, rowLogSumExps,
+    rowMadDiffs, rowMads, rowMaxs, rowMeans2, rowMedians, rowMins,
+    rowOrderStats, rowProds, rowQuantiles, rowRanges, rowRanks,
+    rowSdDiffs, rowSds, rowSums2, rowTabulates, rowVarDiffs, rowVars,
+    rowWeightedMads, rowWeightedMeans, rowWeightedMedians,
+    rowWeightedSds, rowWeightedVars
+
+The following object is masked from ‘package:Biobase’:
+
+    rowMedians
+
+
+Attaching package: ‘S4Vectors’
+
+The following objects are masked from ‘package:lubridate’:
+
+    second, second<-
+
+The following objects are masked from ‘package:dplyr’:
+
+    first, rename
+
+The following object is masked from ‘package:tidyr’:
+
+    expand
+
+The following object is masked from ‘package:utils’:
+
+    findMatches
+
+The following objects are masked from ‘package:base’:
+
+    expand.grid, I, unname
+
+
+Attaching package: ‘IRanges’
+
+The following object is masked from ‘package:sp’:
+
+    %over%
+
+The following object is masked from ‘package:lubridate’:
+
+    %within%
+
+The following objects are masked from ‘package:dplyr’:
+
+    collapse, desc, slice
+
+The following object is masked from ‘package:purrr’:
+
+    reduce
+
+
+Attaching package: ‘SummarizedExperiment’
+
+The following object is masked from ‘package:Seurat’:
+
+    Assays
+
+The following object is masked from ‘package:SeuratObject’:
+
+    Assays
+
+[[1]]
+ [1] "lubridate" "forcats"   "stringr"   "dplyr"     "purrr"     "readr"    
+ [7] "tidyr"     "tibble"    "ggplot2"   "tidyverse" "stats"     "graphics" 
+[13] "grDevices" "utils"     "datasets"  "methods"   "base"     
+
+[[2]]
+ [1] "Seurat"       "SeuratObject" "sp"           "lubridate"    "forcats"     
+ [6] "stringr"      "dplyr"        "purrr"        "readr"        "tidyr"       
+[11] "tibble"       "ggplot2"      "tidyverse"    "stats"        "graphics"    
+[16] "grDevices"    "utils"        "datasets"     "methods"      "base"        
+
+[[3]]
+ [1] "SeuratDisk"   "Seurat"       "SeuratObject" "sp"           "lubridate"   
+ [6] "forcats"      "stringr"      "dplyr"        "purrr"        "readr"       
+[11] "tidyr"        "tibble"       "ggplot2"      "tidyverse"    "stats"       
+[16] "graphics"     "grDevices"    "utils"        "datasets"     "methods"     
+[21] "base"        
+
+[[4]]
+ [1] "Biobase"      "BiocGenerics" "SeuratDisk"   "Seurat"       "SeuratObject"
+ [6] "sp"           "lubridate"    "forcats"      "stringr"      "dplyr"       
+[11] "purrr"        "readr"        "tidyr"        "tibble"       "ggplot2"     
+[16] "tidyverse"    "stats"        "graphics"     "grDevices"    "utils"       
+[21] "datasets"     "methods"      "base"        
+
+[[5]]
+ [1] "MuSiC"        "TOAST"        "quadprog"     "limma"        "EpiDISH"     
+ [6] "nnls"         "Biobase"      "BiocGenerics" "SeuratDisk"   "Seurat"      
+[11] "SeuratObject" "sp"           "lubridate"    "forcats"      "stringr"     
+[16] "dplyr"        "purrr"        "readr"        "tidyr"        "tibble"      
+[21] "ggplot2"      "tidyverse"    "stats"        "graphics"     "grDevices"   
+[26] "utils"        "datasets"     "methods"      "base"        
+
+[[6]]
+ [1] "reshape2"     "MuSiC"        "TOAST"        "quadprog"     "limma"       
+ [6] "EpiDISH"      "nnls"         "Biobase"      "BiocGenerics" "SeuratDisk"  
+[11] "Seurat"       "SeuratObject" "sp"           "lubridate"    "forcats"     
+[16] "stringr"      "dplyr"        "purrr"        "readr"        "tidyr"       
+[21] "tibble"       "ggplot2"      "tidyverse"    "stats"        "graphics"    
+[26] "grDevices"    "utils"        "datasets"     "methods"      "base"        
+
+[[7]]
+ [1] "SingleCellExperiment" "SummarizedExperiment" "GenomicRanges"       
+ [4] "GenomeInfoDb"         "IRanges"              "S4Vectors"           
+ [7] "stats4"               "MatrixGenerics"       "matrixStats"         
+[10] "reshape2"             "MuSiC"                "TOAST"               
+[13] "quadprog"             "limma"                "EpiDISH"             
+[16] "nnls"                 "Biobase"              "BiocGenerics"        
+[19] "SeuratDisk"           "Seurat"               "SeuratObject"        
+[22] "sp"                   "lubridate"            "forcats"             
+[25] "stringr"              "dplyr"                "purrr"               
+[28] "readr"                "tidyr"                "tibble"              
+[31] "ggplot2"              "tidyverse"            "stats"               
+[34] "graphics"             "grDevices"            "utils"               
+[37] "datasets"             "methods"              "base"                
+
+Validating h5Seurat file
+Initializing RNA with data
+Adding counts for RNA
+Adding scale.data for RNA
+Adding feature-level metadata for RNA
+Adding variable feature information for RNA
+Adding miscellaneous information for RNA
+Adding reduction harmony
+Adding cell embeddings for harmony
+Adding miscellaneous information for harmony
+Adding reduction pca
+Adding cell embeddings for pca
+Adding feature loadings for pca
+Adding miscellaneous information for pca
+Adding reduction umap
+Adding cell embeddings for umap
+Adding miscellaneous information for umap
+Adding command information
+Adding cell-level metadata
+Adding miscellaneous information
+Adding tool-specific results
+Adding data that was not associated with an assay
+Creating Relative Abudance Matrix...
+Creating Variance Matrix...
+Creating Library Size Matrix...
+Used 60 common genes...
+Used 6 cell types in deconvolution...
+WT CAD (1) has common genes 60 ...
+WT CAD (2) has common genes 60 ...
+WT CAD (3) has common genes 60 ...
+WT CAD (4) has common genes 60 ...
+cmAKO Sham (1) has common genes 60 ...
+cmAKO Sham (2) has common genes 60 ...
+cmAKO Sham (3) has common genes 60 ...
+cmAKO Sham (4) has common genes 60 ...
+B6_F_CM_RNA_1 has common genes 60 ...
+B6_F_CM_RNA_2 has common genes 60 ...
+B6_F_CM_RNA_3 has common genes 60 ...
+B6_F_CM_RNA_4 has common genes 60 ...
+B6_F_CM_RNA_5 has common genes 60 ...
+B6_F_Fib_RNA_1 has common genes 60 ...
+B6_F_Fib_RNA_2 has common genes 60 ...
+B6_F_Fib_RNA_3 has common genes 60 ...
+B6_F_Fib_RNA_4 has common genes 60 ...
+B6_F_Fib_RNA_5 has common genes 60 ...
+B6_M_CM_RNA_1 has common genes 60 ...
+B6_M_CM_RNA_3 has common genes 60 ...
+B6_M_CM_RNA_4 has common genes 60 ...
+B6_M_CM_RNA_5 has common genes 60 ...
+B6_M_Fib_RNA_1 has common genes 60 ...
+B6_M_Fib_RNA_2 has common genes 60 ...
+B6_M_Fib_RNA_3 has common genes 60 ...
+cmAKO CAD (1) has common genes 60 ...
+cmAKO CAD (2) has common genes 60 ...
+cmAKO CAD (3) has common genes 60 ...
+cmAKO CAD (4) has common genes 60 ...
+WT Sham (1) has common genes 59 ...
+WT Sham (2) has common genes 60 ...
+WT Sham (3) has common genes 60 ...
+WT Sham (4) has common genes 60 ...
+[Thu Mar  7 14:51:58 2024]
+Finished job 0.
+1 of 1 steps (100%) done

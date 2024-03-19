@@ -1,0 +1,28 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 12
+Rules claiming more threads will be scaled down.
+Job counts:
+	count	jobs
+	1	multiqc
+	1
+
+[Thu Mar  7 14:24:59 2024]
+rule multiqc:
+    input: data/raw/fastq/AKO5/quant.sf, data/raw/fastq/AKO6/quant.sf, data/raw/fastq/AKO7/quant.sf, data/raw/fastq/AKO8/quant.sf, data/raw/fastq/Ako_Lx1/quant.sf, data/raw/fastq/Ako_Lx2/quant.sf, data/raw/fastq/Ako_Lx3/quant.sf, data/raw/fastq/Ako_Lx4/quant.sf, data/raw/fastq/B6_F_CM_RNA_1/quant.sf, data/raw/fastq/B6_F_CM_RNA_2/quant.sf, data/raw/fastq/B6_F_CM_RNA_3/quant.sf, data/raw/fastq/B6_F_CM_RNA_4/quant.sf, data/raw/fastq/B6_F_CM_RNA_5/quant.sf, data/raw/fastq/B6_F_Fib_RNA_1/quant.sf, data/raw/fastq/B6_F_Fib_RNA_2/quant.sf, data/raw/fastq/B6_F_Fib_RNA_3/quant.sf, data/raw/fastq/B6_F_Fib_RNA_4/quant.sf, data/raw/fastq/B6_F_Fib_RNA_5/quant.sf, data/raw/fastq/B6_M_CM_RNA_1/quant.sf, data/raw/fastq/B6_M_CM_RNA_3/quant.sf, data/raw/fastq/B6_M_CM_RNA_4/quant.sf, data/raw/fastq/B6_M_CM_RNA_5/quant.sf, data/raw/fastq/B6_M_Fib_RNA_1/quant.sf, data/raw/fastq/B6_M_Fib_RNA_2/quant.sf, data/raw/fastq/B6_M_Fib_RNA_3/quant.sf, data/raw/fastq/WT5/quant.sf, data/raw/fastq/WT6/quant.sf, data/raw/fastq/WT7/quant.sf, data/raw/fastq/WT8/quant.sf, data/raw/fastq/wt_Lx1/quant.sf, data/raw/fastq/wt_Lx2/quant.sf, data/raw/fastq/wt_Lx3/quant.sf, data/raw/fastq/wt_Lx4/quant.sf, data/raw/fastq/AKO5/AKO5_1_fastqc.html, data/raw/fastq/AKO5/AKO5_2_fastqc.html, data/raw/fastq/AKO6/AKO6_1_fastqc.html, data/raw/fastq/AKO6/AKO6_2_fastqc.html, data/raw/fastq/AKO7/AKO7_1_fastqc.html, data/raw/fastq/AKO7/AKO7_2_fastqc.html, data/raw/fastq/AKO8/AKO8_1_fastqc.html, data/raw/fastq/AKO8/AKO8_2_fastqc.html, data/raw/fastq/Ako_Lx1/Ako_Lx1_1_fastqc.html, data/raw/fastq/Ako_Lx1/Ako_Lx1_2_fastqc.html, data/raw/fastq/Ako_Lx2/Ako_Lx2_1_fastqc.html, data/raw/fastq/Ako_Lx2/Ako_Lx2_2_fastqc.html, data/raw/fastq/Ako_Lx3/Ako_Lx3_1_fastqc.html, data/raw/fastq/Ako_Lx3/Ako_Lx3_2_fastqc.html, data/raw/fastq/Ako_Lx4/Ako_Lx4_1_fastqc.html, data/raw/fastq/Ako_Lx4/Ako_Lx4_2_fastqc.html, data/raw/fastq/B6_F_CM_RNA_1/B6_F_CM_RNA_1_1_fastqc.html, data/raw/fastq/B6_F_CM_RNA_1/B6_F_CM_RNA_1_2_fastqc.html, data/raw/fastq/B6_F_CM_RNA_2/B6_F_CM_RNA_2_1_fastqc.html, data/raw/fastq/B6_F_CM_RNA_2/B6_F_CM_RNA_2_2_fastqc.html, data/raw/fastq/B6_F_CM_RNA_3/B6_F_CM_RNA_3_1_fastqc.html, data/raw/fastq/B6_F_CM_RNA_3/B6_F_CM_RNA_3_2_fastqc.html, data/raw/fastq/B6_F_CM_RNA_4/B6_F_CM_RNA_4_1_fastqc.html, data/raw/fastq/B6_F_CM_RNA_4/B6_F_CM_RNA_4_2_fastqc.html, data/raw/fastq/B6_F_CM_RNA_5/B6_F_CM_RNA_5_1_fastqc.html, data/raw/fastq/B6_F_CM_RNA_5/B6_F_CM_RNA_5_2_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_1/B6_F_Fib_RNA_1_1_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_1/B6_F_Fib_RNA_1_2_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_2/B6_F_Fib_RNA_2_1_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_2/B6_F_Fib_RNA_2_2_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_3/B6_F_Fib_RNA_3_1_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_3/B6_F_Fib_RNA_3_2_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_4/B6_F_Fib_RNA_4_1_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_4/B6_F_Fib_RNA_4_2_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_5/B6_F_Fib_RNA_5_1_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_5/B6_F_Fib_RNA_5_2_fastqc.html, data/raw/fastq/B6_M_CM_RNA_1/B6_M_CM_RNA_1_1_fastqc.html, data/raw/fastq/B6_M_CM_RNA_1/B6_M_CM_RNA_1_2_fastqc.html, data/raw/fastq/B6_M_CM_RNA_3/B6_M_CM_RNA_3_1_fastqc.html, data/raw/fastq/B6_M_CM_RNA_3/B6_M_CM_RNA_3_2_fastqc.html, data/raw/fastq/B6_M_CM_RNA_4/B6_M_CM_RNA_4_1_fastqc.html, data/raw/fastq/B6_M_CM_RNA_4/B6_M_CM_RNA_4_2_fastqc.html, data/raw/fastq/B6_M_CM_RNA_5/B6_M_CM_RNA_5_1_fastqc.html, data/raw/fastq/B6_M_CM_RNA_5/B6_M_CM_RNA_5_2_fastqc.html, data/raw/fastq/B6_M_Fib_RNA_1/B6_M_Fib_RNA_1_1_fastqc.html, data/raw/fastq/B6_M_Fib_RNA_1/B6_M_Fib_RNA_1_2_fastqc.html, data/raw/fastq/B6_M_Fib_RNA_2/B6_M_Fib_RNA_2_1_fastqc.html, data/raw/fastq/B6_M_Fib_RNA_2/B6_M_Fib_RNA_2_2_fastqc.html, data/raw/fastq/B6_M_Fib_RNA_3/B6_M_Fib_RNA_3_1_fastqc.html, data/raw/fastq/B6_M_Fib_RNA_3/B6_M_Fib_RNA_3_2_fastqc.html, data/raw/fastq/WT5/WT5_1_fastqc.html, data/raw/fastq/WT5/WT5_2_fastqc.html, data/raw/fastq/WT6/WT6_1_fastqc.html, data/raw/fastq/WT6/WT6_2_fastqc.html, data/raw/fastq/WT7/WT7_1_fastqc.html, data/raw/fastq/WT7/WT7_2_fastqc.html, data/raw/fastq/WT8/WT8_1_fastqc.html, data/raw/fastq/WT8/WT8_2_fastqc.html, data/raw/fastq/wt_Lx1/wt_Lx1_1_fastqc.html, data/raw/fastq/wt_Lx1/wt_Lx1_2_fastqc.html, data/raw/fastq/wt_Lx2/wt_Lx2_1_fastqc.html, data/raw/fastq/wt_Lx2/wt_Lx2_2_fastqc.html, data/raw/fastq/wt_Lx3/wt_Lx3_1_fastqc.html, data/raw/fastq/wt_Lx3/wt_Lx3_2_fastqc.html, data/raw/fastq/wt_Lx4/wt_Lx4_1_fastqc.html, data/raw/fastq/wt_Lx4/wt_Lx4_2_fastqc.html
+    output: data/raw/multiqc/multiqc_report.html
+    jobid: 0
+
+[WARNING]         multiqc : MultiQC Version v1.21 now available!
+[INFO   ]         multiqc : This is MultiQC v0.9
+[INFO   ]         multiqc : Template    : default
+[INFO   ]         multiqc : Searching '.'
+[INFO   ]          salmon : Found 33 meta reports
+[INFO   ]          salmon : Found 33 fragment length distributions
+[INFO   ]          fastqc : Found 66 reports
+[INFO   ]         multiqc : Report      : data/raw/multiqc/multiqc_report.html
+[INFO   ]         multiqc : Data        : data/raw/multiqc/multiqc_data
+[INFO   ]         multiqc : MultiQC complete
+[Thu Mar  7 14:27:17 2024]
+Finished job 0.
+1 of 1 steps (100%) done

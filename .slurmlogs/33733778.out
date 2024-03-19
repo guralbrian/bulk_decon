@@ -1,0 +1,119 @@
+The flag 'directory' used in rule all is only valid for outputs, not inputs.
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 12
+Rules claiming more threads will be scaled down.
+Job counts:
+	count	jobs
+	1	plotMarkers
+	1
+
+[Fri Mar 15 11:17:44 2024]
+rule plotMarkers:
+    input: data/processed/single_cell/celltype_labeled.h5seurat, data/processed/single_cell/cluster_markers.csv
+    output: results/5_findMarkers/marker_specificity.png
+    jobid: 0
+
+Loading required package: tidyverse
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.4.4     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Loading required package: Seurat
+Loading required package: SeuratObject
+Loading required package: sp
+‘SeuratObject’ was built with package ‘Matrix’ 1.6.3 but the current
+version is 1.6.5; it is recomended that you reinstall ‘SeuratObject’ as
+the ABI for ‘Matrix’ may have changed
+
+Attaching package: ‘SeuratObject’
+
+The following object is masked from ‘package:base’:
+
+    intersect
+
+Loading required package: SeuratDisk
+Registered S3 method overwritten by 'SeuratDisk':
+  method            from  
+  as.sparse.H5Group Seurat
+Loading required package: tidyseurat
+Loading required package: ttservice
+
+Attaching package: ‘ttservice’
+
+The following objects are masked from ‘package:dplyr’:
+
+    bind_cols, bind_rows
+
+========================================
+tidyseurat version 0.8.0
+If you use TIDYSEURAT in published research, please cite:
+
+Mangiola et al. Interfacing Seurat with the R tidy universe. Bioinformatics 2021.
+
+This message can be suppressed by:
+  suppressPackageStartupMessages(library(tidyseurat))
+  
+To restore the Seurat default display use options("restore_Seurat_show" = TRUE) 
+========================================
+
+
+Attaching package: ‘tidyseurat’
+
+The following object is masked from ‘package:ttservice’:
+
+    plot_ly
+
+Loading required package: viridis
+Loading required package: viridisLite
+[[1]]
+[1] TRUE
+
+[[2]]
+[1] TRUE
+
+[[3]]
+[1] TRUE
+
+[[4]]
+[1] TRUE
+
+[[5]]
+[1] TRUE
+
+Validating h5Seurat file
+Initializing RNA with data
+Adding counts for RNA
+Adding scale.data for RNA
+Adding feature-level metadata for RNA
+Adding variable feature information for RNA
+Adding miscellaneous information for RNA
+Adding reduction harmony
+Adding cell embeddings for harmony
+Adding miscellaneous information for harmony
+Adding reduction pca
+Adding cell embeddings for pca
+Adding feature loadings for pca
+Adding miscellaneous information for pca
+Adding reduction umap
+Adding cell embeddings for umap
+Adding miscellaneous information for umap
+Adding command information
+Adding cell-level metadata
+Adding miscellaneous information
+Adding tool-specific results
+Adding data that was not associated with an assay
+tidyseurat says: This operation lead to duplicated cell names. A data frame is returned for independent data analysis.
+`summarise()` has grouped output by 'cell.type'. You can override using the
+`.groups` argument.
+pdf 
+  2 
+[Fri Mar 15 11:18:42 2024]
+Finished job 0.
+1 of 1 steps (100%) done

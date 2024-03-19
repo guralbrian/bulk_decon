@@ -1,0 +1,51 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 12
+Rules claiming more threads will be scaled down.
+Provided resources: mem_mb=6000, disk_mb=1000
+Select jobs to execute...
+
+[Tue Mar 19 11:32:23 2024]
+rule load_sn:
+    output: data/processed/single_cell/unprocessed/b6_2.h5seurat
+    jobid: 0
+    reason: Forced execution
+    wildcards: sn_sample=b6_2
+    resources: mem_mb=6000, disk_mb=1000, tmpdir=/tmp
+
+Loading required package: Seurat
+Attaching SeuratObject
+‘SeuratObject’ was built with package ‘Matrix’ 1.6.3 but the current
+version is 1.6.5; it is recomended that you reinstall ‘SeuratObject’ as
+the ABI for ‘Matrix’ may have changed
+Seurat v4 was just loaded with SeuratObject v5; disabling v5 assays and
+validation routines, and ensuring assays work in strict v3/v4
+compatibility mode
+Loading required package: Matrix
+Loading required package: SeuratDisk
+Registered S3 method overwritten by 'SeuratDisk':
+  method            from  
+  as.sparse.H5Group Seurat
+[[1]]
+[1] TRUE
+
+[[2]]
+[1] TRUE
+
+[[3]]
+[1] TRUE
+
+[1] "b6_2"
+[1] "b6_2"
+[1] "loaded matrix"
+[1] "loaded barcodes"
+[1] "loaded genes"
+[1] "made seurat"
+Creating h5Seurat file for version 3.1.5.9900
+Adding counts for RNA
+Adding data for RNA
+No variable features found for RNA
+No feature-level metadata found for RNA
+[Tue Mar 19 11:33:54 2024]
+Finished job 0.
+1 of 1 steps (100%) done

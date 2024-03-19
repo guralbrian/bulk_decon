@@ -1,0 +1,31 @@
+The flag 'directory' used in rule all is only valid for outputs, not inputs.
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 12
+Rules claiming more threads will be scaled down.
+Job counts:
+	count	jobs
+	1	load_decoy
+	1
+
+[Thu Mar 14 11:20:13 2024]
+rule load_decoy:
+    output: data/raw/anno/salmon_sa_index
+    jobid: 0
+
+--2024-03-14 11:20:14--  http://awspds.refgenie.databio.org/refgenomes.databio.org/0f10d83b1050c08dd53189986f60970b92a315aa7a16a6f1/salmon_sa_index__default/
+Resolving awspds.refgenie.databio.org (awspds.refgenie.databio.org)... 54.231.132.209, 3.5.27.184, 52.216.210.153, ...
+Connecting to awspds.refgenie.databio.org (awspds.refgenie.databio.org)|54.231.132.209|:80... connected.
+HTTP request sent, awaiting response... 404 Not Found
+2024-03-14 11:20:14 ERROR 404: Not Found.
+
+[Thu Mar 14 11:20:14 2024]
+Error in rule load_decoy:
+    jobid: 0
+    output: data/raw/anno/salmon_sa_index
+    shell:
+        wget http://awspds.refgenie.databio.org/refgenomes.databio.org/0f10d83b1050c08dd53189986f60970b92a315aa7a16a6f1/salmon_sa_index__default/ -P data/raw/anno
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message

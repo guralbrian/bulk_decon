@@ -1,0 +1,135 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 12
+Rules claiming more threads will be scaled down.
+Provided resources: mem_mb=16000, disk_mb=1000
+Select jobs to execute...
+
+[Tue Mar 19 14:25:09 2024]
+rule merge_sn:
+    input: data/processed/single_cell/no_doublets/b6_1_no_doublets.h5seurat, data/processed/single_cell/no_doublets/b6_2_no_doublets.h5seurat
+    output: data/processed/single_cell/merged_no_doublets.h5seurat
+    jobid: 0
+    reason: Forced execution
+    resources: mem_mb=16000, disk_mb=1000, tmpdir=/tmp
+
+Loading required package: Seurat
+Attaching SeuratObject
+‘SeuratObject’ was built with package ‘Matrix’ 1.6.3 but the current
+version is 1.6.5; it is recomended that you reinstall ‘SeuratObject’ as
+the ABI for ‘Matrix’ may have changed
+Seurat v4 was just loaded with SeuratObject v5; disabling v5 assays and
+validation routines, and ensuring assays work in strict v3/v4
+compatibility mode
+Loading required package: SeuratDisk
+Registered S3 method overwritten by 'SeuratDisk':
+  method            from  
+  as.sparse.H5Group Seurat
+Loading required package: harmony
+Loading required package: Rcpp
+Loading required package: tidyverse
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.4.4     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Loading required package: viridis
+Loading required package: viridisLite
+Loading required package: patchwork
+[[1]]
+[1] TRUE
+
+[[2]]
+[1] TRUE
+
+[[3]]
+[1] TRUE
+
+[[4]]
+[1] TRUE
+
+[[5]]
+[1] TRUE
+
+[[6]]
+[1] TRUE
+
+Validating h5Seurat file
+Initializing RNA with data
+Adding counts for RNA
+Adding miscellaneous information for RNA
+Adding reduction PCA
+Adding cell embeddings for PCA
+Adding miscellaneous information for PCA
+Adding reduction TSNE
+Adding cell embeddings for TSNE
+Adding miscellaneous information for TSNE
+Adding reduction UMAP
+Adding cell embeddings for UMAP
+Adding miscellaneous information for UMAP
+Adding command information
+Adding cell-level metadata
+Adding miscellaneous information
+Adding tool-specific results
+Validating h5Seurat file
+Initializing RNA with data
+Adding counts for RNA
+Adding miscellaneous information for RNA
+Adding reduction PCA
+Adding cell embeddings for PCA
+Adding miscellaneous information for PCA
+Adding reduction TSNE
+Adding cell embeddings for TSNE
+Adding miscellaneous information for TSNE
+Adding reduction UMAP
+Adding cell embeddings for UMAP
+Adding miscellaneous information for UMAP
+Adding command information
+Adding cell-level metadata
+Adding miscellaneous information
+Adding tool-specific results
+Warning: Some cell names are duplicated across objects provided. Renaming to enforce unique cell names.
+Warning: The default method for RunUMAP has changed from calling Python UMAP via reticulate to the R-native UWOT using the cosine metric
+To use Python UMAP via reticulate, set umap.method to 'umap-learn' and metric to 'correlation'
+This message will be shown once per session
+Creating h5Seurat file for version 3.1.5.9900
+Adding counts for RNA
+Adding data for RNA
+Adding scale.data for RNA
+Adding variable features for RNA
+Adding feature-level metadata for RNA
+Adding cell embeddings for pca
+Adding loadings for pca
+No projected loadings for pca
+Adding standard deviations for pca
+No JackStraw data for pca
+Adding cell embeddings for harmony
+No loadings for harmony
+No projected loadings for harmony
+Adding standard deviations for harmony
+No JackStraw data for harmony
+Adding cell embeddings for umap
+No loadings for umap
+No projected loadings for umap
+No standard deviations for umap
+No JackStraw data for umap
+Error in loadNamespace(x) : there is no package called ‘SCpubr’
+Calls: loadNamespace -> withRestarts -> withOneRestart -> doWithOneRestart
+Execution halted
+[Tue Mar 19 14:32:14 2024]
+Error in rule merge_sn:
+    jobid: 0
+    output: data/processed/single_cell/merged_no_doublets.h5seurat
+    shell:
+        Rscript scripts/3_merge_sn.R
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Removing output files of failed job merge_sn since they might be corrupted:
+data/processed/single_cell/merged_no_doublets.h5seurat
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message

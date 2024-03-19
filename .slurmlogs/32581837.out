@@ -1,0 +1,41 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 12
+Rules claiming more threads will be scaled down.
+Job counts:
+	count	jobs
+	1	fastqc
+	1
+
+[Wed Mar  6 11:01:07 2024]
+rule fastqc:
+    input: data/raw/fastq/WT8/WT8_2.fastq.gz
+    output: data/raw/fastq/WT8/WT8_2_fastqc.zip, data/raw/fastq/WT8/WT8_2_fastqc.html
+    jobid: 0
+    wildcards: READS=_2, F_SAMPLES=WT8
+
+application/gzip
+Started analysis of WT8_2.fastq.gz
+Approx 5% complete for WT8_2.fastq.gz
+Approx 10% complete for WT8_2.fastq.gz
+Approx 15% complete for WT8_2.fastq.gz
+Approx 20% complete for WT8_2.fastq.gz
+Approx 25% complete for WT8_2.fastq.gz
+Approx 30% complete for WT8_2.fastq.gz
+Approx 35% complete for WT8_2.fastq.gz
+Approx 40% complete for WT8_2.fastq.gz
+Approx 45% complete for WT8_2.fastq.gz
+Approx 50% complete for WT8_2.fastq.gz
+Approx 55% complete for WT8_2.fastq.gz
+Approx 60% complete for WT8_2.fastq.gz
+Approx 65% complete for WT8_2.fastq.gz
+Approx 70% complete for WT8_2.fastq.gz
+Approx 75% complete for WT8_2.fastq.gz
+Approx 80% complete for WT8_2.fastq.gz
+Approx 85% complete for WT8_2.fastq.gz
+Approx 90% complete for WT8_2.fastq.gz
+Approx 95% complete for WT8_2.fastq.gz
+Analysis complete for WT8_2.fastq.gz
+[Wed Mar  6 11:03:20 2024]
+Finished job 0.
+1 of 1 steps (100%) done

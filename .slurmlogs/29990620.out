@@ -1,0 +1,41 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 12
+Rules claiming more threads will be scaled down.
+Job counts:
+	count	jobs
+	1	fastqc
+	1
+
+[Tue Feb  6 11:49:01 2024]
+rule fastqc:
+    input: data/raw/fastq/B6_F_CM_RNA_2/B6_F_CM_RNA_2_1.fastq.gz
+    output: data/raw/fastq/B6_F_CM_RNA_2/B6_F_CM_RNA_2_1_fastqc.zip, data/raw/fastq/B6_F_CM_RNA_2/B6_F_CM_RNA_2_1_fastqc.html
+    jobid: 0
+    wildcards: F_SAMPLES=B6_F_CM_RNA_2, READS=_1
+
+application/gzip
+Started analysis of B6_F_CM_RNA_2_1.fastq.gz
+Approx 5% complete for B6_F_CM_RNA_2_1.fastq.gz
+Approx 10% complete for B6_F_CM_RNA_2_1.fastq.gz
+Approx 15% complete for B6_F_CM_RNA_2_1.fastq.gz
+Approx 20% complete for B6_F_CM_RNA_2_1.fastq.gz
+Approx 25% complete for B6_F_CM_RNA_2_1.fastq.gz
+Approx 30% complete for B6_F_CM_RNA_2_1.fastq.gz
+Approx 35% complete for B6_F_CM_RNA_2_1.fastq.gz
+Approx 40% complete for B6_F_CM_RNA_2_1.fastq.gz
+Approx 45% complete for B6_F_CM_RNA_2_1.fastq.gz
+Approx 50% complete for B6_F_CM_RNA_2_1.fastq.gz
+Approx 55% complete for B6_F_CM_RNA_2_1.fastq.gz
+Approx 60% complete for B6_F_CM_RNA_2_1.fastq.gz
+Approx 65% complete for B6_F_CM_RNA_2_1.fastq.gz
+Approx 70% complete for B6_F_CM_RNA_2_1.fastq.gz
+Approx 75% complete for B6_F_CM_RNA_2_1.fastq.gz
+Approx 80% complete for B6_F_CM_RNA_2_1.fastq.gz
+Approx 85% complete for B6_F_CM_RNA_2_1.fastq.gz
+Approx 90% complete for B6_F_CM_RNA_2_1.fastq.gz
+Approx 95% complete for B6_F_CM_RNA_2_1.fastq.gz
+Analysis complete for B6_F_CM_RNA_2_1.fastq.gz
+[Tue Feb  6 11:51:38 2024]
+Finished job 0.
+1 of 1 steps (100%) done

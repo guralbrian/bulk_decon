@@ -1,0 +1,72 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 12
+Rules claiming more threads will be scaled down.
+Job counts:
+	count	jobs
+	1	plot_comps
+	1
+
+[Tue Feb 13 10:39:24 2024]
+rule plot_comps:
+    input: data/processed/compositions/whole_samples.csv, data/processed/compositions/fraction_samples.csv
+    output: results/7_plot_comps/pure_cell_types.png, results/7_plot_comps/sample_comps.png, results/7_plot_comps/sample_comps_relative.png
+    jobid: 0
+
+Loading required package: tidyverse
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.4     ✔ readr     2.1.5
+✔ forcats   1.0.0     ✔ stringr   1.5.1
+✔ ggplot2   3.4.4     ✔ tibble    3.2.1
+✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+✔ purrr     1.0.2     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+Loading required package: RColorBrewer
+Loading required package: reshape2
+
+Attaching package: ‘reshape2’
+
+The following object is masked from ‘package:tidyr’:
+
+    smiths
+
+[[1]]
+[1] TRUE
+
+[[2]]
+[1] TRUE
+
+[[3]]
+[1] TRUE
+
+Error in `combine_vars()`:
+! Faceting variables must have at least one value
+Backtrace:
+     ▆
+  1. ├─base (local) `<fn>`(x)
+  2. └─ggplot2:::print.ggplot(x)
+  3.   ├─ggplot2::ggplot_build(x)
+  4.   └─ggplot2:::ggplot_build.ggplot(x)
+  5.     └─layout$setup(data, plot$data, plot$plot_env)
+  6.       └─ggplot2 (local) setup(..., self = self)
+  7.         └─self$facet$compute_layout(data, self$facet_params)
+  8.           └─ggplot2 (local) compute_layout(..., self = self)
+  9.             └─ggplot2::combine_vars(data, params$plot_env, vars, drop = params$drop)
+ 10.               └─cli::cli_abort("Faceting variables must have at least one value")
+ 11.                 └─rlang::abort(...)
+Execution halted
+[Tue Feb 13 10:39:26 2024]
+Error in rule plot_comps:
+    jobid: 0
+    output: results/7_plot_comps/pure_cell_types.png, results/7_plot_comps/sample_comps.png, results/7_plot_comps/sample_comps_relative.png
+    shell:
+        Rscript scripts/7_plot_comps.R
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Removing output files of failed job plot_comps since they might be corrupted:
+results/7_plot_comps/pure_cell_types.png
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message

@@ -1,0 +1,41 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 12
+Rules claiming more threads will be scaled down.
+Job counts:
+	count	jobs
+	1	fastqc
+	1
+
+[Wed Mar  6 10:56:11 2024]
+rule fastqc:
+    input: data/raw/fastq/AKO8/AKO8_1.fastq.gz
+    output: data/raw/fastq/AKO8/AKO8_1_fastqc.html, data/raw/fastq/AKO8/AKO8_1_fastqc.zip
+    jobid: 0
+    wildcards: F_SAMPLES=AKO8, READS=_1
+
+application/gzip
+Started analysis of AKO8_1.fastq.gz
+Approx 5% complete for AKO8_1.fastq.gz
+Approx 10% complete for AKO8_1.fastq.gz
+Approx 15% complete for AKO8_1.fastq.gz
+Approx 20% complete for AKO8_1.fastq.gz
+Approx 25% complete for AKO8_1.fastq.gz
+Approx 30% complete for AKO8_1.fastq.gz
+Approx 35% complete for AKO8_1.fastq.gz
+Approx 40% complete for AKO8_1.fastq.gz
+Approx 45% complete for AKO8_1.fastq.gz
+Approx 50% complete for AKO8_1.fastq.gz
+Approx 55% complete for AKO8_1.fastq.gz
+Approx 60% complete for AKO8_1.fastq.gz
+Approx 65% complete for AKO8_1.fastq.gz
+Approx 70% complete for AKO8_1.fastq.gz
+Approx 75% complete for AKO8_1.fastq.gz
+Approx 80% complete for AKO8_1.fastq.gz
+Approx 85% complete for AKO8_1.fastq.gz
+Approx 90% complete for AKO8_1.fastq.gz
+Approx 95% complete for AKO8_1.fastq.gz
+Analysis complete for AKO8_1.fastq.gz
+[Wed Mar  6 10:58:16 2024]
+Finished job 0.
+1 of 1 steps (100%) done

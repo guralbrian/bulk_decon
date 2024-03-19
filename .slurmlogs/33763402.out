@@ -1,0 +1,180 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 12
+Rules claiming more threads will be scaled down.
+Provided resources: mem_mb=6491, mem_mib=6191, disk_mb=6491, disk_mib=6191
+Select jobs to execute...
+
+[Fri Mar 15 16:39:52 2024]
+rule salmon_quant:
+    input: data/raw/fastq/wt_Lx4/wt_Lx4_1.fastq.gz, data/raw/fastq/wt_Lx4/wt_Lx4_2.fastq.gz, data/raw/anno/decoyaware.vM34.salmon
+    output: data/raw/fastq/wt_Lx4/quant.sf
+    jobid: 0
+    reason: Missing output files: data/raw/fastq/wt_Lx4/quant.sf
+    wildcards: F_SAMPLES=wt_Lx4
+    resources: mem_mb=6491, mem_mib=6191, disk_mb=6491, disk_mib=6191, tmpdir=/tmp
+
+Version Server Response: Not Found
+### salmon (selective-alignment-based) v1.10.2
+### [ program ] => salmon 
+### [ command ] => quant 
+### [ index ] => { data/raw/anno/decoyaware.vM34.salmon }
+### [ libType ] => { A }
+### [ threads ] => { 12 }
+### [ gcBias ] => { }
+### [ numGibbsSamples ] => { 20 }
+### [ thinningFactor ] => { 100 }
+### [ output ] => { data/raw/fastq/wt_Lx4 }
+### [ mates1 ] => { data/raw/fastq/wt_Lx4/wt_Lx4_1.fastq.gz }
+### [ mates2 ] => { data/raw/fastq/wt_Lx4/wt_Lx4_2.fastq.gz }
+Logs will be written to data/raw/fastq/wt_Lx4/logs
+[2024-03-15 16:39:52.436] [jointLog] [info] setting maxHashResizeThreads to 12
+[2024-03-15 16:39:52.436] [jointLog] [info] Fragment incompatibility prior below threshold.  Incompatible fragments will be ignored.
+[2024-03-15 16:39:52.436] [jointLog] [info] Usage of --validateMappings implies use of minScoreFraction. Since not explicitly specified, it is being set to 0.65
+[2024-03-15 16:39:52.436] [jointLog] [info] Setting consensusSlack to selective-alignment default of 0.35.
+[2024-03-15 16:39:52.436] [jointLog] [info] parsing read library format
+[2024-03-15 16:39:52.436] [jointLog] [info] There is 1 library.
+[2024-03-15 16:39:52.437] [jointLog] [info] Loading pufferfish index
+[2024-03-15 16:39:52.438] [jointLog] [info] Loading dense pufferfish index.
+-----------------------------------------
+| Loading contig table | Time = 618.18 ms
+-----------------------------------------
+size = 2780925
+-----------------------------------------
+| Loading contig offsets | Time = 6.5747 ms
+-----------------------------------------
+-----------------------------------------
+| Loading reference lengths | Time = 294.96 us
+-----------------------------------------
+-----------------------------------------
+| Loading mphf table | Time = 42.853 ms
+-----------------------------------------
+size = 307335762
+Number of ones: 2780924
+Number of ones per inventory item: 512
+Inventory entries filled: 5432
+-----------------------------------------
+| Loading contig boundaries | Time = 607.23 ms
+-----------------------------------------
+size = 307335762
+-----------------------------------------
+| Loading sequence | Time = 53.576 ms
+-----------------------------------------
+size = 240593586
+-----------------------------------------
+| Loading positions | Time = 582.96 ms
+-----------------------------------------
+size = 382481345
+-----------------------------------------
+| Loading reference sequence | Time = 60.424 ms
+-----------------------------------------
+-----------------------------------------
+| Loading reference accumulative lengths | Time = 344.2 us
+-----------------------------------------
+[2024-03-15 16:39:54.412] [jointLog] [info] done
+[2024-03-15 16:39:54.434] [jointLog] [info] Index contained 147,543 targets
+
+
+
+
+[2024-03-15 16:39:56.592] [jointLog] [info] Number of decoys : 50
+[2024-03-15 16:39:56.592] [jointLog] [info] First decoy index : 147,461 
+[2024-03-15 16:39:58.811] [jointLog] [info] Automatically detected most likely library type as IU
+
+[A[32mprocessed[31m 500,000 [32mfragments[0m
+hits: 1,025,272, hits per frag:  2.23159[A[32mprocessed[31m 1,000,000 [32mfragments[0m
+hits: 2,052,039, hits per frag:  2.09695[A[32mprocessed[31m 1,500,000 [32mfragments[0m
+hits: 3,082,881, hits per frag:  2.1121[A[32mprocessed[31m 2,000,000 [32mfragments[0m
+hits: 4,110,119, hits per frag:  2.10296[A[32mprocessed[31m 2,500,000 [32mfragments[0m
+hits: 5,138,742, hits per frag:  2.08061[A[32mprocessed[31m 3,000,000 [32mfragments[0m
+hits: 6,166,646, hits per frag:  2.09065[A[32mprocessed[31m 3,500,000 [32mfragments[0m
+hits: 7,195,507, hits per frag:  2.09246[A[32mprocessed[31m 4,000,000 [32mfragments[0m
+hits: 8,221,813, hits per frag:  2.06524[A[32mprocessed[31m 4,500,000 [32mfragments[0m
+hits: 9,245,652, hits per frag:  2.05963[A[32mprocessed[31m 5,000,000 [32mfragments[0m
+hits: 10,273,684, hits per frag:  2.0667[A[32mprocessed[31m 5,500,000 [32mfragments[0m
+hits: 11,306,492, hits per frag:  2.0689[A[32mprocessed[31m 6,000,000 [32mfragments[0m
+hits: 12,331,336, hits per frag:  2.05629[A[32mprocessed[31m 6,500,000 [32mfragments[0m
+hits: 13,360,724, hits per frag:  2.06721[A[32mprocessed[31m 7,000,000 [32mfragments[0m
+hits: 14,391,277, hits per frag:  2.0743[A[32mprocessed[31m 7,500,000 [32mfragments[0m
+hits: 15,418,387, hits per frag:  2.06734[A[32mprocessed[31m 8,000,000 [32mfragments[0m
+hits: 16,443,828, hits per frag:  2.08077[A[32mprocessed[31m 8,500,000 [32mfragments[0m
+hits: 17,474,405, hits per frag:  2.07031[A[32mprocessed[31m 9,000,000 [32mfragments[0m
+hits: 18,501,397, hits per frag:  2.05676[A[32mprocessed[31m 9,500,000 [32mfragments[0m
+hits: 19,529,210, hits per frag:  2.06099[A[32mprocessed[31m 10,000,000 [32mfragments[0m
+hits: 20,557,816, hits per frag:  2.06126[A[32mprocessed[31m 10,500,000 [32mfragments[0m
+hits: 21,590,442, hits per frag:  2.06076[A[32mprocessed[31m 11,000,000 [32mfragments[0m
+hits: 22,619,444, hits per frag:  2.06604[A[32mprocessed[31m 11,500,000 [32mfragments[0m
+hits: 23,640,452, hits per frag:  2.06027[A[32mprocessed[31m 12,000,000 [32mfragments[0m
+hits: 24,667,825, hits per frag:  2.06427[A[32mprocessed[31m 12,500,000 [32mfragments[0m
+hits: 25,698,193, hits per frag:  2.06586[A[32mprocessed[31m 13,000,000 [32mfragments[0m
+hits: 26,728,569, hits per frag:  2.06717[A[32mprocessed[31m 13,500,000 [32mfragments[0m
+hits: 27,752,050, hits per frag:  2.05778[A[32mprocessed[31m 14,000,000 [32mfragments[0m
+hits: 28,779,205, hits per frag:  2.06305[A[32mprocessed[31m 14,500,000 [32mfragments[0m
+hits: 29,807,389, hits per frag:  2.05971[A[32mprocessed[31m 15,000,000 [32mfragments[0m
+hits: 30,834,992, hits per frag:  2.05635[A[32mprocessed[31m 15,500,000 [32mfragments[0m
+hits: 31,859,997, hits per frag:  2.06046[A[32mprocessed[31m 16,000,000 [32mfragments[0m
+hits: 32,885,278, hits per frag:  2.05594[A[32mprocessed[31m 16,500,000 [32mfragments[0m
+hits: 33,916,091, hits per frag:  2.06143[A[32mprocessed[31m 17,000,000 [32mfragments[0m
+hits: 34,940,442, hits per frag:  2.0581[A[32mprocessed[31m 17,500,000 [32mfragments[0m
+hits: 35,968,556, hits per frag:  2.05841[A[32mprocessed[31m 18,000,000 [32mfragments[0m
+hits: 36,993,992, hits per frag:  2.0602[A[32mprocessed[31m 18,500,000 [32mfragments[0m
+hits: 38,022,197, hits per frag:  2.05896[A[32mprocessed[31m 19,000,000 [32mfragments[0m
+hits: 39,047,711, hits per frag:  2.05631[A[32mprocessed[31m 19,500,000 [32mfragments[0m
+hits: 40,075,762, hits per frag:  2.05954[A[32mprocessed[31m 20,000,000 [32mfragments[0m
+hits: 41,101,459, hits per frag:  2.06001[A[32mprocessed[31m 20,500,000 [32mfragments[0m
+hits: 42,129,155, hits per frag:  2.0617[A[32mprocessed[31m 21,000,000 [32mfragments[0m
+hits: 43,155,142, hits per frag:  2.05578[A[32mprocessed[31m 21,500,000 [32mfragments[0m
+hits: 44,180,321, hits per frag:  2.05934[A[32mprocessed[31m 22,000,000 [32mfragments[0m
+hits: 45,207,492, hits per frag:  2.05934
+
+
+
+
+
+
+
+[2024-03-15 16:43:50.239] [jointLog] [info] Computed 211,772 rich equivalence classes for further processing
+[2024-03-15 16:43:50.239] [jointLog] [info] Counted 19,963,925 total reads in the equivalence classes 
+[2024-03-15 16:43:50.247] [jointLog] [info] Number of mappings discarded because of alignment score : 11,275,990
+[2024-03-15 16:43:50.247] [jointLog] [info] Number of fragments entirely discarded because of alignment score : 1,430,988
+[2024-03-15 16:43:50.247] [jointLog] [info] Number of fragments discarded because they are best-mapped to decoys : 161,439
+[2024-03-15 16:43:50.247] [jointLog] [info] Number of fragments discarded because they have only dovetail (discordant) mappings to valid targets : 531,613
+[2024-03-15 16:43:50.247] [jointLog] [info] Mapping rate = 89.4735%
+
+[2024-03-15 16:43:50.247] [jointLog] [info] finished quantifyLibrary()
+[2024-03-15 16:43:50.253] [jointLog] [info] Starting optimizer
+[2024-03-15 16:43:50.359] [jointLog] [info] Marked 0 weighted equivalence classes as degenerate
+[2024-03-15 16:43:50.378] [jointLog] [info] iteration = 0 | max rel diff. = 8032.47
+[2024-03-15 16:43:50.565] [jointLog] [info] iteration 11, adjusting effective lengths to account for biases
+[2024-03-15 16:44:08.701] [jointLog] [info] Computed expected counts (for bias correction)
+[2024-03-15 16:44:08.701] [jointLog] [info] processed bias for 0.0% of the transcripts
+[2024-03-15 16:44:10.001] [jointLog] [info] processed bias for 10.0% of the transcripts
+[2024-03-15 16:44:11.310] [jointLog] [info] processed bias for 20.0% of the transcripts
+[2024-03-15 16:44:12.688] [jointLog] [info] processed bias for 30.0% of the transcripts
+[2024-03-15 16:44:14.078] [jointLog] [info] processed bias for 40.0% of the transcripts
+[2024-03-15 16:44:15.441] [jointLog] [info] processed bias for 50.0% of the transcripts
+[2024-03-15 16:44:16.823] [jointLog] [info] processed bias for 60.0% of the transcripts
+[2024-03-15 16:44:18.181] [jointLog] [info] processed bias for 70.0% of the transcripts
+[2024-03-15 16:44:19.346] [jointLog] [info] processed bias for 80.0% of the transcripts
+[2024-03-15 16:44:20.651] [jointLog] [info] processed bias for 90.0% of the transcripts
+[2024-03-15 16:44:21.970] [jointLog] [info] processed bias for 100.0% of the transcripts
+[2024-03-15 16:44:21.979] [jointLog] [info] processed bias for 100.0% of the transcripts
+[2024-03-15 16:44:23.419] [jointLog] [info] iteration = 100 | max rel diff. = 14.8911
+[2024-03-15 16:44:25.040] [jointLog] [info] iteration = 200 | max rel diff. = 8.63193
+[2024-03-15 16:44:26.668] [jointLog] [info] iteration = 300 | max rel diff. = 2.72479
+[2024-03-15 16:44:28.314] [jointLog] [info] iteration = 400 | max rel diff. = 0.936437
+[2024-03-15 16:44:29.952] [jointLog] [info] iteration = 500 | max rel diff. = 3.23161
+[2024-03-15 16:44:31.569] [jointLog] [info] iteration = 600 | max rel diff. = 0.451293
+[2024-03-15 16:44:33.206] [jointLog] [info] iteration = 700 | max rel diff. = 0.210995
+[2024-03-15 16:44:34.812] [jointLog] [info] iteration = 800 | max rel diff. = 0.184488
+[2024-03-15 16:44:36.433] [jointLog] [info] iteration = 900 | max rel diff. = 0.645786
+  0% [[0;32m>                                                    [0m] ETA > 1 week       [2024-03-15 16:44:37.717] [jointLog] [info] iteration = 980 | max rel diff. = 0.00912418
+[2024-03-15 16:44:37.745] [jointLog] [info] Finished optimizer
+[2024-03-15 16:44:37.745] [jointLog] [info] writing output 
+
+[2024-03-15 16:44:37.899] [jointLog] [info] Starting Gibbs Sampler
+ 10% [[0;32m====>                                                [0m] ETA 18s             15% [[0;32m======>                                              [0m] ETA 28s             20% [[0;32m=========>                                           [0m] ETA 28s             25% [[0;32m============>                                        [0m] ETA 27s             30% [[0;32m==============>                                      [0m] ETA 28s             35% [[0;32m=================>                                   [0m] ETA 26s             40% [[0;32m====================>                                [0m] ETA 24s             45% [[0;32m======================>                              [0m] ETA 22s             50% [[0;32m=========================>                           [0m] ETA 20s             55% [[0;32m============================>                        [0m] ETA 18s             60% [[0;32m==============================>                      [0m] ETA 16s             65% [[0;32m=================================>                   [0m] ETA 14s             70% [[0;32m====================================>                [0m] ETA 12s             75% [[0;32m======================================>              [0m] ETA 10s             80% [[0;32m=========================================>           [0m] ETA 8s              85% [[0;32m============================================>        [0m] ETA 6s              90% [[0;32m==============================================>      [0m] ETA 4s              95% [[0;32m=================================================>   [0m] ETA 2s             100% [[0;32m=====================================================[0m] in 42s             
+[2024-03-15 16:45:22.997] [jointLog] [info] Finished Gibbs Sampler
+[Fri Mar 15 16:45:24 2024]
+Finished job 0.
+1 of 1 steps (100%) done

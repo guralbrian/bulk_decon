@@ -1,0 +1,28 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 12
+Rules claiming more threads will be scaled down.
+Job counts:
+	count	jobs
+	1	multiqc
+	1
+
+[Wed Feb  7 10:38:58 2024]
+rule multiqc:
+    input: data/raw/fastq/B6_F_CM_RNA_1/quant.sf, data/raw/fastq/B6_F_CM_RNA_2/quant.sf, data/raw/fastq/B6_F_CM_RNA_3/quant.sf, data/raw/fastq/B6_F_CM_RNA_4/quant.sf, data/raw/fastq/B6_F_CM_RNA_5/quant.sf, data/raw/fastq/B6_F_Fib_RNA_1/quant.sf, data/raw/fastq/B6_F_Fib_RNA_2/quant.sf, data/raw/fastq/B6_F_Fib_RNA_3/quant.sf, data/raw/fastq/B6_F_Fib_RNA_4/quant.sf, data/raw/fastq/B6_F_Fib_RNA_5/quant.sf, data/raw/fastq/B6_M_CM_RNA_1/quant.sf, data/raw/fastq/B6_M_CM_RNA_3/quant.sf, data/raw/fastq/B6_M_CM_RNA_4/quant.sf, data/raw/fastq/B6_M_CM_RNA_5/quant.sf, data/raw/fastq/B6_M_Fib_RNA_1/quant.sf, data/raw/fastq/B6_M_Fib_RNA_2/quant.sf, data/raw/fastq/B6_M_Fib_RNA_3/quant.sf, data/raw/fastq/B6_F_CM_RNA_1/B6_F_CM_RNA_1_1_fastqc.html, data/raw/fastq/B6_F_CM_RNA_2/B6_F_CM_RNA_2_1_fastqc.html, data/raw/fastq/B6_F_CM_RNA_3/B6_F_CM_RNA_3_1_fastqc.html, data/raw/fastq/B6_F_CM_RNA_4/B6_F_CM_RNA_4_1_fastqc.html, data/raw/fastq/B6_F_CM_RNA_5/B6_F_CM_RNA_5_1_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_1/B6_F_Fib_RNA_1_1_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_2/B6_F_Fib_RNA_2_1_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_3/B6_F_Fib_RNA_3_1_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_4/B6_F_Fib_RNA_4_1_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_5/B6_F_Fib_RNA_5_1_fastqc.html, data/raw/fastq/B6_M_CM_RNA_1/B6_M_CM_RNA_1_1_fastqc.html, data/raw/fastq/B6_M_CM_RNA_3/B6_M_CM_RNA_3_1_fastqc.html, data/raw/fastq/B6_M_CM_RNA_4/B6_M_CM_RNA_4_1_fastqc.html, data/raw/fastq/B6_M_CM_RNA_5/B6_M_CM_RNA_5_1_fastqc.html, data/raw/fastq/B6_M_Fib_RNA_1/B6_M_Fib_RNA_1_1_fastqc.html, data/raw/fastq/B6_M_Fib_RNA_2/B6_M_Fib_RNA_2_1_fastqc.html, data/raw/fastq/B6_M_Fib_RNA_3/B6_M_Fib_RNA_3_1_fastqc.html, data/raw/fastq/B6_F_CM_RNA_1/B6_F_CM_RNA_1_2_fastqc.html, data/raw/fastq/B6_F_CM_RNA_2/B6_F_CM_RNA_2_2_fastqc.html, data/raw/fastq/B6_F_CM_RNA_3/B6_F_CM_RNA_3_2_fastqc.html, data/raw/fastq/B6_F_CM_RNA_4/B6_F_CM_RNA_4_2_fastqc.html, data/raw/fastq/B6_F_CM_RNA_5/B6_F_CM_RNA_5_2_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_1/B6_F_Fib_RNA_1_2_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_2/B6_F_Fib_RNA_2_2_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_3/B6_F_Fib_RNA_3_2_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_4/B6_F_Fib_RNA_4_2_fastqc.html, data/raw/fastq/B6_F_Fib_RNA_5/B6_F_Fib_RNA_5_2_fastqc.html, data/raw/fastq/B6_M_CM_RNA_1/B6_M_CM_RNA_1_2_fastqc.html, data/raw/fastq/B6_M_CM_RNA_3/B6_M_CM_RNA_3_2_fastqc.html, data/raw/fastq/B6_M_CM_RNA_4/B6_M_CM_RNA_4_2_fastqc.html, data/raw/fastq/B6_M_CM_RNA_5/B6_M_CM_RNA_5_2_fastqc.html, data/raw/fastq/B6_M_Fib_RNA_1/B6_M_Fib_RNA_1_2_fastqc.html, data/raw/fastq/B6_M_Fib_RNA_2/B6_M_Fib_RNA_2_2_fastqc.html, data/raw/fastq/B6_M_Fib_RNA_3/B6_M_Fib_RNA_3_2_fastqc.html
+    output: data/raw/fastq/multiqc/multiqc_report.html
+    jobid: 0
+
+[WARNING]         multiqc : MultiQC Version v1.19 now available!
+[INFO   ]         multiqc : This is MultiQC v0.9
+[INFO   ]         multiqc : Template    : default
+[INFO   ]         multiqc : Searching '.'
+[INFO   ]          salmon : Found 17 meta reports
+[INFO   ]          salmon : Found 17 fragment length distributions
+[INFO   ]          fastqc : Found 34 reports
+[INFO   ]         multiqc : Report      : data/raw/fastq/multiqc/multiqc_report.html
+[INFO   ]         multiqc : Data        : data/raw/fastq/multiqc/multiqc_data
+[INFO   ]         multiqc : MultiQC complete
+[Wed Feb  7 10:40:25 2024]
+Finished job 0.
+1 of 1 steps (100%) done

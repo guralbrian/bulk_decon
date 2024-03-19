@@ -5,19 +5,21 @@ import re
 
 READS = ["_1", "_2"]
 F_SAMPLES = config["samples_fastq"]
-SN_SAMPLES = ["B6_1", "B6_2"]
+SN_SAMPLES = ["b6_1", "b6_2"]
 
 rule all:
     input:
         "data/raw/multiqc/multiqc_report.html",
-        "data/processed/bulk/rau_fractions_gse.RData",
         "results/7_plot_comps/pure_cell_types.png",
         "results/7_plot_comps/sample_comps.png",
         "results/10_plot_de/volcano_adjusted.png",
         "results/5_findMarkers/cell_clusters.png",
         "results/5_findMarkers/marker_specificity.png",
         "data/raw/anno/gencode.vM34.annotation.gtf.gz",
-        "data/processed/bulk/all_counts.csv"
+        "data/processed/bulk/all_counts.csv",
+        "results/11_clusterProfiler/adj_interaction_clusters.png",
+        expand("data/processed/single_cell/unprocessed/{sn_sample}.h5seurat", sn_sample=SN_SAMPLES)
+
 #rule load_index:
 #    output: 
 #        "data/raw/anno/gencode.vM34.transcripts.fa.gz"
@@ -70,7 +72,7 @@ rule multiqc:
     output:
         "data/raw/multiqc/multiqc_report.html"
     shell:
-        "multiqc . -o data/raw/multiqc"
+        "multiqc . -o data/raw/multiqc -f"
 rule tximport:
     input:
         "data/raw/anno/gencode.vM34.annotation.gtf.gz",
@@ -90,23 +92,24 @@ rule ensb2gene:
         "Rscript scripts/4_1_ens_to_gene.R"
 rule load_sn:
     output: 
-        "data/processed/single_cell/unprocessed/{SN_SAMPLES}.h5seurat"
+        "data/processed/single_cell/unprocessed/{sn_sample}.h5seurat"
     resources:
         mem_mb=6000
     shell:
-        "Rscript scripts/1_load_sn.R {SN_SAMPLES}"
+        "Rscript scripts/1_load_sn.R {wildcards.sn_sample}"
 rule ambient_doublets:
     input:
-        "data/processed/single_cell/unprocessed/{SN_SAMPLES}.h5seurat"
+        "data/processed/single_cell/unprocessed/{sn_sample}.h5seurat"
     output: 
-        "data/processed/single_cell/no_doublets/{SN_SAMPLES}_no_doublets.h5seurat"
+        "data/processed/single_cell/no_doublets/{sn_sample}_no_doublets.h5seurat"
     resources:
         mem_mb=8000
     shell:
-        "Rscript scripts/2_ambient_doublets.R {SN_SAMPLES}"
+        "Rscript scripts/2_ambient_doublets.R {wildcards.sn_sample}"
 rule merge_sn:
     input:
-        "data/processed/single_cell/no_doublets/{SN_SAMPLES}_no_doublets.h5seurat"
+        expand(["data/processed/single_cell/no_doublets/{sn_sample}_no_doublets.h5seurat"],
+                sn_sample=SN_SAMPLES)
     output:
         "data/processed/single_cell/merged_no_doublets.h5seurat"
     resources:

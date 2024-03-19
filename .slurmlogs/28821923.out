@@ -1,0 +1,23 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 1 (use --cores to define parallelism)
+Rules claiming more threads will be scaled down.
+Job counts:
+	count	jobs
+	1	fastqc
+	1
+
+[Fri Jan 26 13:01:05 2024]
+rule fastqc:
+    output: data/raw/fastq/B6-F-CM-RNA-1/B6-F-CM-RNA-1_S32_L002_R2_001_fastqc.html, data/raw/fastq/B6-F-CM-RNA-1/B6-F-CM-RNA-1_S32_L002_R2_001_fastqc.zip
+    jobid: 0
+
+Skipping 'data/raw/fastq/B6-F-CM-RNA-1/B6-F-CM-RNA-1_S32_L002_R2_fastqc.gz' which didn't exist, or couldn't be read
+Waiting at most 30 seconds for missing files.
+MissingOutputException in line 12 of /proj/raulab/users/brian/r_projects/bulk_decon/Snakefile:
+Job completed successfully, but some output files are missing. Missing files after 30 seconds:
+data/raw/fastq/B6-F-CM-RNA-1/B6-F-CM-RNA-1_S32_L002_R2_001_fastqc.html
+data/raw/fastq/B6-F-CM-RNA-1/B6-F-CM-RNA-1_S32_L002_R2_001_fastqc.zip
+This might be due to filesystem latency. If that is the case, consider to increase the wait time with --latency-wait.
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message

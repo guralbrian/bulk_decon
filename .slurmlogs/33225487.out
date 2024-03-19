@@ -1,0 +1,141 @@
+Building DAG of jobs...
+Using shell: /usr/bin/bash
+Provided cores: 12
+Rules claiming more threads will be scaled down.
+Job counts:
+	count	jobs
+	1	salmon_quant
+	1
+
+[Mon Mar 11 11:27:58 2024]
+rule salmon_quant:
+    input: data/raw/fastq/wt_Lx3/wt_Lx3_1.fastq.gz, data/raw/fastq/wt_Lx3/wt_Lx3_2.fastq.gz, data/raw/anno/gencode.vM34.salmon
+    output: data/raw/fastq/wt_Lx3/quant.sf
+    jobid: 0
+    wildcards: F_SAMPLES=wt_Lx3
+
+Version Server Response: Not Found
+### salmon (selective-alignment-based) v1.10.2
+### [ program ] => salmon 
+### [ command ] => quant 
+### [ index ] => { data/raw/anno/gencode.vM34.salmon }
+### [ libType ] => { A }
+### [ threads ] => { 12 }
+### [ gcBias ] => { }
+### [ numGibbsSamples ] => { 20 }
+### [ thinningFactor ] => { 100 }
+### [ output ] => { data/raw/fastq/wt_Lx3 }
+### [ mates1 ] => { data/raw/fastq/wt_Lx3/wt_Lx3_1.fastq.gz }
+### [ mates2 ] => { data/raw/fastq/wt_Lx3/wt_Lx3_2.fastq.gz }
+Logs will be written to data/raw/fastq/wt_Lx3/logs
+[2024-03-11 11:27:58.442] [jointLog] [info] setting maxHashResizeThreads to 12
+[2024-03-11 11:27:58.442] [jointLog] [info] Fragment incompatibility prior below threshold.  Incompatible fragments will be ignored.
+[2024-03-11 11:27:58.442] [jointLog] [info] Usage of --validateMappings implies use of minScoreFraction. Since not explicitly specified, it is being set to 0.65
+[2024-03-11 11:27:58.442] [jointLog] [info] Setting consensusSlack to selective-alignment default of 0.35.
+[2024-03-11 11:27:58.442] [jointLog] [info] parsing read library format
+[2024-03-11 11:27:58.442] [jointLog] [info] There is 1 library.
+[2024-03-11 11:27:58.445] [jointLog] [info] Loading pufferfish index
+[2024-03-11 11:27:58.447] [jointLog] [info] Loading dense pufferfish index.
+-----------------------------------------
+| Loading contig table | Time = 374.94 ms
+-----------------------------------------
+size = 880837
+-----------------------------------------
+| Loading contig offsets | Time = 9.3534 ms
+-----------------------------------------
+-----------------------------------------
+| Loading reference lengths | Time = 3.1195 ms
+-----------------------------------------
+-----------------------------------------
+| Loading mphf table | Time = 224.65 ms
+-----------------------------------------
+size = 149644499
+Number of ones: 880836
+Number of ones per inventory item: 512
+Inventory entries filled: 1721
+-----------------------------------------
+| Loading contig boundaries | Time = 317.11 ms
+-----------------------------------------
+size = 149644499
+-----------------------------------------
+| Loading sequence | Time = 118.65 ms
+-----------------------------------------
+size = 123219419
+-----------------------------------------
+| Loading positions | Time = 1.2255 s
+-----------------------------------------
+size = 249294517
+-----------------------------------------
+| Loading reference sequence | Time = 166.56 ms
+-----------------------------------------
+-----------------------------------------
+| Loading reference accumulative lengths | Time = 5.1595 ms
+-----------------------------------------
+
+
+
+
+[2024-03-11 11:28:00.898] [jointLog] [info] done
+[2024-03-11 11:28:00.937] [jointLog] [info] Index contained 147,493 targets
+[2024-03-11 11:28:00.973] [jointLog] [info] Number of decoys : 147,493
+[2024-03-11 11:28:00.973] [jointLog] [info] First decoy index : 0 
+[A[32mprocessed[31m 500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 1,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 1,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 2,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 2,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 3,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 3,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 4,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 4,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 5,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 5,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 6,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 6,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 7,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 7,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 8,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 8,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 9,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 9,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 10,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 10,500,001 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 11,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 11,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 12,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 12,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 13,000,001 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 13,500,001 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 14,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 14,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 15,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 15,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 16,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 16,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 17,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 17,500,001 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 18,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 18,500,001 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 19,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 19,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 20,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 20,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 21,000,001 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 21,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 22,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 22,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 23,000,000 [32mfragments[0m
+hits: 0, hits per frag:  0[A[32mprocessed[31m 23,500,000 [32mfragments[0m
+hits: 0, hits per frag:  0[2024-03-11 11:29:57.680] [jointLog] [warning] salmon was only able to assign 0 fragments to transcripts in the index, but the minimum number of required assigned fragments (--minAssignedFrags) was 10. This could be indicative of a mismatch between the reference and sample, or a very bad sample.  You can change the --minAssignedFrags parameter to force salmon to quantify with fewer assigned fragments (must have at least 1).
+[Mon Mar 11 11:29:58 2024]
+Error in rule salmon_quant:
+    jobid: 0
+    output: data/raw/fastq/wt_Lx3/quant.sf
+    shell:
+        salmon quant -i data/raw/anno/gencode.vM34.salmon -l A -p 12 --gcBias --numGibbsSamples 20 --thinningFactor 100 -o data/raw/fastq/wt_Lx3 -1 data/raw/fastq/wt_Lx3/wt_Lx3_1.fastq.gz -2 data/raw/fastq/wt_Lx3/wt_Lx3_2.fastq.gz
+        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
+
+Removing output files of failed job salmon_quant since they might be corrupted:
+data/raw/fastq/wt_Lx3/quant.sf
+Shutting down, this might take some time.
+Exiting because a job execution failed. Look above for error message

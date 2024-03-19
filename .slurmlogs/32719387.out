@@ -1,0 +1,5 @@
+Waiting at most 60 seconds for missing files.
+Missing files after 60 seconds:
+/proj/raulab/users/brian/r_projects/bulk_decon/.snakemake/tmp.6w0rycjj
+data/processed/bulk/all_counts.csv
+touch: cannot touch '/proj/raulab/users/brian/r_projects/bulk_decon/.snakemake/tmp.6w0rycjj/9.jobfailed': No such file or directory
