@@ -47,7 +47,7 @@ top.markers <- all.markers |>
   dplyr::filter(summary.logFC >= 1 |
                   summary.logFC <= -1) |>
   arrange(p.value) |>
-  slice_head(n = 10) 
+  slice_head(n = 15) 
 gc()
 
 # Genes here are printed and manually entered into ToppGene

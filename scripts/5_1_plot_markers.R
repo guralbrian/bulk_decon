@@ -45,7 +45,6 @@ p.mark <- sn.markers |>
   ) +
   labs(color = "Average\nExpression", size = "Proportion of\nnuclei expressing")
 
-p.mark
 # Save 
 png(file = "results/5_findMarkers/marker_specificity.png",
     width = 8, 
