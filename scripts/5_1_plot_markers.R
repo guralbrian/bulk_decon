@@ -2,15 +2,15 @@ libs <- c("tidyverse", "Seurat", "SeuratDisk", "tidyseurat", "viridis") # list l
 lapply(libs, require, character.only = T)
 rm(libs)
 
-markers <- read.csv("data/processed/single_cell/all_markers.csv")
+markers <- read.csv("data/processed/single_cell/cluster_markers.csv")
 sn.annot <- LoadH5Seurat("data/processed/single_cell/celltype_labeled.h5seurat")
 
 # get highest pvalue genes
 genes <- markers |> 
-  group_by(annotation) |> 
-  arrange(p.value) |> 
+  group_by(celltype) |> 
+  arrange(summary.logFC) |> 
   slice_head(n = 3) |> 
-  arrange(annotation) |> 
+  arrange(celltype) |> 
   pull(gene) 
 
 # get df of cells with gene info
