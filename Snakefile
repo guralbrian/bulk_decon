@@ -6,6 +6,7 @@ import re
 READS = ["_1", "_2"]
 F_SAMPLES = config["samples_fastq"]
 SN_SAMPLES = ["b6_1", "b6_2"]
+MODEL_TYPE = ["adjusted", "unadjusted"]
 
 rule all:
     input:
@@ -16,40 +17,65 @@ rule all:
         "results/10_plot_de/volcano_adjusted.png",
         "results/5_findMarkers/cell_clusters.png",
         "results/5_findMarkers/marker_specificity.png",
-        "data/raw/anno/gencode.vM34.annotation.gtf.gz",
+        "data/raw/anno/decoy.cleaned.txt",
         "data/processed/bulk/all_counts.csv",
         "data/processed/single_cell/celltype_labeled.h5seurat",
-        "results/11_clusterProfiler/adj_interaction_clusters.png",
+        expand("results/11_clusterProfiler/{model_type}_interaction_clusters.png", model_type=MODEL_TYPE),
         expand("data/processed/single_cell/unprocessed/{sn_sample}.h5seurat", sn_sample=SN_SAMPLES)
 
-#rule load_index:
-#    output: 
-#        "data/raw/anno/gencode.vM34.transcripts.fa.gz"
-#    shell: 
-#        "wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/gencode.vM34.transcripts.fa.gz -P data/raw/anno"
-rule load_decoy:
-    output: 
-        "data/raw/anno/salmon_sa_index"
-    shell: 
-        "wget http://refgenomes.databio.org/v3/assets/archive/0f10d83b1050c08dd53189986f60970b92a315aa7a16a6f1/salmon_sa_index?tag=default -P data/raw/anno -O salmon_sa_index"
-rule load_gtf:
-    output: 
-        "data/raw/anno/gencode.vM34.annotation.gtf.gz"
-    shell: 
-        "wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/gencode.vM34.annotation.gtf.gz -P data/raw/anno"
-rule salmon_index:
-#    input:
-#        trans = "data/raw/anno/decoy/gentrome.fa",
-#        decoy = "data/raw/anno/decoy/decoys.txt"
+rule load_transcript:
     output:
-        directory("data/raw/anno/decoyaware.vM34.salmon")
+        "data/raw/anno/Mus_musculus.GRCm39.cdna.all.fa.gz"
     shell:
-        "salmon index --gencode -t data/raw/anno/decoy/gentrome.fa -d data/raw/anno/decoy/decoys.txt -i {output} -k 25"
+        "wget https://ftp.ensembl.org/pub/release-111/fasta/mus_musculus/cdna/Mus_musculus.GRCm39.cdna.all.fa.gz -P data/raw/anno"
+rule load_toplevel:
+    output:
+        "data/raw/anno/Mus_musculus.GRCm39.dna.toplevel.fa.gz"
+    shell:
+        "wget https://ftp.ensembl.org/pub/release-111/fasta/mus_musculus/dna/Mus_musculus.GRCm39.dna.toplevel.fa.gz -P data/raw/anno/"
+rule make_decoy_1:
+    input:
+        fa="data/raw/anno/Mus_musculus.GRCm39.dna.toplevel.fa.gz"
+    output:
+        decoy="data/raw/anno/decoy.txt"
+    resources:
+        mem_mb=10000
+    shell:
+        """
+        grep '^>' <(gunzip -c {input.fa}) | cut -d ' ' -f 1 > {output.decoy}
+        """
+rule make_decoy_2:
+    input:
+        "data/raw/anno/decoy.txt"
+    output:
+        "data/raw/anno/decoy.cleaned.txt"
+    shell:
+        """
+        sed 's/>//g' {input} > {output}
+        """
+rule make_gentrome:
+    input:
+        top = "data/raw/anno/Mus_musculus.GRCm39.dna.toplevel.fa.gz",
+        transc ="data/raw/anno/Mus_musculus.GRCm39.cdna.all.fa.gz"
+    output:
+        "data/raw/anno/gentrome.fa.gz"
+    shell:
+        "cat {input.transc} {input.top} > data/raw/anno/gentrome.fa.gz"
+rule salmon_index:
+    input:
+        fa = "data/raw/anno/gentrome.fa.gz",
+        decoy = "data/raw/anno/decoy.cleaned.txt"
+    resources:
+        mem_mb=32000
+    output:
+        directory("data/raw/anno/decoy_Mus_musculus.GRCm39.salmon")
+    shell:
+        "salmon index -t {input.fa} -k 31 --keepFixedFasta -p 16 -i {output} -d {input.decoy}"
 rule salmon_quant:
     input:
         r1 = "data/raw/fastq/{F_SAMPLES}/{F_SAMPLES}_1.fastq.gz",
         r2 = "data/raw/fastq/{F_SAMPLES}/{F_SAMPLES}_2.fastq.gz",
-        index = "data/raw/anno/decoyaware.vM34.salmon"
+        index = "data/raw/anno/decoy_Mus_musculus.GRCm39.salmon"
     output:
         "data/raw/fastq/{F_SAMPLES}/quant.sf"
     params:
@@ -77,7 +103,6 @@ rule multiqc:
         "multiqc . -o data/raw/multiqc -f"
 rule tximport:
     input:
-        "data/raw/anno/gencode.vM34.annotation.gtf.gz",
         expand(["data/raw/fastq/{sample}/quant.sf",
                 "data/raw/fastq/{sample}/{sample}{read}_fastqc.html"],
                 sample=F_SAMPLES, read=READS)
@@ -199,9 +224,8 @@ rule plot_upset:
 rule gene_ont:
     input:
         "data/processed/models/adjusted_de_interaction.RDS",
-        "data/processed/models/adjusted_de_interaction.RDS"
+        "data/processed/models/unadjusted_de_interaction.RDS"
     output: 
-        "results/11_clusterProfiler/unadj_interaction_clusters.png",
-        "results/11_clusterProfiler/adj_interaction_clusters.png"
+        "results/11_clusterProfiler/{model_type}_interaction_clusters.png"
     shell:
-        "Rscript scripts/11_clusterProfiler.R"
+        "Rscript scripts/11_clusterProfiler.R {wildcards.model_type}"

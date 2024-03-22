@@ -8,7 +8,7 @@ sn.annot <- LoadH5Seurat("data/processed/single_cell/celltype_labeled.h5seurat")
 # get highest pvalue genes
 genes <- markers |> 
   group_by(celltype) |> 
-  arrange(summary.logFC) |> 
+  arrange(desc(summary.logFC)) |> 
   slice_head(n = 3) |> 
   arrange(celltype) |> 
   pull(gene) 

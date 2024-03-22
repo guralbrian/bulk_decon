@@ -13,14 +13,14 @@ rm(libs)
 # https://bioconductor.org/packages/release/bioc/vignettes/tximeta/inst/doc/tximeta.html
 
 # Make linkedTxome for first run 
-indexDir <- file.path("data/raw/anno/decoyaware.vM34.salmon")
-fastaFTP <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/gencode.vM34.transcripts.fa.gz"
-gtfPath  <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/gencode.vM34.annotation.gtf.gz"
+indexDir <- file.path("data/raw/anno/decoy_Mus_musculus.GRCm39.salmon")
+fastaFTP <- "https://ftp.ensembl.org/pub/release-111/fasta/mus_musculus/cdna/Mus_musculus.GRCm39.cdna.all.fa.gz"
+gtfPath  <- "https://ftp.ensembl.org/pub/release-111/gtf/mus_musculus/Mus_musculus.GRCm39.111.gtf.gz"
 suppressPackageStartupMessages(library(tximeta))
 makeLinkedTxome(indexDir=indexDir,
-                source="GENCODE",
+                source="Ensembl",
                 organism="Mus musculus",
-                release="M34",
+                release="111",
                 genome="GRCm39",
                 fasta=fastaFTP,
                 gtf=gtfPath,

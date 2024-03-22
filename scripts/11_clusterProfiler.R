@@ -4,52 +4,54 @@ libs <- c("tidyverse", "clusterProfiler", "DESeq2",
 lapply(libs, require, character.only = T)
 rm(libs)
 
-
+# Get commandArgs
+args <- commandArgs(trailingOnly = TRUE)
+model.type <-  as.character(args[1])
+model.type <- "adjusted"
 # Load the results and expression matrices
-adj.res <- readRDS("data/processed/models/adjusted_de_interaction.RDS")  
-adj.names <- resultsNames(adj.res)[-1]
+res <- readRDS(paste0("data/processed/models/", model.type,"_de_interaction.RDS")) 
+names <- resultsNames(res)[-1]
 
 # make a list of each result
-adj.res <- lapply(adj.names, function(x){
-  results(adj.res, name=x) |> 
+res <- lapply(names, function(x){
+  results(res, name=x) |> 
     as.data.frame()
 })
-
-unadj.res <- readRDS("data/processed/models/unadjusted_de_interaction.RDS")  
-unadj.names <- resultsNames(unadj.res)[-1]
-
-unadj.res <- lapply(unadj.names, function(x){
-  results(unadj.res, name=x) |> 
-    as.data.frame()
-})
-
 
 # Function to perform GO enrichment with clusterProfiler
 runGo <- function(data, onto){
 # Get a list of significant genes
 sig.genes <- data |> 
-  filter(padj < 0.05 ) |> #& abs(log2FoldChange) >= 0.263) |> 
+  filter(padj < 0.1 & abs(log2FoldChange) >= 0.585) |> 
   row.names()
 # Convert common gene names to ENSEMBLE IDs for clusterProfiler
 gene.df <- bitr(sig.genes, fromType = "SYMBOL",
                 toType = c("ENSEMBL"),
                 OrgDb = org.Mm.eg.db)
 
+gene.list <- bitr(row.names(data), fromType = "SYMBOL",
+                toType = c("ENSEMBL"),
+                OrgDb = org.Mm.eg.db)
+
 # Check for enrichment within biological process gene clusters
 ego <- enrichGO(gene          = gene.df$ENSEMBL,
                 OrgDb         = org.Mm.eg.db,
-                keyType = "ENSEMBL",
+                universe      = gene.list$ENSEMBL,
+                keyType       = 'ENSEMBL',
                 ont           = onto,
                 pAdjustMethod = "BH",
                 pvalueCutoff  = 0.01,
                 qvalueCutoff  = 0.05,
-                readable      = TRUE) |> 
+                readable      = TRUE) 
+|> 
         clusterProfiler::simplify(cutoff = 0.6)
 }
 
+
 # Apply the function
-go.adj   <- lapply(adj.res,   function(x){runGo(x, "BP")})
-go.unadj <- lapply(unadj.res, function(x){runGo(x, "BP")})
+go <- lapply(res, function(x){runGo(x, "ALL")})
+
+saveRDS(go, paste0("data/processed/pathway_genesets/go", model.type,"_005.RDS"))
 
 plotGO <- function(x, title){
 df <- x |> 
@@ -59,7 +61,7 @@ df <- x |>
                     str_wrap(width = 18) |> 
                      factor()) |> 
   arrange(desc(qscore)) |> 
-  slice_head(n = 6) 
+  slice_head(n = 10) 
 df$desc.wrap <- factor(df$desc.wrap, levels = rev(df$desc.wrap))
 
 p.ego <- ggplot(df, aes(x = desc.wrap, y = qscore, fill = p.adjust)) +
@@ -79,30 +81,25 @@ p.ego <- ggplot(df, aes(x = desc.wrap, y = qscore, fill = p.adjust)) +
 }
 
 # Make title lists
-adj.titles <- c("CAD", "cmAKO", "Cardiomyocytes", "Fibroblasts", "CAD x cmAKO")
-unadj.titles <- c("CAD", "cmAKO", "CAD x cmAKO")
+titles <- c()
+titles[["adjusted"]] <- c("CAD", "cmAKO", "Fibroblasts", "Cardiomyocytes", "Macrophages", "CAD x cmAKO")
+titles[["unadjusted"]] <- c("CAD", "cmAKO", "CAD x cmAKO")
 
-p.adj <- lapply(1:length(go.adj), function(n){plotGO(go.adj[[n]], adj.titles[[n]])})
-p.unadj <- lapply(1:length(go.unadj), function(n){plotGO(go.unadj[[n]], unadj.titles[[n]])})
+p.go <- lapply(1:length(go), function(n){plotGO(go[[n]], titles[[model.type]][[n]])})
+
+# Make the directory to populate the results in
+if(!dir.exists("results/11_clusterProfiler")){
+  dir.create("results/11_clusterProfiler")
+}
 
 # Save plot to results 
-png(file = "results/11_clusterProfiler/adj_interaction_clusters.png",
+png(file = paste0("results/11_clusterProfiler/", model.type, "_interaction_clusters.png"),
     width = 21, 
-    height = 14,
+    height = 18,
     units = "in",
-    res = 300)
+    res = 600)
 
-wrap_plots(p.adj)
-
-dev.off()
-
-png(file = "results/11_clusterProfiler/unadj_interaction_clusters.png",
-    width = 21, 
-    height = 7,
-    units = "in",
-    res = 300)
-
-wrap_plots(p.unadj)
+wrap_plots(p.go)
 
 dev.off()
 

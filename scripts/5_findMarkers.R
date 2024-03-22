@@ -60,9 +60,9 @@ genes <- function(x){ top.markers |>
 cell.types <- c("Endothelial Cells",
                 "Cardiomyocytes",
                 "Fibroblast",
-                "Myofibroblast/Pericytes",
+                "Pericytes/SMC",
                 "Macrophage",
-                "SMC")
+                "Pericytes/SMC")
                 #"Endothelial Cells","Cardiac Neuron","Macrophage"
 
 # Subset to the high-confidence clusters and redo marker ID
