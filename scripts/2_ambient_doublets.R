@@ -56,6 +56,9 @@ qc <- perCellQCMetrics(sce.1, subsets=list(MT=is.mito))
 discard.mito <- isOutlier(qc$subsets_MT_percent, type="higher")
 
 # Save plot
+if(!dir.exists("results/2_ambient_doublets")){
+  dir.create("results/2_ambient_doublets")
+}
 png_path <- paste0("results/2_ambient_doublets/",sample_name, "_mito.png")
 png(png_path, width = 14, height = 8, units = "in", res = 300)
 
@@ -138,7 +141,7 @@ gridExtra::grid.arrange(
           plotExpression(stripped, x="label", colour_by="label", features=gene) + 
         ggtitle("After"),ncol=2) }
 
-# These are example genes. They should be highly expressed only in cardiomyocytes
+# These are example genes. They should be highly expressed only in CMs
 genes <- c("Col1a1","Acta2", "Myh6", "Tnnt2") 
 
 lapply(genes, function(x){
@@ -171,5 +174,10 @@ cut_off <- quantile(stripped$DoubletScore,0.95)
 stripped$isDoublet <- c("no","yes")[factor(as.integer(stripped$DoubletScore>=cut_off),levels=c(0,1))]
 
 # Save data
+# Save plot
+if(!dir.exists("data/processed/single_cell/no_doublets")){
+  dir.create("data/processed/single_cell/no_doublets")
+}
+
 SaveH5Seurat(as.Seurat(stripped), 
              paste0("data/processed/single_cell/no_doublets/", sample_name, "_no_doublets"))

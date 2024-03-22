@@ -97,6 +97,12 @@ err.plot <- dir.results |>
        legend = "Cell Types") 
 
 # Save 
+
+#Save outputs
+if(!dir.exists("results/8_dirichlet")){
+  dir.create("results/8_dirichlet")
+}
+
 png(file = "results/8_dirichlet/dirichlet_coeff.png",
     width = 12, 
     height = 7,

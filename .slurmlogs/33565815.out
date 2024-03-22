@@ -1,5 +1,0 @@
-The flag 'directory' used in rule all is only valid for outputs, not inputs.
-Waiting at most 60 seconds for missing files.
-Missing files after 60 seconds:
-/proj/raulab/users/brian/r_projects/bulk_decon/.snakemake/tmp.6zk0qznm
-touch: cannot touch '/proj/raulab/users/brian/r_projects/bulk_decon/.snakemake/tmp.6zk0qznm/121.jobfailed': No such file or directory

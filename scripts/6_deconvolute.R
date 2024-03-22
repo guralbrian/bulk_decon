@@ -52,5 +52,8 @@ decon.whole <- decon.melt|>
 
 
 #Save outputs
+if(!dir.exists("data/processed/compositions")){
+  dir.create("data/processed/compositions")
+}
 write.csv(decon.whole, "data/processed/compositions/whole_samples.csv", row.names = F)
 write.csv(decon.frac, "data/processed/compositions/fraction_samples.csv", row.names = F)

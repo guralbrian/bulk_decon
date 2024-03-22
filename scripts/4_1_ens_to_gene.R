@@ -13,17 +13,17 @@ mart <- useMart("ensembl", dataset = "mmusculus_gene_ensembl")
 ensembl_ids <- rownames(counts)
 
 # Query biomaRt to get the gene symbols for these Ensembl IDs
-genes <- getBM(attributes = c('ensembl_gene_id_version', 'external_gene_name'), 
-               filters = 'ensembl_gene_id_version', 
+genes <- getBM(attributes = c('ensembl_gene_id', 'external_gene_name'), 
+               filters = 'ensembl_gene_id', 
                values = ensembl_ids, 
                mart = mart)
 
 # Join the gene symbols back to the counts data frame
 # First, make sure the Ensembl IDs are a column in the counts data frame for merging
-counts$ensembl_gene_id_version <- rownames(counts)
+counts$ensembl_gene_id <- rownames(counts)
 
 # Merge to add gene symbols
-counts_with_symbols <- left_join(counts, genes, by = 'ensembl_gene_id_version')
+counts_with_symbols <- left_join(counts, genes, by = 'ensembl_gene_id')
 
 # For each gene, keep the most abundant version
 summarized_counts <- counts_with_symbols %>%
@@ -40,7 +40,7 @@ summarized_counts <- counts_with_symbols %>%
 # Replace Ensembl IDs with gene symbols where available, keeping Ensembl ID where not
 rownames(summarized_counts) <- summarized_counts$external_gene_name
 
-summarized_counts <- summarized_counts |> dplyr::select(c(-total, -ensembl_gene_id_version, -external_gene_name))
+summarized_counts <- summarized_counts |> dplyr::select(c(-total, -ensembl_gene_id, -external_gene_name))
 
 write.csv(summarized_counts, "data/processed/bulk/all_bulk_gene.csv")
 

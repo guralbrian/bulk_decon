@@ -86,6 +86,11 @@ p.upset.up <- up.upset |>
 
 
 # Save plot to results 
+
+if(!dir.exists("results/10_plot_de")){
+  dir.create("results/10_plot_de")
+}
+
 png(file = "results/10_plot_de/upset_unadj.png",
     width = 8, 
     height = 5,

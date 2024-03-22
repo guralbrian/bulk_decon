@@ -29,7 +29,7 @@ top.raw <- deseq.res |>
 deseq.res <- deseq.res |> 
   mutate(significant = case_when(
     padj.raw >  0.05 ~ FALSE,
-    padj.raw <= 0.05 ~ TRUE,
+    padj.raw <= 0.05 & abs(log2FoldChange.raw) >= 0.583  ~ TRUE,
     .default = FALSE
   ))
 
@@ -39,7 +39,8 @@ plot.raw <- ggplot(deseq.res, aes(x = log2FoldChange.raw, y = -log10(padj.raw), 
   geom_text_repel(data = top.raw, aes(label = gene), size = 12, box.padding = unit(0.35, "lines"), 
                   force = 20, segment.linetype = 2, segment.size = 0.6, color = "black", force_pull = 0.01, min.segment.length = 0) + # label most sig genes 
   theme_minimal() +
-  labs(x = "log2(Fold Change)", y = "-log10(adjusted p-value)", color = "p < 0.05") +
+  xlim(-5, 5) +
+  labs(x = "log2(Fold Change)", y = "-log10(adjusted p-value)", color = "p < 0.05 and\nFold Change > 1.5") +
   geom_hline(yintercept = -log10(0.05), linetype = "dashed") + 
   geom_vline(xintercept = 0, linetype = "solid") + # add a line for p=0.05
   theme(legend.position = "bottom",
@@ -57,6 +58,9 @@ plot.raw <- ggplot(deseq.res, aes(x = log2FoldChange.raw, y = -log10(padj.raw), 
         plot.margin = unit(c(1,1,1,1), "cm"))
 
 # Save 
+if(!dir.exists("results/10_plot_de")){
+  dir.create("results/10_plot_de")
+}
 png(file = "results/10_plot_de/volcano_unadjusted.png",
     width = 12, 
     height = 9,
@@ -71,7 +75,7 @@ dev.off()
 # Find top DE genes
 top.clr <- deseq.res |> 
   arrange(padj.clr) |>
-  slice_head(n = 10)
+  slice_head(n = 15)
 
 # Find limits for color scale/legend
 limit <- deseq.res |> 
@@ -86,6 +90,7 @@ plot.clr <- ggplot(deseq.res, aes(x = log2FoldChange.clr, y = -log10(padj.clr), 
   geom_text_repel(data = top.clr, aes(label = gene), size = 12, box.padding = unit(0.35, "lines"), 
                   force = 20, segment.linetype = 2, segment.size = 0.6, color = "black", force_pull = 0.01, min.segment.length = 0) + # label most sig genes 
   theme_minimal() +
+  xlim(-6, 6) +
   labs(x = "log2(Fold Change)", y = "-log10(adjusted p-value)", color = "Change in -log10(p-value)") +
   geom_hline(yintercept = -log10(0.05), linetype = "dashed") + 
   geom_vline(xintercept = 0, linetype = "solid") + # add a line for p=0.05
@@ -118,8 +123,15 @@ dev.off()
 
 # Plot the PCA of samples
 # Run PCA
-pca <- prcomp(bulk)
 
+# Convert to CPM
+cpm <- apply(bulk,2, function(x) (x/sum(x))*1000000) |> 
+  as.data.frame()
+
+# Run PCA
+pca <- prcomp(cpm)
+
+# Get percent of variance explained by each PC
 PoV <- pca$sdev^2/sum(pca$sdev^2) * 100  
 PoV <- round(PoV, digits = 1)
 # Merge with sample info, then plot
@@ -138,12 +150,11 @@ pca.plot <- pca |>
   ggplot(aes(x = PC1, y = PC2, color = gene_treat)) +
   geom_point(size = 8, color = "black") +
   geom_point(size = 7) +
-  
   geom_label_repel(aes(fill = gene_treat),
-                   label = pca$new.id, color = "black", alpha = 0.8,
+                   label = pca$new.id, color = "black", alpha = 0.5,
                    box.padding = 0.5, segment.curvature = -0.2,
                    segment.ncp = 3, segment.angle = 20, force = 10, 
-                   max.overlaps = 10, force_pull = 0.01, size = 6,
+                   max.overlaps = 8, force_pull = 0.001, size = 6,
                    nudge_x = 0.015, nudge_y = 0.02) +
   scale_color_manual(values = my_palette) +
   scale_fill_manual(values = my_palette) +
@@ -165,10 +176,10 @@ pca.plot <- pca |>
         text = element_text(size = 25))
 # Save plot to results 
 png(file = "results/10_plot_de/pca.png",
-    width = 12, 
-    height = 9,
+    width = 10, 
+    height = 8,
     units = "in",
-    res = 300)
+    res = 800)
 
 pca.plot
 

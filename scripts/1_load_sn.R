@@ -44,6 +44,9 @@ rau.files <- path |> list.files()
   sn.rau$PercentRibo <- Seurat::PercentageFeatureSet(sn.rau, pattern = "^Rpl|^Rps")
 
 # Save
+if(!dir.exists("data/processed/single_cell/unprocessed")){
+    dir.create("data/processed/single_cell/unprocessed")
+}
 SeuratDisk::SaveH5Seurat(sn.rau, paste0("data/processed/single_cell/unprocessed/",sample_name),
                          overwrite = T,
                          verbose = T)

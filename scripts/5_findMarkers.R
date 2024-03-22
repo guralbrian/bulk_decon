@@ -9,7 +9,7 @@ rm(libs)
 sn <- LoadH5Seurat("data/processed/single_cell/merged_no_doublets.h5seurat")
 
 # Load whole bulk RNAseq
-bulk.all <- read.csv("data/processed/bulk/all_counts.csv", row.names = 1)
+bulk.all <- read.csv("data/processed/bulk/all_bulk_gene.csv", row.names = 1)
 
 
 # Find markers for sn clusters, annotate to cell types
@@ -91,8 +91,7 @@ all.markers <- lapply(levels(Idents(sn.mark)), function(x){.getMarkers(x)}) |>
 # get the top markers
 top.markers <- all.markers |> 
   group_by(celltype) |> 
-  dplyr::filter(summary.logFC >= 1
-              | summary.logFC <= 1) |>
+  dplyr::filter(abs(summary.logFC) >= 0.583 & p.value < 0.05) |>
   arrange(p.value) |>
   slice_head(n = 15) 
 
@@ -118,6 +117,7 @@ DimPlot(sn.mark, group.by = "cell.type", cols = cols, pt.size = 1) |>
 dev.off()
 
 # Save the data
+
 write.csv(all.markers, "data/processed/single_cell/all_markers.csv", row.names = F)
 write.csv(top.markers, "data/processed/single_cell/cluster_markers.csv", row.names = F)
 SaveH5Seurat(sn.mark, "data/processed/single_cell/celltype_labeled",  overwrite = T)

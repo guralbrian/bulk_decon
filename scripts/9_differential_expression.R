@@ -58,13 +58,26 @@ sample.clr <- cbind(sample_info, comps.clr[colnames(bulk),])
 dds.clr <- DESeqDataSetFromMatrix(
   countData = bulk,
   colData = sample.clr,
-  design = ~ treatment + genotype + treatment:genotype + clr.Fibroblast + clr.Cardiomyocytes + clr.Macrophage
+  design = ~ treatment + genotype + treatment:genotype + clr.Fibroblast + clr.Cardiomyocytes #+ clr.Macrophage
 )
+
+# Filter out lowly expressed genes
+smallestGroupSize <- 4
+keep <- rowSums(counts(dds.clr) >= 10) >= smallestGroupSize
+dds.clr <- dds.clr[keep,]
+
+# remove outlier
+keep <- colnames(dds.clr)[colnames(dds.clr) != "WT Sham (4)"]
+dds.clr <- dds.clr[,keep]
 
 # Run DESeq
 dds.clr <- DESeq(dds.clr)
 
 # Save the results 
+#Save outputs
+if(!dir.exists("data/processed/models")){
+  dir.create("data/processed/models")
+}
 saveRDS(dds.clr, "data/processed/models/adjusted_de_interaction.RDS")
 
 # Pull out interaction term results
@@ -77,6 +90,15 @@ dds.raw <- DESeqDataSetFromMatrix(
   colData = sample_info,
   design = ~ treatment + genotype + treatment:genotype
 )
+
+# Filter out lowly expressed genes
+smallestGroupSize <- 4
+keep <- rowSums(counts(dds.raw) >= 15) >= smallestGroupSize
+dds.raw <- dds.raw[keep,]
+
+# remove outlier
+keep <- colnames(dds.clr)[colnames(dds.clr) != "WT Sham (4)"]
+dds.clr <- dds.clr[,keep]
 
 # Run DESeq 
 dds.raw <- DESeq(dds.raw)

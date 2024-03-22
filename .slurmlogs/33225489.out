@@ -1,215 +1,0 @@
-Building DAG of jobs...
-Using shell: /usr/bin/bash
-Provided cores: 12
-Rules claiming more threads will be scaled down.
-Job counts:
-	count	jobs
-	1	salmon_quant
-	1
-
-[Mon Mar 11 11:27:58 2024]
-rule salmon_quant:
-    input: data/raw/fastq/B6_M_Fib_RNA_1/B6_M_Fib_RNA_1_1.fastq.gz, data/raw/anno/gencode.vM34.salmon, data/raw/fastq/B6_M_Fib_RNA_1/B6_M_Fib_RNA_1_2.fastq.gz
-    output: data/raw/fastq/B6_M_Fib_RNA_1/quant.sf
-    jobid: 0
-    wildcards: F_SAMPLES=B6_M_Fib_RNA_1
-
-Version Server Response: Not Found
-### salmon (selective-alignment-based) v1.10.2
-### [ program ] => salmon 
-### [ command ] => quant 
-### [ index ] => { data/raw/anno/gencode.vM34.salmon }
-### [ libType ] => { A }
-### [ threads ] => { 12 }
-### [ gcBias ] => { }
-### [ numGibbsSamples ] => { 20 }
-### [ thinningFactor ] => { 100 }
-### [ output ] => { data/raw/fastq/B6_M_Fib_RNA_1 }
-### [ mates1 ] => { data/raw/fastq/B6_M_Fib_RNA_1/B6_M_Fib_RNA_1_1.fastq.gz }
-### [ mates2 ] => { data/raw/fastq/B6_M_Fib_RNA_1/B6_M_Fib_RNA_1_2.fastq.gz }
-Logs will be written to data/raw/fastq/B6_M_Fib_RNA_1/logs
-[2024-03-11 11:27:58.596] [jointLog] [info] setting maxHashResizeThreads to 12
-[2024-03-11 11:27:58.596] [jointLog] [info] Fragment incompatibility prior below threshold.  Incompatible fragments will be ignored.
-[2024-03-11 11:27:58.596] [jointLog] [info] Usage of --validateMappings implies use of minScoreFraction. Since not explicitly specified, it is being set to 0.65
-[2024-03-11 11:27:58.596] [jointLog] [info] Setting consensusSlack to selective-alignment default of 0.35.
-[2024-03-11 11:27:58.596] [jointLog] [info] parsing read library format
-[2024-03-11 11:27:58.597] [jointLog] [info] There is 1 library.
-[2024-03-11 11:27:58.599] [jointLog] [info] Loading pufferfish index
-[2024-03-11 11:27:58.600] [jointLog] [info] Loading dense pufferfish index.
------------------------------------------
-| Loading contig table | Time = 259.23 ms
------------------------------------------
-size = 880837
------------------------------------------
-| Loading contig offsets | Time = 3.1699 ms
------------------------------------------
------------------------------------------
-| Loading reference lengths | Time = 1.2219 ms
------------------------------------------
------------------------------------------
-| Loading mphf table | Time = 304.64 ms
------------------------------------------
-size = 149644499
-Number of ones: 880836
-Number of ones per inventory item: 512
-Inventory entries filled: 1721
------------------------------------------
-| Loading contig boundaries | Time = 390.61 ms
------------------------------------------
-size = 149644499
------------------------------------------
-| Loading sequence | Time = 70.348 ms
------------------------------------------
-size = 123219419
------------------------------------------
-| Loading positions | Time = 1.7038 s
------------------------------------------
-size = 249294517
------------------------------------------
-| Loading reference sequence | Time = 253.26 ms
------------------------------------------
------------------------------------------
-| Loading reference accumulative lengths | Time = 5.1089 ms
------------------------------------------
-
-
-
-
-[2024-03-11 11:28:01.598] [jointLog] [info] done
-[2024-03-11 11:28:01.641] [jointLog] [info] Index contained 147,493 targets
-[2024-03-11 11:28:01.679] [jointLog] [info] Number of decoys : 147,493
-[2024-03-11 11:28:01.679] [jointLog] [info] First decoy index : 0 
-[A[32mprocessed[31m 500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 1,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 1,500,001 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 2,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 2,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 3,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 3,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 4,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 4,500,001 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 5,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 5,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 6,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 6,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 7,000,001 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 7,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 8,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 8,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 9,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 9,500,001 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 10,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 10,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 11,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 11,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 12,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 12,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 13,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 13,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 14,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 14,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 15,000,001 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 15,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 16,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 16,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 17,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 17,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 18,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 18,500,001 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 19,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 19,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 20,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 20,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 21,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 21,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 22,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 22,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 23,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 23,500,001 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 24,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 24,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 25,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 25,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 26,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 26,500,001 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 27,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 27,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 28,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 28,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 29,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 29,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 30,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 30,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 31,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 31,500,001 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 32,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 32,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 33,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 33,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 34,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 34,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 35,000,001 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 35,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 36,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 36,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 37,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 37,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 38,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 38,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 39,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 39,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 40,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 40,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 41,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 41,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 42,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 42,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 43,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 43,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 44,000,001 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 44,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 45,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 45,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 46,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 46,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 47,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 47,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 48,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 48,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 49,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 49,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 50,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 50,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 51,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 51,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 52,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 52,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 53,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 53,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 54,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 54,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 55,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 55,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 56,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 56,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 57,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 57,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 58,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 58,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 59,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 59,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 60,000,000 [32mfragments[0m
-hits: 0, hits per frag:  0[A[32mprocessed[31m 60,500,000 [32mfragments[0m
-hits: 0, hits per frag:  0[2024-03-11 11:30:47.890] [jointLog] [warning] salmon was only able to assign 0 fragments to transcripts in the index, but the minimum number of required assigned fragments (--minAssignedFrags) was 10. This could be indicative of a mismatch between the reference and sample, or a very bad sample.  You can change the --minAssignedFrags parameter to force salmon to quantify with fewer assigned fragments (must have at least 1).
-[Mon Mar 11 11:30:48 2024]
-Error in rule salmon_quant:
-    jobid: 0
-    output: data/raw/fastq/B6_M_Fib_RNA_1/quant.sf
-    shell:
-        salmon quant -i data/raw/anno/gencode.vM34.salmon -l A -p 12 --gcBias --numGibbsSamples 20 --thinningFactor 100 -o data/raw/fastq/B6_M_Fib_RNA_1 -1 data/raw/fastq/B6_M_Fib_RNA_1/B6_M_Fib_RNA_1_1.fastq.gz -2 data/raw/fastq/B6_M_Fib_RNA_1/B6_M_Fib_RNA_1_2.fastq.gz
-        (one of the commands exited with non-zero exit code; note that snakemake uses bash strict mode!)
-
-Removing output files of failed job salmon_quant since they might be corrupted:
-data/raw/fastq/B6_M_Fib_RNA_1/quant.sf
-Shutting down, this might take some time.
-Exiting because a job execution failed. Look above for error message

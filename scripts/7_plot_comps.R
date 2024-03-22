@@ -126,6 +126,12 @@ comp_celltype <- decon.whole   %>%
   scale_fill_manual(values = my_palette)
 
 # Save plot to results 
+
+#Save outputs
+if(!dir.exists("results/7_plot_comps")){
+  dir.create("results/7_plot_comps")
+}
+
 png(file = "results/7_plot_comps/sample_comps.png",
     width = 16, 
     height = 8,

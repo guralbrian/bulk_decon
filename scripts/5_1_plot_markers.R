@@ -46,6 +46,10 @@ p.mark <- sn.markers |>
   labs(color = "Average\nExpression", size = "Proportion of\nnuclei expressing")
 
 # Save 
+if(!dir.exists("results/5_findMarkers")){
+  dir.create("results/5_findMarkers")
+}
+
 png(file = "results/5_findMarkers/marker_specificity.png",
     width = 8, 
     height = 4.5,

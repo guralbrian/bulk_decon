@@ -41,5 +41,10 @@ se <- tximeta(coldata)
 gse <- summarizeToGene(se)
 
 # Save to processed data
-save(gse, file="data/processed/bulk//all_bulk_gse.RData")
+
+if(!dir.exists("data/processed/bulk/")){
+  dir.create("data/processed/bulk/")
+}
+
+save(gse, file="data/processed/bulk/all_bulk_gse.RData")
 write.csv(assay(gse), "data/processed/bulk/all_bulk_ensembl.csv")

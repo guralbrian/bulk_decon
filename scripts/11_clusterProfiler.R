@@ -7,7 +7,7 @@ rm(libs)
 # Get commandArgs
 args <- commandArgs(trailingOnly = TRUE)
 model.type <-  as.character(args[1])
-model.type <- "adjusted"
+
 # Load the results and expression matrices
 res <- readRDS(paste0("data/processed/models/", model.type,"_de_interaction.RDS")) 
 names <- resultsNames(res)[-1]
@@ -22,7 +22,7 @@ res <- lapply(names, function(x){
 runGo <- function(data, onto){
 # Get a list of significant genes
 sig.genes <- data |> 
-  filter(padj < 0.1 & abs(log2FoldChange) >= 0.585) |> 
+  filter(padj < 0.05) |> 
   row.names()
 # Convert common gene names to ENSEMBLE IDs for clusterProfiler
 gene.df <- bitr(sig.genes, fromType = "SYMBOL",
@@ -42,14 +42,13 @@ ego <- enrichGO(gene          = gene.df$ENSEMBL,
                 pAdjustMethod = "BH",
                 pvalueCutoff  = 0.01,
                 qvalueCutoff  = 0.05,
-                readable      = TRUE) 
-|> 
-        clusterProfiler::simplify(cutoff = 0.6)
+                readable      = TRUE) #|> 
+        #clusterProfiler::simplify(cutoff = 0.6)
 }
 
 
 # Apply the function
-go <- lapply(res, function(x){runGo(x, "ALL")})
+go <- lapply(res, function(x){runGo(x, "BP")})
 
 saveRDS(go, paste0("data/processed/pathway_genesets/go", model.type,"_005.RDS"))
 
@@ -82,7 +81,7 @@ p.ego <- ggplot(df, aes(x = desc.wrap, y = qscore, fill = p.adjust)) +
 
 # Make title lists
 titles <- c()
-titles[["adjusted"]] <- c("CAD", "cmAKO", "Fibroblasts", "Cardiomyocytes", "Macrophages", "CAD x cmAKO")
+titles[["adjusted"]] <- c("CAD", "cmAKO", "Fibroblasts", "Cardiomyocytes", "CAD x cmAKO")
 titles[["unadjusted"]] <- c("CAD", "cmAKO", "CAD x cmAKO")
 
 p.go <- lapply(1:length(go), function(n){plotGO(go[[n]], titles[[model.type]][[n]])})
