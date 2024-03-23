@@ -13,22 +13,23 @@ rm(libs)
 # https://bioconductor.org/packages/release/bioc/vignettes/tximeta/inst/doc/tximeta.html
 
 # Make linkedTxome for first run 
-indexDir <- file.path("data/raw/anno/gencode.vM34.salmon")
-fastaFTP <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/gencode.vM34.transcripts.fa.gz"
-gtfPath  <- "https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_mouse/release_M34/gencode.vM34.annotation.gtf.gz"
+indexDir <- file.path("data/raw/anno/decoy_Mus_musculus.GRCm39.salmon")
+fastaFTP <- "https://ftp.ensembl.org/pub/release-111/fasta/mus_musculus/cdna/Mus_musculus.GRCm39.cdna.all.fa.gz"
+gtfPath  <- "https://ftp.ensembl.org/pub/release-111/gtf/mus_musculus/Mus_musculus.GRCm39.111.gtf.gz"
 suppressPackageStartupMessages(library(tximeta))
 makeLinkedTxome(indexDir=indexDir,
-                source="GENCODE",
+                source="Ensembl",
                 organism="Mus musculus",
-                release="M34",
+                release="111",
                 genome="GRCm39",
                 fasta=fastaFTP,
                 gtf=gtfPath,
-                write=FALSE)
+                write=T)
 
 # List sample quant.sf files
 names <- list.files("data/raw/fastq")
-names <- names[str_detect(names, "B6_")]
+
+# excluded multiqc folder
 files <- file.path("data/raw/fastq", names, "quant.sf")
 
 # Check that they exist
@@ -40,5 +41,10 @@ se <- tximeta(coldata)
 gse <- summarizeToGene(se)
 
 # Save to processed data
-save(gse, file="data/processed/bulk/rau_fractions_gse.RData")
-write.csv(assay(gse),"data/processed/bulk/rau_fractions_ensembl.csv")
+
+if(!dir.exists("data/processed/bulk/")){
+  dir.create("data/processed/bulk/")
+}
+
+save(gse, file="data/processed/bulk/all_bulk_gse.RData")
+write.csv(assay(gse), "data/processed/bulk/all_bulk_ensembl.csv")

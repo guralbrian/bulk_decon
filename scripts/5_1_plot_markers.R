@@ -2,15 +2,15 @@ libs <- c("tidyverse", "Seurat", "SeuratDisk", "tidyseurat", "viridis") # list l
 lapply(libs, require, character.only = T)
 rm(libs)
 
-markers <- read.csv("data/processed/single_cell/all_markers.csv")
+markers <- read.csv("data/processed/single_cell/cluster_markers.csv")
 sn.annot <- LoadH5Seurat("data/processed/single_cell/celltype_labeled.h5seurat")
 
 # get highest pvalue genes
 genes <- markers |> 
-  group_by(annotation) |> 
-  arrange(p.value) |> 
+  group_by(celltype) |> 
+  arrange(desc(summary.logFC)) |> 
   slice_head(n = 3) |> 
-  arrange(annotation) |> 
+  arrange(celltype) |> 
   pull(gene) 
 
 # get df of cells with gene info
@@ -45,8 +45,11 @@ p.mark <- sn.markers |>
   ) +
   labs(color = "Average\nExpression", size = "Proportion of\nnuclei expressing")
 
-p.mark
 # Save 
+if(!dir.exists("results/5_findMarkers")){
+  dir.create("results/5_findMarkers")
+}
+
 png(file = "results/5_findMarkers/marker_specificity.png",
     width = 8, 
     height = 4.5,
