@@ -23,6 +23,7 @@ decon.wide <- decon.whole  |>
   pivot_wider(names_from = "new.id", values_from = "Prop") |> 
   column_to_rownames("CellType") %>%
   mutate_all(as.numeric)
+#decon.wide[decon.wide==0] <- 0.01
 
 # use clr or ilr to incorp the compositions into the design matrix
 comps.clr <- compositions::clr(t(decon.wide))

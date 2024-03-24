@@ -68,7 +68,8 @@ cell.types <- c("Endothelial Cells",
 # Subset to the high-confidence clusters and redo marker ID
 # Rename the clusters to match the cell types
 sn.mark <- sn |>
-  subset(idents = seq(0,length(cell.types)-1,1)) 
+  #subset(idents = seq(0,length(cell.types)-1,1)) # exclude pericytes
+  subset(idents = c(0,1,2,3,4,5)) 
 names(cell.types) <- levels(sn.mark)
 sn.mark <- RenameIdents(sn.mark, cell.types)
 sn.mark$cell.type <- Idents(sn.mark)
@@ -91,9 +92,14 @@ all.markers <- lapply(levels(Idents(sn.mark)), function(x){.getMarkers(x)}) |>
 # get the top markers
 top.markers <- all.markers |> 
   group_by(celltype) |> 
-  dplyr::filter(abs(summary.logFC) >= 0.583 & p.value < 0.05) |>
+  #dplyr::filter(abs(summary.logFC) >= 1 & p.value < 0.005) |>
   arrange(p.value) |>
   slice_head(n = 15) 
+
+# Remove duplicates
+dup.genes <- top.markers[duplicated(top.markers$gene),"gene"]
+top.markers <- top.markers |> 
+  filter(!(gene %in% dup.genes)) 
 
 # Save UMAP plot
 # Color scheme

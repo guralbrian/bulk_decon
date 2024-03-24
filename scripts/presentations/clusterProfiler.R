@@ -12,47 +12,10 @@ model.type <-  as.character(args[1])
 res <- readRDS(paste0("data/processed/models/", model.type,"_de_interaction.RDS")) 
 names <- resultsNames(res)[-1]
 
-# make a list of each result
-res <- lapply(names, function(x){
-  results(res, name=x) |> 
-    as.data.frame()
-})
-
-names(res) <- names
-
-# Function to perform GO enrichment with clusterProfiler
-runGo <- function(data, onto){
-# Get a list of significant genes
-sig.genes <- data |> 
-  filter(padj < 0.05) |> 
-  row.names()
-
-# Convert common gene names to ENSEMBLE IDs for clusterProfiler
-gene.df <- bitr(sig.genes, fromType = "SYMBOL",
-                toType = c("ENSEMBL"),
-                OrgDb = org.Mm.eg.db)
-
-gene.list <- bitr(row.names(data), fromType = "SYMBOL",
-                toType = c("ENSEMBL"),
-                OrgDb = org.Mm.eg.db)
-
-# Check for enrichment within biological process gene clusters
-ego <- enrichGO(gene          = gene.df$ENSEMBL,
-                OrgDb         = org.Mm.eg.db,
-                universe      = gene.list$ENSEMBL,
-                keyType       = 'ENSEMBL',
-                ont           = onto,
-                pAdjustMethod = "BH",
-                pvalueCutoff  = 0.01,
-                qvalueCutoff  = 0.05,
-                readable      = TRUE) #|> 
-        #clusterProfiler::simplify(cutoff = 0.6)
-}
-
 # Apply the function
-go <- lapply(res, function(x){runGo(x, "BP")})
+go <- readRDS("data/processed/pathway_genesets/goadjusted_005.RDS")
 
-saveRDS(go, paste0("data/processed/pathway_genesets/go", model.type,"_005.RDS"))
+go <- go[c(1,2,)]
 
 plotGO <- function(x, title){
 df <- x |> 

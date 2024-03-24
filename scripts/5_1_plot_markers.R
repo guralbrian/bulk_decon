@@ -1,12 +1,14 @@
-libs <- c("tidyverse", "Seurat", "SeuratDisk", "tidyseurat", "viridis") # list libraries here
+libs <- c("tidyverse", "Seurat", "SeuratDisk", "tidyseurat", "viridis", "patchwork") # list libraries here
 lapply(libs, require, character.only = T)
 rm(libs)
 
 markers <- read.csv("data/processed/single_cell/cluster_markers.csv")
 sn.annot <- LoadH5Seurat("data/processed/single_cell/celltype_labeled.h5seurat")
 
+dup.genes <- markers[duplicated(markers$gene),"gene"]
 # get highest pvalue genes
 genes <- markers |> 
+  filter(!(gene %in% dup.genes)) |> 
   group_by(celltype) |> 
   arrange(desc(summary.logFC)) |> 
   slice_head(n = 3) |> 
@@ -16,7 +18,7 @@ genes <- markers |>
 # get df of cells with gene info
 sn.markers <- sn.annot |> 
   join_features(features = genes, shape = "long") |> 
-  select(c(.cell, .feature, .abundance_RNA, cell.type)) |> 
+  dplyr::select(c(.cell, .feature, .abundance_RNA, cell.type)) |> 
   mutate(expressed = case_when(
     .abundance_RNA == 0 ~ 0,
     .default = 1
@@ -57,6 +59,31 @@ png(file = "results/5_findMarkers/marker_specificity.png",
     res = 500)
 
 p.mark
+
+dev.off()
+
+# Make feature plots
+top.genes <- markers |> 
+  group_by(celltype) |> 
+  arrange(desc(summary.logFC)) |> 
+  slice_head(n=1) |> 
+  pull(gene)
+
+# loop through markers and plot for each
+p.feat <- c()
+for(i in 1:length(top.genes)) {
+p.feat[[i]] <- FeaturePlot(sn.annot, top.genes[[i]]) + 
+  ggtitle(paste0(top.genes[[i]], " - ", unique(markers$celltype)[[i]])) + NoLegend()
+}
+
+# Save plot to results 
+png(file = "results/5_findMarkers/featurePlots.png",
+    width = 9.8, 
+    height = 6.3,
+    units = "in",
+    res = 600)
+
+wrap_plots(p.feat)
 
 dev.off()
 
