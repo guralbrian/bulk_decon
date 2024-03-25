@@ -82,7 +82,7 @@ if(!dir.exists("data/processed/models")){
 saveRDS(dds.clr, "data/processed/models/adjusted_de_interaction.RDS")
 
 # Pull out interaction term results
-res.clr <- results(dds.clr, name="treatmentCAD.genotypecmAKO")
+res.clr <- results(dds.clr, name="treatmentMI.genotypecmAKO")
 
 ## DESeq without compositions
 # Create a DESeqDataSet
@@ -108,7 +108,7 @@ dds.raw <- DESeq(dds.raw)
 saveRDS(dds.raw, "data/processed/models/unadjusted_de_interaction.RDS")
 
 # Pull out interaction term results
-res.raw <- results(dds.raw, name="treatmentCAD.genotypecmAKO")
+res.raw <- results(dds.raw, name="treatmentMI.genotypecmAKO")
 
 #### Contrast DE results between clr and raw/unadjusted runs ####
 # Compare results

@@ -24,7 +24,7 @@ names(res) <- names
 runGo <- function(data, onto){
 # Get a list of significant genes
 sig.genes <- data |> 
-  filter(padj < 0.05) |> 
+  filter(padj < 0.1) |> 
   row.names()
 
 # Convert common gene names to ENSEMBLE IDs for clusterProfiler
@@ -43,7 +43,7 @@ ego <- enrichGO(gene          = gene.df$ENSEMBL,
                 keyType       = 'ENSEMBL',
                 ont           = onto,
                 pAdjustMethod = "BH",
-                pvalueCutoff  = 0.01,
+                pvalueCutoff  = 0.05,
                 qvalueCutoff  = 0.05,
                 readable      = TRUE) #|> 
         #clusterProfiler::simplify(cutoff = 0.6)
@@ -83,8 +83,8 @@ p.ego <- ggplot(df, aes(x = desc.wrap, y = qscore, fill = p.adjust)) +
 
 # Make title lists
 titles <- c()
-titles[["adjusted"]] <- c("CAD", "cmAKO", "Fibroblasts", "Cardiomyocytes", "CAD x cmAKO")
-titles[["unadjusted"]] <- c("CAD", "cmAKO", "CAD x cmAKO")
+titles[["adjusted"]] <- c("MI", "cmAKO", "Fibroblasts", "Cardiomyocytes", "MI x cmAKO")
+titles[["unadjusted"]] <- c("MI", "cmAKO", "MI x cmAKO")
 
 p.go <- lapply(1:length(go), function(n){plotGO(go[[n]], titles[[model.type]][[n]])})
 

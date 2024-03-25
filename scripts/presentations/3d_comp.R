@@ -18,7 +18,7 @@ my_palette <- c("#A6CEE3", "#1F78B4", "#FDBF6F", "#FF7F00")
 # Use the ordered new.id values to reorder the original data frame
 decon.plotly <- decon.whole |> 
   mutate(Genotype_Treatment = paste(genotype, "-", treatment)) |> 
-  mutate(Genotype_Treatment = factor(Genotype_Treatment, levels = c("WT - Sham", "WT - CAD", "cmAKO - Sham", "cmAKO - CAD"))) |> 
+  mutate(Genotype_Treatment = factor(Genotype_Treatment, levels = c("WT - Sham", "WT - MI", "cmAKO - Sham", "cmAKO - MI"))) |> 
   dplyr::select(new.id, CellType, Prop, Genotype_Treatment) |> 
   pivot_wider(names_from = CellType, values_from = Prop)
 

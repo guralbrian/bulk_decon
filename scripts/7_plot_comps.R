@@ -67,7 +67,7 @@ dev.off()
 #brewer.pal(n=8,"Paired")
 
 my_palette <- c("#A6CEE3", "#1F78B4", "#FDBF6F", "#FF7F00")
-legend.names <- c("Sham_1","Sham_2", "CAD_1", "CAD_2")
+legend.names <- c("Sham_1","Sham_2", "MI_1", "MI_2")
 
 
 ordered_df <- decon.whole %>%
@@ -86,7 +86,7 @@ decon.whole <- decon.whole %>%
   mutate(new.id = factor(new.id, levels = ordered_df)) %>%
   arrange(new.id) |> 
   mutate(Genotype_Treatment = paste(genotype, "-", treatment)) |> 
-  mutate(Genotype_Treatment = factor(Genotype_Treatment, levels = c("WT - Sham", "WT - CAD", "cmAKO - Sham", "cmAKO - CAD")))
+  mutate(Genotype_Treatment = factor(Genotype_Treatment, levels = c("WT - Sham", "WT - MI", "cmAKO - Sham", "cmAKO - MI")))
                                      
 cell.type.order <-  decon.whole %>%
   group_by(CellType_wrap) |> 

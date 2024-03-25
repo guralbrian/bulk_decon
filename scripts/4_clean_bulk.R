@@ -32,7 +32,7 @@ phenotypes <- phenotypes |>
       str_detect(id, "AKO") | str_detect(id, "wt_")~ "cmAKO",
       .default = NA),
     treatment = case_when(
-      str_detect(id, "Lx") ~ "CAD",
+      str_detect(id, "Lx") ~ "MI",
       str_detect(id, "B6_") ~ NA,
       .default = "Sham")
   )

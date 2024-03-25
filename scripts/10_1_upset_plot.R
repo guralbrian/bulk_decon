@@ -39,7 +39,7 @@ up.upset <- significant_genes_df %>%
   table() |> 
   as.data.frame.matrix()
 
-colnames(up.upset) <- colnames(down.upset) <- c("cmAKO", "CAD", "cmAKO:CAD")
+colnames(up.upset) <- colnames(down.upset) <- c("cmAKO", "MI", "cmAKO:MI")
 
 
 presence = ComplexUpset:::get_mode_presence('exclusive_intersection')

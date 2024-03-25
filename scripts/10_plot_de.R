@@ -29,7 +29,7 @@ pheno.reorder <- phenotypes |>
     str_detect(new.id, "cmAKO") ~ "cmAKO")),
     Treatment = factor(case_when(
       str_detect(new.id, "Sham") ~ "Sham",
-      str_detect(new.id, "CAD") ~ "CAD")))
+      str_detect(new.id, "MI") ~ "MI")))
 #####
 # Patch to plot from list of results contrasts 
 ####
@@ -79,7 +79,7 @@ p.de <- lapply(1:length(res), function(n){plotDE(res[[n]], names[[n]])})
 if(!dir.exists("results/10_plot_de")){
   dir.create("results/10_plot_de")
 }
-png(file = "results/10_plot_de/volcano_alr.png",
+png(file = "results/10_plot_de/volcano_clr.png",
     width = 36, 
     height = 18,
     units = "in",
@@ -214,7 +214,7 @@ pca <- pca$rotation |>
 pca$new.id <- row.names(pca)
 
 my_palette <- c("#A6CEE3", "#1F78B4", "#FDBF6F", "#FF7F00")
-legend.names <- c("Sham_1","Sham_2", "TAC_1", "TAC_2")
+legend.names <- c("Sham_1","Sham_2", "MI_1", "MI_2")
 
 pca <- pca |> left_join(pheno.reorder) |> 
   mutate(gene_treat = paste(genotype, treatment)) |> 

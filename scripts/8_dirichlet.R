@@ -55,8 +55,8 @@ write.csv(dir.results, "data/processed/models/dirichelet_coefficients.csv", row.
 # Prep labels for plot
 dir.results <- dir.results |> 
   mutate(Feature_wrap = case_when(
-    str_detect(Feature, "TreatmentCAD$") ~ "LCA Ligation",
-    str_detect(Feature, ":") ~ "LCA Ligation\nand cmAKO",
+    str_detect(Feature, "TreatmentMI$") ~ "MI",
+    str_detect(Feature, ":") ~ "MI and\ncmAKO",
     str_detect(Feature, "GenotypecmAKO$") ~ "cmAKO",
     str_detect(Feature, "Intercept") ~ "Intercept"
   ))
@@ -79,12 +79,12 @@ err.plot <- dir.results |>
   theme(axis.text.x = element_text(color = "black", size = 20),
         axis.text.y = element_text(color = "black", size = 20, angle = 0),
         axis.ticks = element_blank(),
-        legend.position = "bottom",
+        legend.position = c(0.7, 0.6),
         legend.justification = c("left", "bottom"),
         legend.box.just = "right",
         legend.margin = margin(6, 6, 6, 6),
         title = element_text(size = 20),
-        legend.text = element_text(size = 20),
+        legend.text = element_text(size = 18),
         axis.title.y = element_blank(),
         axis.title.x = element_text(color = "black", size = 24),
         #panel.background = element_rect(fill='transparent'),
@@ -104,10 +104,10 @@ if(!dir.exists("results/8_dirichlet")){
 }
 
 png(file = "results/8_dirichlet/dirichlet_coeff.png",
-    width = 12, 
-    height = 7,
+    width = 10, 
+    height = 6,
     units = "in",
-    res = 300)
+    res = 600)
 
 err.plot
 
