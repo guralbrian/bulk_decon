@@ -24,7 +24,7 @@ names(res) <- names
 runGo <- function(data, onto){
 # Get a list of significant genes
 sig.genes <- data |> 
-  filter(padj < 0.1) |> 
+  filter(padj < 0.1 & abs(log2FoldChange) > 0.583) |> 
   row.names()
 
 # Convert common gene names to ENSEMBLE IDs for clusterProfiler
