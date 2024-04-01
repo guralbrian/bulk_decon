@@ -43,8 +43,8 @@ ego <- enrichGO(gene          = gene.df$ENSEMBL,
                 keyType       = 'ENSEMBL',
                 ont           = onto,
                 pAdjustMethod = "BH",
-                pvalueCutoff  = 0.05,
-                qvalueCutoff  = 0.05,
+                pvalueCutoff  = 1,
+                qvalueCutoff  = 1,
                 readable      = TRUE) #|> 
         #clusterProfiler::simplify(cutoff = 0.6)
 }
@@ -52,7 +52,7 @@ ego <- enrichGO(gene          = gene.df$ENSEMBL,
 # Apply the function
 go <- lapply(res, function(x){runGo(x, "BP")})
 
-saveRDS(go, paste0("data/processed/pathway_genesets/go", model.type,"_005.RDS"))
+saveRDS(go, paste0("data/processed/pathway_genesets/go", model.type,"_any_p.RDS"))
 
 plotGO <- function(x, title){
 df <- x |> 
