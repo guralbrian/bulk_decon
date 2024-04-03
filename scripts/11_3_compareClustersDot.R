@@ -35,15 +35,41 @@ rm(go.adj, go.unadj)
 # Merge matched datasets in go
 # Make into dataframes of result with column for contrast and model version
 
-p.dot <- go |> 
+
+# Highlight points that became significant for either cell type
+# For each ID, tag it as sig for either cell type
+cell.go <- go |> 
+  select(ID, contrast, qscore.adj) |> 
+  pivot_wider(names_from = contrast, values_from = qscore.adj) 
+cell.go[is.na(cell.go)] <- 0 
+cell.go <- cell.go |> 
+  mutate(cell.type.sig = case_when(
+    clr.Cardiomyocytes > 1.3  & clr.Fibroblast < 1.3 ~ "Cardiomyocytes Only",
+    clr.Cardiomyocytes < 1.3  & clr.Fibroblast > 1.3 ~ "Fibroblasts Only",
+    clr.Cardiomyocytes > 1.3  & clr.Fibroblast > 1.3 ~ "Both",
+    clr.Cardiomyocytes < 1.3  & clr.Fibroblast < 1.3 ~ "Neither"
+  )) |> 
+  select(ID, cell.type.sig) |> 
+  right_join(go)
+
+p.dot <- cell.go |> 
   filter(!(contrast %in% c("clr.Fibroblast", "clr.Cardiomyocytes"))) |> 
-  #mutate(sig = case_when())
-  ggplot(aes(x = qscore.unadj, y = qscore.adj)) +
-  geom_point() +
+  ggplot(aes(x = qscore.unadj, y = qscore.adj, color = cell.type.sig)) +
+  geom_jitter(alpha = 0.4, size = 4, width = 0.35, height = 0.35) +
   geom_abline(intercept = 0, slope = 1)+
-  facet_wrap(~contrast) +
-  labs(title = "GO Term Significance") +
-  theme_minimal()
+  facet_wrap(~contrast, 
+             labeller = labeller(contrast = c("treatment_MI_vs_Sham" = "Myocardial Infarction", 
+                                              "genotype_cmAKO_vs_WT" = "cmAKO",
+                                              "treatmentMI.genotypecmAKO" = "cmAKO:MI"))) +
+  scale_color_manual(values = c("#F96A5F","#66C2A5", "#6683D4", "#828282"), name = "Sig. of GO term in other variables") +
+  labs(title = "GO Term Significance", 
+       x = "Q-score without cell types", 
+       y = "Q-score with cell types") +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    title = element_text(hjust = 0.5)
+  )
 
 
 if(!dir.exists("results/11_clusterProfiler")){
@@ -60,3 +86,4 @@ png(file = paste0("results/11_clusterProfiler/go_contrast_dot.png"),
 p.dot
 
 dev.off()
+
