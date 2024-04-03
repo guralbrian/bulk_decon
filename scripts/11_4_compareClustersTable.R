@@ -48,7 +48,7 @@ tab <- go |>
   filter(qscore.adj > 1.3 | qscore.unadj > 1.3) |> 
   filter(contrast %in% 
            c("treatment_MI_vs_Sham", 
-             "genotype_cmAKO_vs_WT", 
+             #"genotype_cmAKO_vs_WT", 
              "treatmentMI.genotypecmAKO")) |> 
   group_by(contrast) |> 
   mutate(Description = stringr::str_to_title(Description),
@@ -112,7 +112,7 @@ tab <- go |>
   filter(qscore.adj > 1.3 | qscore.unadj > 1.3) |> 
   filter(contrast %in% 
            c("treatment_MI_vs_Sham", 
-             "genotype_cmAKO_vs_WT", 
+             #"genotype_cmAKO_vs_WT", 
              "treatmentMI.genotypecmAKO")) |> 
   group_by(contrast) |> 
   mutate(Description = stringr::str_to_title(Description),
@@ -174,7 +174,7 @@ webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"),
 tab <- go |> 
   filter(contrast %in% 
            c("treatment_MI_vs_Sham", 
-             "genotype_cmAKO_vs_WT", 
+             #"genotype_cmAKO_vs_WT", 
              "treatmentMI.genotypecmAKO")) |> 
   group_by(contrast) |> 
   mutate(Description = stringr::str_to_title(Description),
@@ -220,7 +220,7 @@ webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"),
 
 #### Top terms, adj ####
 tab <- go |> 
-  filter(qscore.adj >= 1.3) |> 
+  filter(qscore.adj >= 1.3 & contrast != "genotype_cmAKO_vs_WT") |> 
   group_by(contrast) |> 
   mutate(Description = stringr::str_to_title(Description),
          contrast = case_when(
