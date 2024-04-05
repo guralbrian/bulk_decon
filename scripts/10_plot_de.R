@@ -33,6 +33,7 @@ pheno.reorder <- phenotypes |>
 #####
 # Patch to plot from list of results contrasts 
 ####
+
 plotDE <- function(x, title){
 # Find top DE genes
 top <- x |> 
@@ -207,24 +208,31 @@ pca <- prcomp(cpm)
 # Get percent of variance explained by each PC
 PoV <- pca$sdev^2/sum(pca$sdev^2) * 100  
 PoV <- round(PoV, digits = 1)
+
 # Merge with sample info, then plot
 pca <- pca$rotation |> 
   as.data.frame() |> 
   dplyr::select(PC1, PC2) 
 pca$new.id <- row.names(pca)
 
-my_palette <- c("#A6CEE3", "#1F78B4", "#FDBF6F", "#FF7F00")
+my_palette <- c( "#A6CEE3", "#1F78B4", "#FDBF6F", "#FF7F00")
 legend.names <- c("Sham_1","Sham_2", "MI_1", "MI_2")
 
+
+#! Add an arg to specify which samples should have labels
 pca <- pca |> left_join(pheno.reorder) |> 
-  mutate(gene_treat = paste(genotype, treatment)) |> 
+  mutate(gene_treat = factor(paste(genotype, treatment), 
+              levels = c("WT Sham", "WT MI", "cmAKO Sham", "cmAKO MI"))) |> 
   filter(type == "whole") 
+
+pca.labels <- pca |> filter(new.id == "WT Sham (4)")
 pca.plot <- pca |> 
   ggplot(aes(x = PC1, y = PC2, color = gene_treat)) +
   geom_point(size = 8, color = "black") +
   geom_point(size = 7) +
-  geom_label_repel(aes(fill = gene_treat),
-                   label = pca$new.id, color = "black", alpha = 0.5,
+  geom_label_repel(data = pca.labels, aes(x = PC1, y = PC2),
+                   label = pca.labels$new.id, color = "black",
+                   alpha = 0.9, fill = "#A6CEE3", 
                    box.padding = 0.5, segment.curvature = -0.2,
                    segment.ncp = 3, segment.angle = 20, force = 10, 
                    max.overlaps = 8, force_pull = 0.001, size = 6,
@@ -235,10 +243,11 @@ pca.plot <- pca |>
   scale_y_continuous(expand = expansion(mult = 0.3), name = paste0("PC2", " (", PoV[2], " % of total variance)")) +
   theme(axis.text.x = element_text(vjust = 0.5),
         axis.ticks = element_blank(),
-        legend.position = "none",
-        legend.justification = c("right", "top"),
-        legend.box.just = "right",
+        legend.position = "bottom",
+        legend.justification = c("center", "center"),
+        legend.box.just = "center",
         legend.margin = margin(6, 6, 6, 6),
+        legend.title = element_blank(),
         panel.background = element_rect(fill='transparent'),
         plot.background = element_rect(fill='transparent', color=NA),
         panel.grid.major = element_line(color = "darkgrey"),
@@ -246,7 +255,9 @@ pca.plot <- pca |>
         legend.background = element_rect(fill='transparent'),
         legend.box.background = element_rect(fill='transparent'),
         plot.margin = unit(c(1,1,1,1), units = "cm"),
-        text = element_text(size = 25))
+        text = element_text(size = 25)) 
+
+pca.plot
 # Save plot to results 
 png(file = "results/10_plot_de/pca.png",
     width = 10, 
