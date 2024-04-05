@@ -6,11 +6,12 @@ markers <- read.csv("data/processed/single_cell/cluster_markers.csv")
 sn.annot <- LoadH5Seurat("data/processed/single_cell/celltype_labeled.h5seurat")
 
 dup.genes <- markers[duplicated(markers$gene),"gene"]
+
 # get highest pvalue genes
 genes <- markers |> 
   filter(!(gene %in% dup.genes)) |> 
-  group_by(celltype) |> 
-  arrange(desc(summary.logFC)) |> 
+  group_by(celltype) |>
+  arrange(desc(p.value)) |> 
   slice_head(n = 3) |> 
   arrange(celltype) |> 
   pull(gene) 
@@ -40,13 +41,14 @@ p.mark <- sn.markers |>
   geom_point(aes(size = cells_expressing, color = cells_expressing)) +
   scale_color_viridis(option = "magma") +
   theme(
-    axis.text.x = element_text(angle = 90),
+    axis.text.x = element_text(angle = 45, vjust = 0.5),
     axis.title = element_blank(),
     panel.background = element_blank(),
-    panel.border = element_rect(colour = "black", fill=NA, linewidth=2)
+    panel.border = element_rect(colour = "black", fill=NA, linewidth=2),
+    text = element_text(size = 15)
   ) +
   labs(color = "Average\nExpression", size = "Proportion of\nnuclei expressing")
-
+p.mark
 # Save 
 if(!dir.exists("results/5_findMarkers")){
   dir.create("results/5_findMarkers")
@@ -73,7 +75,7 @@ top.genes <- markers |>
 p.feat <- c()
 for(i in 1:length(top.genes)) {
 p.feat[[i]] <- FeaturePlot(sn.annot, top.genes[[i]]) + 
-  ggtitle(paste0(top.genes[[i]], " - ", unique(markers$celltype)[[i]])) + NoLegend()
+  ggtitle(paste0(top.genes[[i]], " - ", unique(markers$celltype)[[i]])) + NoLegend() + NoAxes()
 }
 
 # Save plot to results 
