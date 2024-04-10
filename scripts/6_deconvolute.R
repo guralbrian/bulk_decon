@@ -35,6 +35,11 @@ decon <- music_prop(bulk.mtx = bulk.es.exp, sc.sce = sce, markers = markers$gene
                     clusters = "ident", samples = "orig.ident",
                     select.ct = cells)
 
+# Save a table of the genes/weights
+gene.weights <- decon$Weight.gene |> as.data.frame()
+gene.weights$gene <- row.names(gene.weights)
+write.csv(gene.weights, "results/5_findMarkers/gene_weights.csv", col.names = NA)
+
 # Turn MuSiC output into graph-friendly dataframe
 decon.melt <- reshape2::melt(decon$Est.prop.weighted)
 colnames(decon.melt) = c('new.id', 'CellType', 'Prop')

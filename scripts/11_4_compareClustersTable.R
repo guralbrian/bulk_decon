@@ -4,9 +4,7 @@ libs <- c("tidyverse", "clusterProfiler", "gt", "data.table") # list libraries h
 lapply(libs, require, character.only = T)
 rm(libs)
 
-#go.adj <- readRDS("data/processed/pathway_genesets/goadjusted_any_p.RDS")
-#go.unadj <- readRDS("data/processed/pathway_genesets/gounadjusted_any_p.RDS")
-
+n.terms <- 35
 go.adj <- readRDS("data/processed/pathway_genesets/goadjusted_005.RDS")
 go.unadj <- readRDS("data/processed/pathway_genesets/gounadjusted_005.RDS")
 
@@ -59,7 +57,7 @@ tab <- go |>
            str_detect(contrast, "treatmentMI.genotypecmAKO") ~ "cmAKO:MI"
          )) |> 
   arrange(delta_q) |> 
-  slice_head(n = 5) |> 
+  slice_head(n = n.terms) |> 
   select(Description, p.adjust.unadj, p.adjust.adj, qscore.unadj, qscore.adj, delta_q, contrast) |> 
   gt(rowname_col = "Description",
      groupname_col = "contrast") |>
@@ -105,7 +103,7 @@ file = "results/11_clusterProfiler/tables/lost_q_table"
 gtsave(tab, paste0(file, ".html"))
 
 webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"), 
-                 vwidth = 700, vheight = 1200)
+                 vwidth = 700, vheight = n.terms*110)
 
 #### Most Decreased qscores ####
 tab <- go |>
@@ -123,7 +121,7 @@ tab <- go |>
            str_detect(contrast, "treatmentMI.genotypecmAKO") ~ "cmAKO:MI"
          )) |> 
   arrange(desc(delta_q)) |> 
-  slice_head(n = 5) |> 
+  slice_head(n = n.terms) |> 
   select(Description, p.adjust.unadj, p.adjust.adj, qscore.unadj, qscore.adj, delta_q, contrast) |> 
   gt(rowname_col = "Description",
      groupname_col = "contrast") |>
@@ -153,8 +151,7 @@ tab <- go |>
     columns = c(p.adjust.unadj, p.adjust.unadj, p.adjust.adj, p.adjust.adj)
   ) |> 
   tab_header(
-    title = md("GO terms associated cmAKO, MI, and their interaction"),
-    subtitle = "By significance gained after cell-type-adjustment"
+    title = md("Most significantly increased terms after adjustment")
   ) |>  
   opt_row_striping() |> 
   cols_width(Description ~ 200) |>  
@@ -169,7 +166,7 @@ file = "results/11_clusterProfiler/tables/upped_q_table"
 gtsave(tab, paste0(file, ".html"))
 
 webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"), 
-                 vwidth = 700, vheight = 1200)
+                 vwidth = 700, vheight = n.terms*110)
 #### Top terms, unadj ####
 tab <- go |> 
   filter(contrast %in% 
@@ -185,7 +182,7 @@ tab <- go |>
          )) |> 
   filter(qscore.unadj >= 1.3) |> 
   arrange(desc(qscore.unadj)) |> 
-  slice_head(n = 5) |> 
+  slice_head(n = n.terms) |> 
   select(Description, p.adjust.unadj, qscore.unadj,  contrast) |> 
   gt(rowname_col = "Description",
      groupname_col = "contrast") |>
@@ -216,7 +213,7 @@ tab <- go |>
 file = "results/11_clusterProfiler/tables/unadj_top_table"
 gtsave(tab, paste0(file, ".html"))
 webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"), 
-                 vwidth = 600, vheight = 800)
+                 vwidth = 600, vheight = n.terms*110)
 
 #### Top terms, adj ####
 tab <- go |> 
@@ -231,7 +228,7 @@ tab <- go |>
            str_detect(contrast, "clr.Fibroblast") ~ "Fibroblasts"
          )) |>
   arrange(desc(qscore.unadj)) |> 
-  slice_head(n = 5) |> 
+  slice_head(n = n.terms) |> 
   select(Description, p.adjust.adj, qscore.adj,  contrast) |> 
   gt(rowname_col = "Description",
      groupname_col = "contrast") |>
@@ -248,7 +245,7 @@ tab <- go |>
   ) |> 
   tab_header(
     title = md("GO terms associated cmAKO, MI, and their interaction"),
-    subtitle = "Top five terms by significance after adjusting for cell-types"
+    subtitle = paste("Top", n.terms, "terms by significance after adjusting for cell-types")
   ) |>  
   opt_row_striping() |> 
   cols_width(Description ~ 300) |> 
@@ -262,4 +259,4 @@ tab <- go |>
 file = "results/11_clusterProfiler/tables/adj_top_table"
 gtsave(tab, paste0(file, ".html"))
 webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"), 
-                 vwidth = 600, vheight = 1200)
+                 vwidth = 600, vheight = n.terms*210)

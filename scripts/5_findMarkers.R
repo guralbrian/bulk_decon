@@ -126,4 +126,5 @@ dev.off()
 
 write.csv(all.markers, "data/processed/single_cell/all_markers.csv", row.names = F)
 write.csv(top.markers, "data/processed/single_cell/cluster_markers.csv", row.names = F)
+write.csv(top.markers, "results/5_findMarkers/cluster_markers.csv", row.names = F)
 SaveH5Seurat(sn.mark, "data/processed/single_cell/celltype_labeled",  overwrite = T)

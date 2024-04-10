@@ -1,5 +1,5 @@
 # Load libs
-libs <- c("tidyverse", "RColorBrewer", "reshape2") # list libraries here
+libs <- c("ggtern", "tidyverse", "RColorBrewer", "reshape2") # list libraries here
 lapply(libs, require, character.only = T)
 rm(libs)
 
@@ -8,12 +8,7 @@ rm(libs)
 decon.whole <- read.csv("data/processed/compositions/whole_samples.csv")
 decon.frac <- read.csv("data/processed/compositions/fraction_samples.csv")
 
-# Unmelt for clustering 
-decon.wide <- decon.whole  |> 
-  dplyr::select(new.id, CellType, Prop) |> 
-  pivot_wider(names_from = "new.id", values_from = "Prop") |> 
-  column_to_rownames("CellType") %>%
-  mutate_all(as.numeric)
+
 
 # refactorize the cell type levels
 decon.frac <- decon.frac |> 
@@ -32,7 +27,7 @@ p.frac <- decon.frac |>
                     palette = "Set2")  +
   facet_wrap(~cell.type,
              scales = "free_x")+
-  ylab("Proportion") +
+  ylab("Estimated Proportion") +
   theme_minimal() +
   theme(strip.text = element_text(size = 30),
         title = element_text(size = 20),
@@ -53,10 +48,10 @@ p.frac <- decon.frac |>
   xlab("Pure Cell Type Bulk RNAseq Replicates") 
 
 png(file = "results/7_plot_comps/pure_cell_types.png",
-    width = 1600, 
-    height = 800,
-    units = "px",
-    res = 100)
+    width = 16, 
+    height = 8,
+    units = "in",
+    res = 600)
 
 p.frac
 
@@ -121,7 +116,7 @@ comp_celltype <- decon.whole   %>%
         axis.title.x = element_blank(),
         plot.margin = unit(c(1,1,1,1), units = "cm"),
         text = element_text(size = 40)) +
-  labs(y = "Proportion", 
+  labs(y = "Estimated Proportion", 
        fill = "Treatment") +
   scale_fill_manual(values = my_palette)
 
@@ -136,8 +131,41 @@ png(file = "results/7_plot_comps/sample_comps.png",
     width = 16, 
     height = 8,
     units = "in",
-    res = 400)
+    res = 600)
 
 comp_celltype
 
 dev.off()
+
+
+# format for ternary 
+decon.wide <- decon.whole  |> 
+  dplyr::select(new.id, CellType, Prop, Genotype_Treatment) |> 
+  pivot_wider(names_from = "CellType", values_from = "Prop")
+
+
+p.tern <- ggtern(decon.wide,aes(x=Cardiomyocytes,y=Fibroblast, z=Macrophage, color = Genotype_Treatment )) +
+  geom_point(size = 10, alpha = 0.8) +
+  scale_color_manual(values = my_palette) +
+  theme_bw() +
+  theme_hidegrid_minor() +
+  theme_showarrows() +
+  theme_hidetitles() +
+  theme_arrowlarge() +
+  tern_limit(T = 0.65,L = 1, R = 0.65) +
+  theme(
+    text = element_text(size = 28),
+    legend.title = element_blank(),
+    legend.position = "none",
+    tern.axis.arrow = element_line(size = 3)
+  )
+png(file = "results/7_plot_comps/tern.png",
+    width = 8, 
+    height = 8,
+    units = "in",
+    res = 600)
+
+p.tern
+
+dev.off()
+

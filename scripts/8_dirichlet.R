@@ -63,38 +63,42 @@ dir.results <- dir.results |>
 
 # Plot non-intercept coefficients
 #! Need to add significance labels
+dir.results <- dir.results |> 
+  subset(Feature != "(Intercept)")
 err.plot <- dir.results |> 
-  subset(Feature != "(Intercept)" & `Pr(>|z|)` < 0.1) |> 
-  ggplot(aes(y = Feature_wrap, x = Estimate, color = CellType)) +
+  #subset(Feature != "(Intercept)" & `Pr(>|z|)` < 0.1) |> 
+  ggplot(aes(y = Feature_wrap, x = Estimate, color = `Pr(>|z|)`, shape = CellType)) +
   geom_point(position = position_dodge(width = 0.6), size = 6) +
   geom_errorbarh(aes(xmin = Estimate - StdError, xmax = Estimate + StdError),
                  height = 0.2, position = position_dodge(width = 0.6), size = 2) +
-  # geom_text(aes(label = Significance, x = Estimate + StdError, group = CellType), 
-  #          position = position_dodge(width = 0.6), 
-  #          colour = "black", hjust = -0.2, size = 10) +
-  scale_color_brewer(name = "Cell Type",
-                     palette = "Dark2")  +
-  scale_x_continuous(limits = c(-5, 3), n.breaks = 8) +
+  geom_errorbarh(data = dir.results[dir.results$unsig,], aes(xmin = Estimate - StdError, xmax = Estimate + StdError),
+                 height = 0.2, position = position_dodge(width = 0.6), size = 2, color = "darkgrey") +
+  scale_x_continuous(limits = c(-4, 2), n.breaks = 6) +
   theme_classic() +
-  theme(axis.text.x = element_text(color = "black", size = 20),
-        axis.text.y = element_text(color = "black", size = 20, angle = 0),
+  binned_scale(aesthetics = "color",
+               scale_name = "stepsn", 
+               palette = function(x) c("#FDE725FF", "#55C667FF", "#238A8DFF", "#482677FF", "grey"),
+               breaks = c( 0.005, 0.01, 0.05, 0.1),
+               limits = c(0.0005, 0.5),
+               show.limits = T,
+               guide = "colorsteps")+
+  guides(shape = guide_legend(ncol = 1)) +
+  #theme(legend.direction = "vertical", legend.box = "vertical")
+  theme(axis.text.x = element_text(color = "black"),
+        axis.text.y = element_text(color = "black", angle = 0),
         axis.ticks = element_blank(),
-        legend.position = c(0.7, 0.6),
-        legend.justification = c("left", "bottom"),
-        legend.box.just = "right",
-        legend.margin = margin(6, 6, 6, 6),
-        title = element_text(size = 20),
-        legend.text = element_text(size = 18),
+        plot.title = element_blank(),
+        legend.position = "right",
+        legend.justification = c("center", "center"),
         axis.title.y = element_blank(),
-        axis.title.x = element_text(color = "black", size = 24),
-        #panel.background = element_rect(fill='transparent'),
         plot.background = element_rect(fill='transparent', color=NA),
         panel.grid.major = element_line(colour = "grey", size = 0.5),
         panel.grid.minor = element_blank(),
         legend.background = element_rect(fill='transparent'),
-        legend.box.background = element_rect(fill='white')) +
-  labs(x = "Coeffiecients (estimates of effect)", 
-       legend = "Cell Types") 
+        text = element_text(size = 20)) +
+  labs(x = "Coefficients (estimates of effect)", 
+       shape = "Cell Types",
+       color = "p-value") 
 
 # Save 
 
