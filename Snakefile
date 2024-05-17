@@ -15,11 +15,11 @@ rule all:
         "results/7_plot_comps/sample_comps.png",
         "results/8_dirichlet/dirichlet_coeff.png",
         "results/10_plot_de/volcano_adjusted.png",
-        "results/10_plot_de/upset_unadj.png",
+        #"results/10_plot_de/upset_unadj.png",
         "results/5_findMarkers/cell_clusters.png",
         "results/5_findMarkers/marker_specificity.png",
         "data/processed/single_cell/celltype_labeled.h5seurat",
-        expand("results/11_clusterProfiler/{model_type}_interaction_clusters.png", model_type=MODEL_TYPE),
+        expand("data/processed/pathway_genesets/go_{model_type}_any_p.RDS", model_type=MODEL_TYPE),
         expand("data/processed/single_cell/unprocessed/{sn_sample}.h5seurat", sn_sample=SN_SAMPLES)
 
 rule load_transcript:
@@ -213,18 +213,18 @@ rule plot_de:
         "results/10_plot_de/volcano_adjusted.png"
     shell:
         "Rscript scripts/10_plot_de.R"
-rule plot_upset:
-    input:
-        "data/processed/models/unadjusted_de_interaction.RDS"
-    output:
-        "results/10_plot_de/upset_unadj.png"
-    shell:
-        "Rscript scripts/10_1_upset_plot.R"
+#rule plot_upset:
+#    input:
+#        "data/processed/models/unadjusted_de_interaction.RDS"
+#    output:
+#        "results/10_plot_de/upset_unadj.png"
+#    shell:
+#        "Rscript scripts/10_1_upset_plot.R"
 rule gene_ont:
     input:
         "data/processed/models/adjusted_de_interaction.RDS",
         "data/processed/models/unadjusted_de_interaction.RDS"
     output: 
-        "results/11_clusterProfiler/{model_type}_interaction_clusters.png"
+        "data/processed/pathway_genesets/go_{model_type}_any_p.RDS"
     shell:
         "Rscript scripts/11_clusterProfiler.R {wildcards.model_type}"

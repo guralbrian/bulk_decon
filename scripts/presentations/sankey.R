@@ -140,3 +140,60 @@ p <- sankeyNetwork(Links = comb.all, Nodes = nodes,
 p
 
 
+####################
+#### Rachel's sankey #####
+########################
+library(networkD3)
+
+# List the filter steps
+nodes <- c("WGS Demo ","EHR",
+           "EU Ancestry","PSS Survey",
+           "Controls","Cases")
+nodes <- c("All samples", nodes) # Add a node to indicate that the first number is all of the samples
+
+# group sizes
+values <- c(245388,184536,100504,62070,27304,24144,3160)
+
+# Don't include the "All Samples" # in the links 
+links <- data.frame("value" = values[-1])
+
+# This was manual. For each node, where does it start and where does that value go?
+# Excluding "All Samples", start from 0
+links$source <- c(0, 1, 2, 3, 4, 4)
+links$target <- c(1,2,3,4,5,6)
+
+# This was my solution to adding lost samples
+# its the # of steps with losses
+n.delta <- 4
+# Get lost samples values
+deltas <- data.frame(value = rep(NA, n.delta),
+                     source = rep(NA, n.delta),
+                     target = rep(NA, n.delta))
+
+# Make a new df to make the lost values in
+j <- length(nodes)
+for(i in 1:n.delta){
+  deltas[i, "value"] <- values[i] - values[i+1]
+  deltas[i, "source"] <- i-1
+  deltas[i, "target"] <- j
+  j <- j + 1
+}  
+
+# Add new node names for the lost values
+nodes <- c(nodes, paste("Lost in", nodes[2:(n.delta+1)], "Step"))
+
+# Join the original and new dfs
+links <- rbind(links, deltas)
+
+# Add numbers to the labels
+# the "\n" new line delimiter didn't work :\
+nodes <- paste0(nodes, "\n(n = ", links$value, ")")
+
+nodes <- data.frame(name = nodes)
+
+sankeyNetwork(Links = links, Nodes = nodes,
+              Source = "source", Target = "target",
+              Value = "value", NodeID = "name",
+              fontSize= 20, nodeWidth = 40, sinksRight = F,
+              colourScale =JS("d3.scaleOrdinal(d3.schemeCategory20);"))
+

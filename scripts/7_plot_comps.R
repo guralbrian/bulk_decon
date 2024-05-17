@@ -1,4 +1,6 @@
 # Load libs
+library(remotes)
+#install_version("ggplot2", version = "3.5.0")
 libs <- c("ggtern", "tidyverse", "RColorBrewer", "reshape2") # list libraries here
 lapply(libs, require, character.only = T)
 rm(libs)
@@ -159,13 +161,47 @@ p.tern <- ggtern(decon.wide,aes(x=Cardiomyocytes,y=Fibroblast, z=Macrophage, col
     legend.position = "none",
     tern.axis.arrow = element_line(size = 3)
   )
-png(file = "results/7_plot_comps/tern.png",
+png(file = "results/7_plot_comps/tern_whole.png",
     width = 8, 
     height = 8,
     units = "in",
     res = 600)
 
 p.tern
+
+dev.off()
+
+
+
+# format for ternary 
+decon.wide <- decon.frac  |> 
+  dplyr::select(new.id, CellType, Prop, cell.type) |> 
+  pivot_wider(names_from = "CellType", values_from = "Prop")
+
+pal <- brewer.pal(3, "Set2")
+
+p.tern.frac <- ggtern(decon.wide,aes(x=Cardiomyocytes,y=Fibroblast, z=`Endothelial Cells`, color = cell.type)) +
+  geom_point(size = 13, alpha = 0.8) +
+  scale_color_manual(values = pal) +
+  theme_bw() +
+  theme_hidegrid_minor() +
+  theme_showarrows() +
+  theme_hidetitles() +
+  theme_arrowlarge() +
+  #tern_limit(T = 0.65,L = 1, R = 0.65) +
+  theme(
+    text = element_text(size = 28),
+    legend.title = element_blank(),
+    legend.position = "bottom",
+    tern.axis.arrow = element_line(size = 3)
+  )
+png(file = "results/7_plot_comps/tern_frac.png",
+    width = 8, 
+    height = 8,
+    units = "in",
+    res = 600)
+
+p.tern.frac
 
 dev.off()
 

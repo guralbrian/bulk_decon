@@ -59,7 +59,10 @@ sample.clr <- cbind(sample_info, comps.clr[colnames(bulk),])
 dds.clr <- DESeqDataSetFromMatrix(
   countData = bulk,
   colData = sample.clr,
-  design = ~ treatment + genotype + treatment:genotype + clr.Fibroblast + clr.Cardiomyocytes #+ clr.Macrophage
+  design = ~ treatment + genotype +  clr.Cardiomyocytes + 
+             treatment:genotype +
+             treatment:genotype:clr.Cardiomyocytes
+    
 )
 
 # Filter out lowly expressed genes
