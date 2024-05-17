@@ -115,14 +115,14 @@ rule ensb2gene:
     output:
         "data/processed/bulk/all_bulk_gene.csv"
     shell:
-        "Rscript scripts/4_1_ens_to_gene.R"
+        "Rscript scripts/04_1_ens_to_gene.R"
 rule load_sn:
     output: 
         "data/processed/single_cell/unprocessed/{sn_sample}.h5seurat"
     resources:
         mem_mb=6000
     shell:
-        "Rscript scripts/1_load_sn.R {wildcards.sn_sample}"
+        "Rscript scripts/01_load_sn.R {wildcards.sn_sample}"
 rule ambient_doublets:
     input:
         "data/processed/single_cell/unprocessed/{sn_sample}.h5seurat"
@@ -131,7 +131,7 @@ rule ambient_doublets:
     resources:
         mem_mb=8000
     shell:
-        "Rscript scripts/2_ambient_doublets.R {wildcards.sn_sample}"
+        "Rscript scripts/02_ambient_doublets.R {wildcards.sn_sample}"
 rule merge_sn:
     input:
         expand(["data/processed/single_cell/no_doublets/{sn_sample}_no_doublets.h5seurat"],
@@ -141,7 +141,7 @@ rule merge_sn:
     resources:
         mem_mb=16000
     shell:
-        "Rscript scripts/3_merge_sn.R"
+        "Rscript scripts/03_merge_sn.R"
 rule clean_bulk:
     input:
         "data/processed/bulk/all_bulk_gene.csv"
@@ -149,7 +149,7 @@ rule clean_bulk:
         "data/processed/bulk/all_counts.csv",
         "data/processed/bulk/pheno_table.csv"
     shell:
-        "Rscript scripts/4_clean_bulk.R"
+        "Rscript scripts/04_clean_bulk.R"
 rule findMarkers:
     input:
         "data/processed/single_cell/merged_no_doublets.h5seurat",
@@ -159,7 +159,7 @@ rule findMarkers:
         "data/processed/single_cell/cluster_markers.csv",
         "data/processed/single_cell/celltype_labeled.h5seurat"
     shell:
-        "Rscript scripts/5_findMarkers.R"
+        "Rscript scripts/05_findMarkers.R"
 rule plotMarkers:
     input:
         "data/processed/single_cell/celltype_labeled.h5seurat",
@@ -167,7 +167,7 @@ rule plotMarkers:
     output: 
         "results/5_findMarkers/marker_specificity.png"
     shell:
-        "Rscript scripts/5_1_plot_markers.R"
+        "Rscript scripts/05_1_plot_markers.R"
 rule deconvolute:
     input:
         "data/processed/single_cell/celltype_labeled.h5seurat",
@@ -178,7 +178,7 @@ rule deconvolute:
         "data/processed/compositions/whole_samples.csv",
         "data/processed/compositions/fraction_samples.csv"
     shell:
-        "Rscript scripts/6_deconvolute.R"
+        "Rscript scripts/06_deconvolute.R"
 rule plot_comps:
     input:
         "data/processed/compositions/whole_samples.csv",
@@ -187,7 +187,7 @@ rule plot_comps:
         "results/7_plot_comps/pure_cell_types.png",
         "results/7_plot_comps/sample_comps.png"
     shell:
-        "Rscript scripts/7_plot_comps.R"
+        "Rscript scripts/07_plot_comps.R"
 rule dirichlet:
     input:
         "data/processed/compositions/whole_samples.csv"
@@ -195,7 +195,7 @@ rule dirichlet:
         "data/processed/models/dirichelet_coefficients.csv",
         "results/8_dirichlet/dirichlet_coeff.png"
     shell:
-        "Rscript scripts/8_dirichlet.R"
+        "Rscript scripts/08_dirichlet.R"
 rule diffential_expression:
     input:
         "data/processed/compositions/whole_samples.csv",
@@ -205,7 +205,7 @@ rule diffential_expression:
         "data/processed/models/adjusted_de_interaction.RDS",
         "data/processed/models/unadjusted_de_interaction.RDS"
     shell:
-        "Rscript scripts/9_differential_expression.R"
+        "Rscript scripts/09_differential_expression.R"
 rule plot_de:
     input:
         "data/processed/models/adjusted_de_interaction.RDS"
