@@ -7,7 +7,8 @@ READS = ["_1", "_2"]
 F_SAMPLES = config["samples_fastq"]
 SN_SAMPLES = ["b6_1", "b6_2"]
 MODEL_TYPE = ["adjusted", "unadjusted"]
-
+DESEQ_MODELS = range(1, 8)
+DESEQ_BATCHES = range(1, 10)
 rule all:
     input:
         "data/raw/multiqc/multiqc_report.html",
@@ -20,8 +21,9 @@ rule all:
         "results/5_findMarkers/marker_specificity.png",
         "data/processed/single_cell/celltype_labeled.h5seurat",
         expand("data/processed/pathway_genesets/go_{model_type}_any_p.RDS", model_type=MODEL_TYPE),
-        expand("data/processed/single_cell/unprocessed/{sn_sample}.h5seurat", sn_sample=SN_SAMPLES)
-
+        expand("data/processed/single_cell/unprocessed/{sn_sample}.h5seurat", sn_sample=SN_SAMPLES),
+        expand(["data/processed/deseq_simulation/batched_output/{model}_{batch}.csv"],
+                model = DESEQ_MODELS, batch = DESEQ_BATCHES)
 rule load_transcript:
     output:
         "data/raw/anno/Mus_musculus.GRCm39.cdna.all.fa.gz"
@@ -228,3 +230,19 @@ rule gene_ont:
         "data/processed/pathway_genesets/go_{model_type}_any_p.RDS"
     shell:
         "Rscript scripts/11_clusterProfiler.R {wildcards.model_type}"
+rule make_sim_input:
+    input:
+        "data/processed/single_cell/celltype_labeled.h5seurat"
+    output:
+        "data/processed/deseq_simulation/simulated_ratios.csv",
+        "data/processed/deseq_simulation/simulated_counts.csv"
+    shell:
+        "Rscript scripts/12_01_simulate_ratios_counts.R"
+rule simulate_deseq:
+    input:
+        "data/processed/deseq_simulation/simulated_ratios.csv",
+        "data/processed/deseq_simulation/simulated_counts.csv"
+    output:
+        "data/processed/deseq_simulation/batched_output/{model}_{batch}.csv"
+    shell:
+        "Rscript scripts/12_02_simulate_deseq2.R {wildcards.model} {wildcards.batch}"

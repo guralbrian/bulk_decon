@@ -12,7 +12,6 @@ sn <- LoadH5Seurat("data/processed/single_cell/celltype_labeled.h5seurat")
 # Function to make a data frame of cell type ratios
 simulate_ratios <- function(major_cell, major_prop, 
                             cell_types, range, step_size, replicates, noise) {
-  
   # get group tiers for major cell type
   # these are the percentages of the major cell type for which groups will be centered
   major_props_groups <- seq(major_prop - range, major_prop + range, step_size)
@@ -43,8 +42,6 @@ simulate_ratios <- function(major_cell, major_prop,
   props$pct.change <- as.factor(rep(major_props_groups - major_prop, each = replicates))
   props$pct.change <- relevel(props$pct.change, ref = "0")
   rownames(props) <- paste0("mix_", 1:nrow(props))
-  props[,2] <- (props[,1] + rowMeans(props[,3:length(cell_types)])) / 4
-  props[,3] <- (props[,1] + rowMeans(props[,4:length(cell_types)])) / 5
   props[,2:length(cell_types)] <- sapply(2:length(cell_types), function(x){props[,x] * sample(rnorm(1000, 1, noise), length(major_props))})
   
   # Normalize back to proportional sum == 1
@@ -57,10 +54,10 @@ simulate_ratios <- function(major_cell, major_prop,
 major.cell <- "Cardiomyocytes"
 major.prop <- 0.5
 cell.types <- Idents(sn) |> unique() |> as.character()
-range <- 0.3
-step.size <- 0.1
+range <- 0.2
+step.size <- 0.005
 replicates <- 5
-noise <- 0.01
+noise <- 0.0005
 
 ratios <- simulate_ratios(major_cell = major.cell, 
                           major_prop = major.prop, 
@@ -90,19 +87,37 @@ getCellProfile <- function(sn, cell_type){
 # make a df that has cell types as columns, genes as rows, and probablity of a single gene being expressed by a given cell type in each matrix cell
 cell.profiles <- sapply(cell.types, function(x){getCellProfile(sn, x)}) |> as.data.frame()
 row.names(cell.profiles) <- sn@assays$RNA@counts |> row.names() 
-
-sampleExpression <- function(sample, umi_target){
-  cell.umi <- ratios[sample, cell.types] * umi_target 
-  # Multiply each column in cell.profiles by the corresponding value in cell.umi
-  cell.prof <- cell.profiles * cell.umi[col(cell.profiles)]
-  sample.exp <- rowSums(cell.prof) |> round()
-  sample.exp
+#cell.profiles <- cell.profiles[sample(rownames(cell.profiles), 2000, replace = F), ]
+#### Make prob vector for each sample
+sampleExpression <- function(sample, counts_target){
+  # Extract the sample ratios for the given sample and convert to matrix
+  sample.ratios <- ratios[sample, colnames(cell.profiles)] |> as.matrix()
+  
+  # Modify the expression profiles based on the sample ratios
+  modified_profiles <- sweep(cell.profiles, 2, sample.ratios, `*`) |> rowSums()
+  
+  # Assign unique integer identifiers to each gene
+  genes <- names(modified_profiles)
+  gene_ids <- seq_along(genes)
+  
+  # Sample the specified number of counts from the modified profiles
+  set.seed(123)  # Set seed for reproducibility
+  sampled_ids <- sample(gene_ids, size = counts_target, replace = TRUE, prob = modified_profiles)
+  
+  # Use tabulate to count occurrences of each identifier
+  counts <- tabulate(sampled_ids, nbins = length(genes))
+  
+  # Create a named vector with counts
+  counts_vector <- setNames(counts, genes)
+  
+  # Return the counts vector
+  return(counts_vector)
 }
 
 # Make a counts matrix
+start <- Sys.time()
 sim.counts <- sapply(row.names(ratios), function(x){sampleExpression(x, 25000000)})
-
+delta <- Sys.time() - start 
 # Save counts and ratios
 write.csv(sim.counts, "data/processed/deseq_simulation/simulated_counts.csv")
-
 write.csv(ratios, "data/processed/deseq_simulation/simulated_ratios.csv")
