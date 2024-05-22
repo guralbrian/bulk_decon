@@ -56,8 +56,8 @@ major.prop <- 0.5
 cell.types <- Idents(sn) |> unique() |> as.character()
 range <- 0.2
 step.size <- 0.005
-replicates <- 5
-noise <- 0.0005
+replicates <- 4
+noise <- 0.02
 
 ratios <- simulate_ratios(major_cell = major.cell, 
                           major_prop = major.prop, 
@@ -101,7 +101,6 @@ sampleExpression <- function(sample, counts_target){
   gene_ids <- seq_along(genes)
   
   # Sample the specified number of counts from the modified profiles
-  set.seed(123)  # Set seed for reproducibility
   sampled_ids <- sample(gene_ids, size = counts_target, replace = TRUE, prob = modified_profiles)
   
   # Use tabulate to count occurrences of each identifier
@@ -120,4 +119,6 @@ sim.counts <- sapply(row.names(ratios), function(x){sampleExpression(x, 25000000
 delta <- Sys.time() - start 
 # Save counts and ratios
 write.csv(sim.counts, "data/processed/deseq_simulation/simulated_counts.csv")
+
+ratios$sample <- row.names(ratios)
 write.csv(ratios, "data/processed/deseq_simulation/simulated_ratios.csv")

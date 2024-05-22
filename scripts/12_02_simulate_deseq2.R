@@ -16,8 +16,8 @@ rm(libs)
 
 # Get commandArgs
 args <- commandArgs(trailingOnly = TRUE)
-model_arg <- args[[1]]
-gene_batch <- args[[2]]
+model_arg <-  args[[1]] |> as.numeric()
+gene_batch <- args[[2]] |> as.numeric()
 
 
 # Gene batch size
@@ -32,16 +32,16 @@ sim.counts <- read.csv("data/processed/deseq_simulation/simulated_counts.csv", r
 #genes.downsampled <- sample(row.names(sim.counts), 2000, replace = F)
 #sim.counts <- sim.counts[genes.downsampled,]
 ratios <- read.csv("data/processed/deseq_simulation/simulated_ratios.csv", row.names = 1)
-
-cell.types <- colnames(ratios)[-length(colnames(ratios))]
+rownames(ratios) <- ratios$sample
+cell.types <- colnames(ratios)[!(colnames(ratios) %in% c("pct.change", "sample"))]
 
 # Make list of models
 models <- list(
   unadjusted    = ~ 0 + pct.change,
   raw_cm        = ~ 0 + pct.change + Cardiomyocytes,
   raw_cm_fb     = ~ 0 + pct.change + Cardiomyocytes + Fibroblast,
-  clr_cm        = ~ 0 + pct.change + clr.Cardiomyocytes,
-  clr_cm_fb     = ~ 0 + pct.change + clr.Cardiomyocytes + clr.Fibroblast,
+  clr_cm        = ~ 0 + pct.change + clr_Cardiomyocytes,
+  clr_cm_fb     = ~ 0 + pct.change + clr_Cardiomyocytes + clr_Fibroblast,
   pc1           = ~ 0 + pct.change + PC1,
   pc2           = ~ 0 + pct.change + PC1 + PC2
   )
@@ -80,7 +80,7 @@ dds <- DESeqDataSetFromMatrix(
 )
 
 # Run the DESeq 
-dds <- DESeq(dds)
+dds <- DESeq(dds, fitType="mean")
 
 # Get the differential expression analysis results, contrasted against the 0 percent change group
 genes <- lapply(pct.use, function(x){
@@ -91,20 +91,28 @@ names(genes) <- pct.use #lapply(str_split(resultsNames(dds)[-1], "pct.change"), 
 
 
 sig.genes <- lapply(genes, function(x){
-  sig.genes <- x |> 
+  sig.genes.temp <- x |> 
     mutate(sig = case_when(
       padj <= 0.05 ~ TRUE,
       padj > 0.05 ~ FALSE
     )) |> 
     pull(sig) |> 
     table()
-  sig.genes[[2]] / sum(sig.genes)
+  if(length(sig.genes.temp) == 1){
+    sig.genes.temp[[2]] <- 0
+  }
+  pct.sig <- sig.genes.temp[[2]]/sum(sig.genes.temp)
+  return(pct.sig)
 })
 
 sig.df <- data.frame(pct.change = names(sig.genes),
                      pct.sig = unlist(sig.genes),
                      model = model_arg,
                      batch = gene_batch)
+
+if(!dir.exists("data/processed/deseq_simulation/batched_output/")){
+  dir.create("data/processed/deseq_simulation/batched_output/")
+}
 
 write.csv(sig.df, 
           paste0("data/processed/deseq_simulation/batched_output/",model_arg, "_",gene_batch, ".csv"), 
