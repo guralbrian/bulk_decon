@@ -21,7 +21,7 @@ gene_batch <- args[[2]] |> as.numeric()
 
 
 # Gene batch size
-batch_size <- 2000
+batch_size <- 500
 
 # Calculate start and end row for the chunk
 start_row <- (gene_batch - 1) * batch_size + 1

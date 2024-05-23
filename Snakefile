@@ -8,7 +8,7 @@ F_SAMPLES = config["samples_fastq"]
 SN_SAMPLES = ["b6_1", "b6_2"]
 MODEL_TYPE = ["adjusted", "unadjusted"]
 DESEQ_MODELS = range(1, 8)
-DESEQ_BATCHES = range(1, 10)
+DESEQ_BATCHES = range(1, 20)
 rule all:
     input:
         "data/raw/multiqc/multiqc_report.html",
