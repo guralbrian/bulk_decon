@@ -4,10 +4,12 @@ libs <- c("tidyverse", "clusterProfiler", "gt", "data.table") # list libraries h
 lapply(libs, require, character.only = T)
 rm(libs)
 
-n.terms <- 35
+n.terms <- 5
 go.adj <- readRDS("data/processed/pathway_genesets/goadjusted_005.RDS")
 go.unadj <- readRDS("data/processed/pathway_genesets/gounadjusted_005.RDS")
 
+go.adj <- lapply(go.adj, function(x){
+            clusterProfiler::simplify(x, cutoff = 0.45)})
 
 go.adj <- lapply(names(go.adj),
                  function(x){
@@ -18,6 +20,9 @@ go.adj <- lapply(names(go.adj),
                    return(data)}) |> 
   rbindlist() |> 
   as.data.frame()
+
+go.unadj <- lapply(go.unadj, function(x){
+  clusterProfiler::simplify(x, cutoff = 0.45)})
 
 go.unadj <- lapply(names(go.unadj),
                    function(x){
@@ -30,7 +35,7 @@ go.unadj <- lapply(names(go.unadj),
   as.data.frame()
 
 go <- full_join(go.adj, go.unadj, suffix = c(".adj", ".unadj"), by = c("ID", "contrast", "Description"))
-rm(go.adj, go.unadj)
+#rm(go.adj, go.unadj)
 
 # Make table for each comparison
 # Columns needed: GO ID, description, P-value & Qscore, before /after
@@ -87,7 +92,7 @@ tab <- go |>
     columns = c(p.adjust.unadj, p.adjust.unadj, p.adjust.adj, p.adjust.adj)
   ) |> 
   tab_header(
-    title = md("GO terms associated cmAKO, MI, and their interaction"),
+    title = md("GO terms associated with WT and cmAKO responses to MI"),
     subtitle = "By significance lost after cell-type-adjustment"
   ) |>  
   opt_row_striping() |> 
@@ -103,7 +108,7 @@ file = "results/11_clusterProfiler/tables/lost_q_table"
 gtsave(tab, paste0(file, ".html"))
 
 webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"), 
-                 vwidth = 700, vheight = n.terms*110)
+                 vwidth = 700, vheight = n.terms*110, zoom = 3)
 
 #### Most Decreased qscores ####
 tab <- go |>
@@ -166,7 +171,7 @@ file = "results/11_clusterProfiler/tables/upped_q_table"
 gtsave(tab, paste0(file, ".html"))
 
 webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"), 
-                 vwidth = 700, vheight = n.terms*110)
+                 vwidth = 700, vheight = n.terms*110, zoom = 3)
 #### Top terms, unadj ####
 tab <- go |> 
   filter(contrast %in% 
@@ -198,7 +203,7 @@ tab <- go |>
     columns = c(p.adjust.unadj, qscore.unadj)
   ) |> 
   tab_header(
-    title = md("GO terms associated cmAKO, MI, and their interaction"),
+    title = md("GO terms associated WT and cmAKO responses to MI"),
     subtitle = "Top five terms by significance in overrepresentation testing"
   ) |>  
   opt_row_striping() |> 
@@ -213,7 +218,7 @@ tab <- go |>
 file = "results/11_clusterProfiler/tables/unadj_top_table"
 gtsave(tab, paste0(file, ".html"))
 webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"), 
-                 vwidth = 600, vheight = n.terms*110)
+                 vwidth = 600, vheight = n.terms*110,  zoom = 3)
 
 #### Top terms, adj ####
 tab <- go |> 
@@ -244,7 +249,7 @@ tab <- go |>
     columns = c(p.adjust.adj, qscore.adj)
   ) |> 
   tab_header(
-    title = md("GO terms associated cmAKO, MI, and their interaction"),
+    title = md("GO terms associated with cardiomyocytes, fibroblasts, MI, and cmAKO response to MI"),
     subtitle = paste("Top", n.terms, "terms by significance after adjusting for cell-types")
   ) |>  
   opt_row_striping() |> 
@@ -259,4 +264,4 @@ tab <- go |>
 file = "results/11_clusterProfiler/tables/adj_top_table"
 gtsave(tab, paste0(file, ".html"))
 webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"), 
-                 vwidth = 600, vheight = n.terms*210)
+                 vwidth = 600, vheight = n.terms*210, zoom = 3)
