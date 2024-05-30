@@ -1,4 +1,4 @@
-libs <- c("tidyverse", "Seurat", "SeuratDisk", "tidyseurat", "viridis", "patchwork") # list libraries here
+libs <- c("tidyverse", "Seurat", "SeuratDisk", "tidyseurat", "viridis", "patchwork", "gt") # list libraries here
 lapply(libs, require, character.only = T)
 rm(libs)
 
@@ -88,4 +88,40 @@ png(file = "results/5_findMarkers/featurePlots.png",
 wrap_plots(p.feat)
 
 dev.off()
+
+# Save supp table 
+if(!dir.exists("results/supp_figs/")){
+  dir.create("results/supp_figs/")
+}
+options(digits = 3)
+tab <- markers |> 
+gt(rowname_col = "gene",
+   groupname_col = "celltype") |>
+  cols_label(
+    p.value = "p-value",
+    FDR = "False discovery rate",
+    summary.logFC = "log-fold-change"
+  ) |> 
+  cols_align(
+    align = "center",
+    columns = c(p.value, FDR, summary.logFC)
+  ) |> 
+  tab_header(
+    title = md("Cardiac cell type markers"),
+    subtitle = "Top 15 per cell type"
+  ) |>  
+  opt_row_striping() |> 
+  cols_width(gene ~ 90) |>  
+  tab_style(
+    style = list(
+      align = "center",
+      cell_fill("grey"),
+      cell_text(color = "black", weight = "bold")),
+    locations = cells_row_groups())
+
+file = "results/supp_figs/cell_markers"
+gtsave(tab, paste0(file, ".html"))
+
+webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"), 
+                 vwidth = 550, vheight = n.terms*110, zoom = 3)
 

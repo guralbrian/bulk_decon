@@ -92,7 +92,6 @@ all.markers <- lapply(levels(Idents(sn.mark)), function(x){.getMarkers(x)}) |>
 # get the top markers
 top.markers <- all.markers |> 
   group_by(celltype) |> 
-  #dplyr::filter(abs(summary.logFC) >= 1 & p.value < 0.005) |>
   arrange(p.value) |>
   slice_head(n = 15) 
 
@@ -102,9 +101,30 @@ top.markers <- top.markers |>
   filter(!(gene %in% dup.genes)) 
 
 # Save UMAP plot
+
+# Save the data
+
+write.csv(all.markers, "data/processed/single_cell/all_markers.csv", row.names = F)
+write.csv(top.markers, "data/processed/single_cell/cluster_markers.csv", row.names = F)
+write.csv(top.markers, "results/5_findMarkers/cluster_markers.csv", row.names = F)
+SaveH5Seurat(sn.mark, "data/processed/single_cell/celltype_labeled",  overwrite = T)
+
+# Save supp table 
+if(!dir.exists("results/supp_data/")){
+  dir.create("results/supp_data/")
+}
+write.csv(top.markers, "results/supp_data/cluster_markers.csv", row.names = F)
+
+
+## Save figure of UMAP with nuclei counts of each cluster in labels
+temp.labels <- paste0(levels(sn.mark), " (", table(Idents(sn.mark)), " nuclei)")
+names(sn.mark) <- levels(sn.mark)
+sn.mark <- RenameIdents(sn.mark, temp.labels)
+sn.mark$cell.type <- Idents(sn.mark)
+
 # Color scheme
-cols <-  brewer.pal(length(unique(cell.types)), "Set2")
-names(cols) <- unique(cell.types)
+cols <-  brewer.pal(length(unique(temp.labels)), "Set2")
+names(cols) <- unique(temp.labels)
 
 # Save 
 png(file = "results/5_findMarkers/cell_clusters.png",
@@ -122,9 +142,3 @@ DimPlot(sn.mark, group.by = "cell.type", cols = cols, pt.size = 1) |>
 
 dev.off()
 
-# Save the data
-
-write.csv(all.markers, "data/processed/single_cell/all_markers.csv", row.names = F)
-write.csv(top.markers, "data/processed/single_cell/cluster_markers.csv", row.names = F)
-write.csv(top.markers, "results/5_findMarkers/cluster_markers.csv", row.names = F)
-SaveH5Seurat(sn.mark, "data/processed/single_cell/celltype_labeled",  overwrite = T)

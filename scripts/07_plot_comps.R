@@ -10,15 +10,12 @@ rm(libs)
 decon.whole <- read.csv("data/processed/compositions/whole_samples.csv")
 decon.frac <- read.csv("data/processed/compositions/fraction_samples.csv")
 
-
-
 # refactorize the cell type levels
 decon.frac <- decon.frac |> 
   mutate(cell.type = factor(cell.type))
 
 
 #### Plot fractions ####
-
 p.frac <- decon.frac |>
   ggplot(aes(x=new.id, y=Prop, fill=CellType))  +
   geom_bar(stat='identity',
@@ -122,8 +119,13 @@ comp_celltype <- decon.whole   %>%
        fill = "Treatment") +
   scale_fill_manual(values = my_palette)
 
-# Save plot to results 
+# Find average comp at baseline
+decon.whole |> 
+  filter(Genotype_Treatment == "WT - Sham") |> 
+  group_by(CellType) |> 
+  summarize(mean = mean(Prop))
 
+# Save plot to results 
 #Save outputs
 if(!dir.exists("results/7_plot_comps")){
   dir.create("results/7_plot_comps")

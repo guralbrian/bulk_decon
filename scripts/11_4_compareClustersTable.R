@@ -16,7 +16,6 @@ go.adj <- lapply(names(go.adj),
                    data <- go.adj[[x]]@result
                    data <- data |> mutate(qscore = -log(p.adjust, base=10))
                    data$contrast <- x
-                   data$model <- "adj"
                    return(data)}) |> 
   rbindlist() |> 
   as.data.frame()
@@ -29,7 +28,6 @@ go.unadj <- lapply(names(go.unadj),
                      data <- go.unadj[[x]]@result
                      data <- data |> mutate(qscore = -log(p.adjust, base=10))
                      data$contrast <- x
-                     data$model <- "unadj"
                      return(data)}) |> 
   rbindlist() |> 
   as.data.frame()
@@ -265,3 +263,144 @@ file = "results/11_clusterProfiler/tables/adj_top_table"
 gtsave(tab, paste0(file, ".html"))
 webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"), 
                  vwidth = 600, vheight = n.terms*210, zoom = 3)
+
+#### Top terms, adj MI and MI:cmAKO ####
+tab <- go |> 
+  filter(qscore.adj >= 1.3 & contrast %in% c("treatment_MI_vs_Sham", 
+                                             "treatmentMI.genotypecmAKO")) |> 
+  group_by(contrast) |> 
+  mutate(Description = stringr::str_to_title(Description),
+         delta_q = qscore.adj- qscore.unadj,
+         contrast = case_when(
+           str_detect(contrast, "MI_vs_Sham") ~ "Myocardial Infarction",
+           str_detect(contrast, "treatmentMI.genotypecmAKO") ~ "cmAKO:MI"
+         )) |>
+  arrange(desc(qscore.adj)) |> 
+  slice_head(n = n.terms) |> 
+  select(Description, p.adjust.unadj, p.adjust.adj, qscore.unadj, qscore.adj, delta_q, contrast) |> 
+  gt(rowname_col = "Description",
+     groupname_col = "contrast") |>
+  tab_spanner(
+    label = "Cell-type adjusted",
+    columns = c(p.adjust.adj, qscore.adj)
+  ) |> 
+  tab_spanner(
+    label = "Cell-type not considered",
+    columns = c(p.adjust.unadj, qscore.unadj)
+  ) |> 
+  cols_merge(
+    columns = c(p.adjust.unadj, qscore.unadj),
+    pattern = "{1} ({2})"
+  ) |>
+  cols_merge(
+    columns = c(p.adjust.adj, qscore.adj),
+    pattern = "{1} ({2})"
+  ) |> 
+  cols_label(
+    p.adjust.unadj = "p-value (Q-score)",
+    p.adjust.adj = "p-value (Q-score)",
+    delta_q = paste0(html("\u394"), "Q-score")
+  ) |> 
+  cols_align(
+    align = "center",
+    columns = c(p.adjust.unadj, p.adjust.unadj, p.adjust.adj, p.adjust.adj)
+  ) |> 
+  tab_header(
+    title = md("Cell-type adjusted GO terms associated with WT and cmAKO responses to MI"),
+  ) |>  
+  opt_row_striping() |> 
+  cols_width(Description ~ 300) |> 
+  tab_style(
+    style = list(
+      align = "center",
+      cell_fill("grey"),
+      cell_text(color = "black", weight = "bold")),
+    locations = cells_row_groups())
+
+file = "results/11_clusterProfiler/tables/adj_top_treat_gene_table"
+gtsave(tab, paste0(file, ".html"))
+webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"), 
+                 vwidth = 800, vheight = n.terms*110, zoom = 3)
+
+#### Top terms, adj cell types ####
+
+# Get the top 5 terms for each cell type
+top.terms <- go |> 
+  filter(contrast %in% c("clr.Cardiomyocytes", 
+                         "clr.Fibroblast")) |> 
+  group_by(contrast) |> 
+  arrange(desc(qscore.adj)) |> 
+  slice_head(n = n.terms) |> 
+  pull(ID)
+
+# find the strongest unadj association of each
+top.go <- go |> 
+  filter(ID %in% top.terms &
+         contrast %in% c("treatment_MI_vs_Sham", 
+                         "treatmentMI.genotypecmAKO",
+                         "cmAKO_vs_WT")) |> 
+  group_by(Description) |> 
+  arrange(desc(qscore.unadj)) |> 
+  slice_head(n = 1) |> 
+  mutate(orig.contrast = contrast,
+         orig.p = p.adjust.unadj,
+         orig.q = qscore.unadj,
+         orig.contrast = case_when(
+           str_detect(contrast, "MI_vs_Sham") ~ "Myocardial Infarction",
+           str_detect(contrast, "cmAKO_vs_WT") ~ "cmAKO",
+           str_detect(contrast, "treatmentMI.genotypecmAKO") ~ "cmAKO:MI")) |> 
+  select(Description, orig.contrast, orig.p, orig.q)
+tab <- go |> 
+  filter(contrast %in% c("clr.Cardiomyocytes", 
+                         "clr.Fibroblast")) |> 
+  group_by(contrast) |> 
+  arrange(desc(qscore.adj)) |> 
+  slice_head(n = n.terms) |> 
+  left_join(top.go, by = "Description") |> 
+  select(Description, contrast, p.adjust.adj, qscore.adj, orig.p, orig.q, orig.contrast) |> 
+  mutate(Description = stringr::str_to_title(Description),
+         contrast = case_when(
+              str_detect(contrast, "clr.Cardiomyocytes") ~ "Cardiomyocytes",
+              str_detect(contrast, "clr.Fibroblast") ~ "Fibroblasts")) |> 
+  gt(rowname_col = "Description",
+     groupname_col = "contrast") |>
+  tab_spanner(
+    label = "Cell type assc.",
+    columns = c(p.adjust.adj, qscore.adj)
+  ) |> 
+  tab_spanner(
+    label = "Pre-adjustment assc.",
+    columns = c(orig.p, orig.q, orig.contrast)
+  ) |>
+  cols_merge(
+    columns = c(p.adjust.adj, qscore.adj),
+    pattern = "{1} ({2})") |> 
+  cols_merge(
+      columns = c(orig.p, orig.q),
+      pattern = "{1} ({2})"
+    ) |> 
+  cols_label(
+    orig.p = "p-value (Q-score)",
+    p.adjust.adj = "p-value (Q-score)",
+    orig.contrast = "Assc. Variable"
+    ) |> 
+  cols_align(
+    align = "center",
+    columns = c(p.adjust.adj, p.adjust.adj, orig.p, orig.q, orig.contrast)
+  ) |> 
+  tab_header(
+    title = md("GO terms asscociated with cell type proportions"),
+  ) |>  
+  opt_row_striping() |> 
+  cols_width(Description ~ 300) |> 
+  tab_style(
+    style = list(
+      align = "center",
+      cell_fill("grey"),
+      cell_text(color = "black", weight = "bold")),
+    locations = cells_row_groups())
+
+file = "results/11_clusterProfiler/tables/adj_top_cell_table"
+gtsave(tab, paste0(file, ".html"))
+webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"), 
+                 vwidth = 800, vheight = n.terms*110, zoom = 3)
