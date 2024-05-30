@@ -29,8 +29,7 @@ end_row <- gene_batch * batch_size
 
 # Read and subset the ratios and counts matrix
 sim.counts <- read.csv("data/processed/deseq_simulation/simulated_counts.csv", row.names = 1)[c(start_row:end_row),]
-#genes.downsampled <- sample(row.names(sim.counts), 2000, replace = F)
-#sim.counts <- sim.counts[genes.downsampled,]
+
 ratios <- read.csv("data/processed/deseq_simulation/simulated_ratios.csv", row.names = 1)
 rownames(ratios) <- ratios$sample
 cell.types <- colnames(ratios)[!(colnames(ratios) %in% c("pct.change", "sample"))]
