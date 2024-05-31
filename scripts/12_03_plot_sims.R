@@ -16,20 +16,17 @@ all_data$pct.change <- all_data$pct.change |> str_replace( "_", "-") |> as.numer
 
 
 pal <- c("#969696",
-         "#fa9fb5", "#c51b8a",
-         "#78c679", "#006837",
-         "#fd8d3c","#e6550d"
+         "#c51b8a",
+         "#006837",
+         "#fd8d3c"
 )
 
 # Modify legend text 
 models.legend <- list(
   "1"    = ~ "No cell types in model",
-  "2"    = ~ "Unchanged CM proportion",
-  "3"    = ~ "Group + CM prop + 1x prop of minor cells",
-  "4"    = ~ "CLR transform of CM proportion",
-  "5"    = ~ "Group + CLR of CMs + 1x CLR of minor cells",
-  "6"    = ~ "PC1 of cell proportions",
-  "7"    = ~ "Group + PC1 + PC2"
+  "2"    = ~ "Unchanged CM proportion"
+  "4"    = ~ "CLR transform of CM proportion"
+  "6"    = ~ "PC1 of cell proportions"
 )
 
 

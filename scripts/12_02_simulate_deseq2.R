@@ -21,7 +21,7 @@ gene_batch <- args[[2]] |> as.numeric()
 
 
 # Gene batch size
-batch_size <- 500
+batch_size <- 1000
 
 # Calculate start and end row for the chunk
 start_row <- (gene_batch - 1) * batch_size + 1
@@ -38,11 +38,8 @@ cell.types <- colnames(ratios)[!(colnames(ratios) %in% c("pct.change", "sample")
 models <- list(
   unadjusted    = ~ 0 + pct.change,
   raw_cm        = ~ 0 + pct.change + Cardiomyocytes,
-  raw_cm_fb     = ~ 0 + pct.change + Cardiomyocytes + Fibroblast,
   clr_cm        = ~ 0 + pct.change + clr_Cardiomyocytes,
-  clr_cm_fb     = ~ 0 + pct.change + clr_Cardiomyocytes + clr_Fibroblast,
-  pc1           = ~ 0 + pct.change + PC1,
-  pc2           = ~ 0 + pct.change + PC1 + PC2
+  pc1           = ~ 0 + pct.change + PC1
   )
 
 # Compute PCA and clr 
@@ -114,5 +111,5 @@ if(!dir.exists("data/processed/deseq_simulation/batched_output/")){
 }
 
 write.csv(sig.df, 
-          paste0("data/processed/deseq_simulation/batched_output/",model_arg, "_",gene_batch, ".csv"), 
+          paste0("data/processed/deseq_simulation/batched_output/", model_arg, "_",gene_batch, ".csv"), 
           row.names = F)

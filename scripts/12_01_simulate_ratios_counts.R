@@ -56,8 +56,8 @@ major.prop <- 0.5
 cell.types <- Idents(sn) |> unique() |> as.character()
 range <- 0.2
 step.size <- 0.005
-replicates <- 4
-noise <- 0.02
+replicates <- 6
+noise <- 0.03
 
 ratios <- simulate_ratios(major_cell = major.cell, 
                           major_prop = major.prop, 

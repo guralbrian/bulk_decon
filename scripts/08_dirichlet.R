@@ -7,7 +7,9 @@ rm(libs)
 
 #### Loading and formatting of data ####
 # Load compositions
-decon.whole <- read.csv("data/processed/compositions/whole_samples.csv")
+decon.whole <- read.csv("data/processed/compositions/whole_samples.csv") 
+
+
 
 dir.model <- decon.whole |> 
   mutate(CellType = factor(CellType),
@@ -18,7 +20,7 @@ dir.model <- decon.whole |>
 ## Prep DirichletReg matrix
 
 # Add small value to remove zeros
-dir.model$Prop <- dir.model$Prop + 0.0001
+#dir.model$Prop <- dir.model$Prop + 0.0001
 
 # Make model matrix
 dir.mat <- dir.model |>
@@ -35,17 +37,19 @@ dir.mat$Genotype <- as.factor(dir.mat$Genotype) |>
   relevel(ref = "WT")
 
 # Run Dirichlet regression
-#model.1 <- DirichReg(CellTypes ~ Treatment * Genotype, data = dir.mat, model = "alternative", base = 3)
-model.2 <- DirichReg(CellTypes ~ Treatment * Genotype, data = dir.mat, model = "common")
+base <- 2
+model.1 <- DirichReg(CellTypes ~ Treatment * Genotype, data = dir.mat, model = "alternative", base = base)
+#model.2 <- DirichReg(CellTypes ~ Treatment * Genotype, data = dir.mat, model = "common")
 
 # Save model coefficients 
-summary(model.2) # Model results don't look great, might want to remove outlier
+summary(model.1) 
+model.2 <- model.1
 dir.results <- summary(model.2)[["coef.mat"]] |> as.data.frame(check.names = F)
 rownames(dir.results) <- seq(1, nrow(dir.results))
 
 # Clean the data frame
 dir.results$Variable <- summary(model.2)[["coef.mat"]] |> rownames()
-dir.results$CellType <- rep(summary(model.2)[["varnames"]], each = 4)
+dir.results$CellType <- c(rep(summary(model.2)[["varnames"]][-base], each = 4),summary(model.2)[["varnames"]][base])
 dir.results$Feature <- row.names(summary(model.2)[["coef.mat"]])
 colnames(dir.results)[2] <- "StdError"
 
