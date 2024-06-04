@@ -41,6 +41,9 @@ se <- tximeta(coldata)
 gse <- summarizeToGene(se)
 
 # Save to processed data
+if(!dir.exists("data/processed/")){
+  dir.create("data/processed/")
+}
 
 if(!dir.exists("data/processed/bulk/")){
   dir.create("data/processed/bulk/")

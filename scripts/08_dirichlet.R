@@ -18,10 +18,6 @@ dir.model <- decon.whole |>
   ) 
 
 ## Prep DirichletReg matrix
-
-# Add small value to remove zeros
-#dir.model$Prop <- dir.model$Prop + 0.0001
-
 # Make model matrix
 dir.mat <- dir.model |>
   subset(select = c("new.id", "CellType", "Prop", "Treatment", "Genotype")) |>
@@ -39,17 +35,18 @@ dir.mat$Genotype <- as.factor(dir.mat$Genotype) |>
 # Run Dirichlet regression
 base <- 2
 model.1 <- DirichReg(CellTypes ~ Treatment * Genotype, data = dir.mat, model = "alternative", base = base)
-#model.2 <- DirichReg(CellTypes ~ Treatment * Genotype, data = dir.mat, model = "common")
+model.2 <- DirichReg(CellTypes ~ Treatment * Genotype, data = dir.mat, model = "common")
 
 # Save model coefficients 
-summary(model.1) 
-model.2 <- model.1
+summary(model.2) 
+#model.2 <- model.1
 dir.results <- summary(model.2)[["coef.mat"]] |> as.data.frame(check.names = F)
 rownames(dir.results) <- seq(1, nrow(dir.results))
 
 # Clean the data frame
 dir.results$Variable <- summary(model.2)[["coef.mat"]] |> rownames()
-dir.results$CellType <- c(rep(summary(model.2)[["varnames"]][-base], each = 4),summary(model.2)[["varnames"]][base])
+#dir.results$CellType <- c(rep(summary(model.2)[["varnames"]][-base], each = 4),summary(model.2)[["varnames"]][base])
+dir.results$CellType <- rep(summary(model.2)[["varnames"]], each = 4)
 dir.results$Feature <- row.names(summary(model.2)[["coef.mat"]])
 colnames(dir.results)[2] <- "StdError"
 
@@ -66,23 +63,23 @@ dir.results <- dir.results |>
   ))
 
 # Plot non-intercept coefficients
-#! Need to add significance labels
-dir.results <- dir.results |> 
-  subset(Feature != "(Intercept)")
+#dir.results <- dir.results |> 
+  #subset(Feature != "(Intercept)")
 err.plot <- dir.results |> 
   #subset(Feature != "(Intercept)" & `Pr(>|z|)` < 0.1) |> 
-  ggplot(aes(y = Feature_wrap, x = Estimate, color = `Pr(>|z|)`, shape = CellType)) +
+  ggplot(aes(y = CellType, x = Estimate, color = `Pr(>|z|)`, shape = Feature_wrap)) +
   geom_point(position = position_dodge(width = 0.6), size = 6) +
   geom_errorbarh(aes(xmin = Estimate - StdError, xmax = Estimate + StdError),
                  height = 0.2, position = position_dodge(width = 0.6), size = 2) +
   geom_errorbarh(data = dir.results[dir.results$unsig,], aes(xmin = Estimate - StdError, xmax = Estimate + StdError),
                  height = 0.2, position = position_dodge(width = 0.6), size = 2, color = "darkgrey") +
-  scale_x_continuous(limits = c(-4, 2), n.breaks = 6) +
+  scale_x_continuous(limits = c(-4, 6), n.breaks = 10) +
   theme_classic() +
   binned_scale(aesthetics = "color",
                scale_name = "stepsn", 
-               palette = function(x) c("#FDE725FF", "#55C667FF", "#238A8DFF", "#482677FF", "grey"),
-               breaks = c( 0.005, 0.01, 0.05, 0.1),
+               palette = function(x) c("#FDE725FF", "#73D055FF", "#20A387FF", 
+                                       "#404788FF", "#482677FF", "black"),
+               breaks = c( 0.005, 0.01, 0.05, 0.1, 0.2),
                limits = c(0.0005, 0.5),
                show.limits = T,
                guide = "colorsteps")+

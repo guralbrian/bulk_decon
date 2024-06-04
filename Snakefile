@@ -8,7 +8,7 @@ F_SAMPLES = config["samples_fastq"]
 SN_SAMPLES = ["b6_1", "b6_2"]
 MODEL_TYPE = ["adjusted", "unadjusted"]
 DESEQ_MODELS = range(1, 5)
-DESEQ_BATCHES = range(1, 16)
+DESEQ_BATCHES = range(1, 21)
 rule all:
     input:
         "data/raw/multiqc/multiqc_report.html",
@@ -67,7 +67,7 @@ rule salmon_index:
         fa = "data/raw/anno/gentrome.fa.gz",
         decoy = "data/raw/anno/decoy.cleaned.txt"
     resources:
-        mem_mb=32000
+        mem_mb=64000
     output:
         directory("data/raw/anno/decoy_Mus_musculus.GRCm39.salmon")
     shell:

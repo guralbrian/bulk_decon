@@ -24,8 +24,8 @@ pal <- c("#969696",
 # Modify legend text 
 models.legend <- list(
   "1"    = ~ "No cell types in model",
-  "2"    = ~ "Unchanged CM proportion"
-  "4"    = ~ "CLR transform of CM proportion"
+  "2"    = ~ "Unchanged CM proportion",
+  "4"    = ~ "CLR transform of CM proportion",
   "6"    = ~ "PC1 of cell proportions"
 )
 
