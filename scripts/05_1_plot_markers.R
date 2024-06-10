@@ -48,7 +48,7 @@ p.mark <- sn.markers |>
     text = element_text(size = 15)
   ) +
   labs(color = "Average\nExpression", size = "Proportion of\nnuclei expressing")
-p.mark
+
 # Save 
 if(!dir.exists("results/5_findMarkers")){
   dir.create("results/5_findMarkers")

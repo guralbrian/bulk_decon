@@ -23,7 +23,6 @@ decon.wide <- decon.whole  |>
   pivot_wider(names_from = "new.id", values_from = "Prop") |> 
   column_to_rownames("CellType") %>%
   mutate_all(as.numeric)
-#decon.wide[decon.wide==0] <- 0.01
 
 # use clr or ilr to incorp the compositions into the design matrix
 comps.clr <- compositions::clr(t(decon.wide))
@@ -59,20 +58,14 @@ sample.clr <- cbind(sample_info, comps.clr[colnames(bulk),])
 dds.clr <- DESeqDataSetFromMatrix(
   countData = bulk,
   colData = sample.clr,
-  design = ~ treatment + genotype +  clr.Cardiomyocytes + 
-             treatment:genotype +
-             treatment:genotype:clr.Cardiomyocytes
-    
+  design = ~ treatment + genotype + treatment:genotype +  clr.Cardiomyocytes + clr.Fibroblast
+  
 )
 
 # Filter out lowly expressed genes
 smallestGroupSize <- 4
 keep <- rowSums(counts(dds.clr) >= 10) >= smallestGroupSize
 dds.clr <- dds.clr[keep,]
-
-# remove outlier
-keep <- colnames(dds.clr)[colnames(dds.clr) != "WT Sham (4)"]
-dds.clr <- dds.clr[,keep]
 
 # Run DESeq
 dds.clr <- DESeq(dds.clr)
@@ -84,9 +77,6 @@ if(!dir.exists("data/processed/models")){
 }
 saveRDS(dds.clr, "data/processed/models/adjusted_de_interaction.RDS")
 
-# Pull out interaction term results
-res.clr <- results(dds.clr, name="treatmentMI.genotypecmAKO")
-
 ## DESeq without compositions
 # Create a DESeqDataSet
 dds.raw <- DESeqDataSetFromMatrix(
@@ -97,12 +87,8 @@ dds.raw <- DESeqDataSetFromMatrix(
 
 # Filter out lowly expressed genes
 smallestGroupSize <- 4
-keep <- rowSums(counts(dds.raw) >= 15) >= smallestGroupSize
+keep <- rowSums(counts(dds.raw) >= 10) >= smallestGroupSize
 dds.raw <- dds.raw[keep,]
-
-# remove outlier
-keep <- colnames(dds.clr)[colnames(dds.clr) != "WT Sham (4)"]
-dds.clr <- dds.clr[,keep]
 
 # Run DESeq 
 dds.raw <- DESeq(dds.raw)
@@ -110,11 +96,17 @@ dds.raw <- DESeq(dds.raw)
 # Save the results 
 saveRDS(dds.raw, "data/processed/models/unadjusted_de_interaction.RDS")
 
+
 # Pull out interaction term results
 res.raw <- results(dds.raw, name="treatmentMI.genotypecmAKO")
 
 #### Contrast DE results between clr and raw/unadjusted runs ####
 # Compare results
+
+# Pull out interaction term results
+res.clr <- results(dds.clr, name="treatmentMI.genotypecmAKO")
+
+
 comparison.clr <- merge(as.data.frame(res.clr), as.data.frame(res.raw), by = "row.names", suffixes = c(".clr", ".raw"))
 colnames(comparison.clr)[1] <- "gene"
 # Calculate difference in -log10 p-values
@@ -129,3 +121,4 @@ comparison.clr <- comparison.clr |>
 
 # Save the results 
 write.csv(comparison.clr, "data/processed/models/adjusted_de.csv", row.names = F)
+

@@ -118,7 +118,7 @@ write.csv(top.markers, "results/supp_data/cluster_markers.csv", row.names = F)
 
 ## Save figure of UMAP with nuclei counts of each cluster in labels
 temp.labels <- paste0(levels(sn.mark), " (", table(Idents(sn.mark)), " nuclei)")
-names(sn.mark) <- levels(sn.mark)
+names(temp.labels) <- levels(sn.mark)
 sn.mark <- RenameIdents(sn.mark, temp.labels)
 sn.mark$cell.type <- Idents(sn.mark)
 

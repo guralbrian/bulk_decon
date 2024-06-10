@@ -66,14 +66,14 @@ dir.results <- dir.results |>
 #dir.results <- dir.results |> 
   #subset(Feature != "(Intercept)")
 err.plot <- dir.results |> 
-  #subset(Feature != "(Intercept)" & `Pr(>|z|)` < 0.1) |> 
-  ggplot(aes(y = CellType, x = Estimate, color = `Pr(>|z|)`, shape = Feature_wrap)) +
+  subset(Feature != "(Intercept)" & `Pr(>|z|)` < 0.1) |> 
+  ggplot(aes(y = Feature_wrap, x = Estimate, color = `Pr(>|z|)`, shape = CellType)) +
   geom_point(position = position_dodge(width = 0.6), size = 6) +
   geom_errorbarh(aes(xmin = Estimate - StdError, xmax = Estimate + StdError),
                  height = 0.2, position = position_dodge(width = 0.6), size = 2) +
   geom_errorbarh(data = dir.results[dir.results$unsig,], aes(xmin = Estimate - StdError, xmax = Estimate + StdError),
                  height = 0.2, position = position_dodge(width = 0.6), size = 2, color = "darkgrey") +
-  scale_x_continuous(limits = c(-4, 6), n.breaks = 10) +
+  scale_x_continuous(limits = c(-4, 2), n.breaks = 6) +
   theme_classic() +
   binned_scale(aesthetics = "color",
                scale_name = "stepsn", 
@@ -84,7 +84,7 @@ err.plot <- dir.results |>
                show.limits = T,
                guide = "colorsteps")+
   guides(shape = guide_legend(ncol = 1)) +
-  #theme(legend.direction = "vertical", legend.box = "vertical")
+  geom_vline(xintercept = 0, linetype = "solid", size = 1) + 
   theme(axis.text.x = element_text(color = "black"),
         axis.text.y = element_text(color = "black", angle = 0),
         axis.ticks = element_blank(),

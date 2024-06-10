@@ -24,21 +24,17 @@ row.names(bulk.es.exp) <- markers$gene
 # Convert to SingleCellExperiment
 sce <- as.SingleCellExperiment(sn.anno, assay = "RNA")
 
-# Exclude specified clusters
-cells <- levels(Idents(sn.anno))
-
 # Subset to measured genes
 bulk.es.exp <- bulk.es.exp[!is.na(rowMeans(bulk.es.exp)), ]
 
 # Use MuSiC to estimate cell type proportions
 decon <- music_prop(bulk.mtx = bulk.es.exp, sc.sce = sce, markers = markers$gene,
-                    clusters = "ident", samples = "orig.ident",
-                    select.ct = cells)
+                    clusters = "ident", samples = "orig.ident")
 
 # Save a table of the genes/weights
 gene.weights <- decon$Weight.gene |> as.data.frame()
 gene.weights$gene <- row.names(gene.weights)
-write.csv(gene.weights, "results/5_findMarkers/gene_weights.csv", col.names = NA)
+write.csv(gene.weights, "results/supp_data/gene_weights.csv")
 
 # Turn MuSiC output into graph-friendly dataframe
 decon.melt <- reshape2::melt(decon$Est.prop.weighted)

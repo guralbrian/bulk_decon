@@ -1,5 +1,5 @@
 libs <- c("tidyverse", "stringr", "Seurat", "SeuratDisk", "harmony", "SCpubr", 
-          "ggridges", "pals", "viridis", "patchwork") # list libraries here
+          "ggridges", "pals", "viridis", "patchwork", "RColorBrewer") # list libraries here
 
 libs <- c("Seurat", "SeuratDisk", "harmony", "tidyverse", "viridis", "patchwork") # list libraries here
 lapply(libs, require, character.only = T)
@@ -62,5 +62,40 @@ rau.sn <- rau.sn |>
   FindClusters(resolution = 0.2, verbose = F) |>
   RunUMAP(dims = 1:pcs, reduction = "harmony", verbose = F)
 
+
 # Save file
 SaveH5Seurat(rau.sn, "data/processed/single_cell/merged_no_doublets")
+
+
+# Change idents to show # of nuclei per cluster for plotting
+
+## Save figure of UMAP with nuclei counts of each cluster in labels
+temp.labels <- paste0(levels(rau.sn), " (", table(Idents(rau.sn)), " nuclei)")
+names(temp.labels) <- levels(rau.sn)
+rau.sn <- RenameIdents(rau.sn, temp.labels)
+rau.sn$cell.type <- Idents(rau.sn)
+
+# Color scheme
+cols <-  brewer.pal(length(unique(temp.labels)), "Set3")
+names(cols) <- unique(temp.labels)
+
+if(!dir.exists("results/supp_figs/")){
+  dir.create("results/supp_figs/")
+}
+
+# Save 
+png(file = "results/supp_figs/cell_clusters_preannotation.png",
+    width = 10, 
+    height = 8,
+    units = "in",
+    res = 400)
+
+# Save plot for supplement
+DimPlot(rau.sn, group.by = "cell.type", cols = cols, pt.size = 1) |>
+  LabelClusters(id = "cell.type", size = 6, repel = T, box = T, force = 100) +
+  ggtitle(NULL) +
+  theme_cowplot(font_size = 18) +
+  NoLegend()
+
+dev.off()
+
