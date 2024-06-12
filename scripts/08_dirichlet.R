@@ -66,7 +66,7 @@ dir.results <- dir.results |>
 #dir.results <- dir.results |> 
   #subset(Feature != "(Intercept)")
 err.plot <- dir.results |> 
-  subset(Feature != "(Intercept)" & `Pr(>|z|)` < 0.1) |> 
+  subset(Feature != "(Intercept)") |> 
   ggplot(aes(y = Feature_wrap, x = Estimate, color = `Pr(>|z|)`, shape = CellType)) +
   geom_point(position = position_dodge(width = 0.6), size = 6) +
   geom_errorbarh(aes(xmin = Estimate - StdError, xmax = Estimate + StdError),
@@ -84,7 +84,7 @@ err.plot <- dir.results |>
                show.limits = T,
                guide = "colorsteps")+
   guides(shape = guide_legend(ncol = 1)) +
-  geom_vline(xintercept = 0, linetype = "solid", size = 1) + 
+  geom_vline(xintercept = 0, linetype = "solid", linewidth = 1) + 
   theme(axis.text.x = element_text(color = "black"),
         axis.text.y = element_text(color = "black", angle = 0),
         axis.ticks = element_blank(),

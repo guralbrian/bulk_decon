@@ -95,7 +95,7 @@ png(file = "results/10_plot_de/upset_unadj.png",
     width = 8, 
     height = 5,
     units = "in",
-    res = 400)
+    res = 600)
 
 wrap_plots(p.upset.up, p.upset.down)
 

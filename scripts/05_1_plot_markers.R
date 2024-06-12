@@ -11,7 +11,9 @@ dup.genes <- markers[duplicated(markers$gene),"gene"]
 genes <- markers |> 
   filter(!(gene %in% dup.genes)) |> 
   group_by(celltype) |>
-  arrange(desc(p.value)) |> 
+  arrange(p.value) |> 
+  slice_head(n = 6) |> 
+  arrange(desc(summary.logFC)) |> 
   slice_head(n = 3) |> 
   arrange(celltype) |> 
   pull(gene) 
@@ -45,7 +47,7 @@ p.mark <- sn.markers |>
     axis.title = element_blank(),
     panel.background = element_blank(),
     panel.border = element_rect(colour = "black", fill=NA, linewidth=2),
-    text = element_text(size = 15)
+    text = element_text(size = 11)
   ) +
   labs(color = "Average\nExpression", size = "Proportion of\nnuclei expressing")
 
@@ -56,7 +58,7 @@ if(!dir.exists("results/5_findMarkers")){
 
 png(file = "results/5_findMarkers/marker_specificity.png",
     width = 8, 
-    height = 4.5,
+    height = 3.7,
     units = "in",
     res = 500)
 

@@ -234,50 +234,44 @@ res.labels <- res.labeled %>%
 
 # Create the plot
 p.adjusted.de <- ggplot(res.compare, aes(x = log2FoldChange, y = -log10(padj), color = model)) +
-  geom_point(alpha = 0.3, size = 5) +  # Base layer for all points with reduced visibility
-  geom_point(data = res.labeled, color = "black", size = 10, alpha = 1) +  # Gives colored points a black outline
-  geom_point(data = res.labeled, size = 9, alpha = 1) +  # Colored points
+  geom_point(alpha = 0.3, size = 1) +  # Base layer for all points with reduced visibility
+  geom_point(data = res.labeled, color = "black", size = 4, alpha = 1) +  # Gives colored points a black outline
+  geom_point(data = res.labeled, size = 3.5, alpha = 1) +  # Colored points
   geom_segment(aes(x = x.start[[2]], y = -log10(y.start[[2]])- 0.5, xend = x.end[[2]], yend = -log10(y.end[[2]])+ 0.5), 
-               color = "black", arrow = arrow(length = unit(0.5, "cm")), linetype=2) +
+               color = "black", arrow = arrow(length = unit(0.2, "cm")), linetype=2) +
   geom_segment(aes(x = x.start[[3]], y = -log10(y.start[[3]])- 0.5, xend = x.end[[3]], yend = -log10(y.end[[3]])+ 0.5), 
-               color = "black", arrow = arrow(length = unit(0.5, "cm")), linetype=2) +
+               color = "black", arrow = arrow(length = unit(0.2, "cm")), linetype=2) +
   #geom_segment(aes(x = x.start, y = -log10(y.start), xend = x.end, yend = -log10(y.end)), arrow = arrow(length = unit(0.5, "cm"))) +
-  geom_text_repel(data = res.labels, aes(label = gene), size = 10, box.padding = unit(0.6, "lines"), 
+  geom_text_repel(data = res.labels, aes(label = gene), size = 5, box.padding = unit(0.6, "lines"), 
                   force = 20, color = "black", nudge_x = 0.7, min.segment.length = 5) +  # Labels only for colored points
   scale_color_manual(values = colors, 
-                     guide = guide_legend(override.aes = list(alpha = 1, size = 10)),
+                     guide = guide_legend(override.aes = list(alpha = 1, size = 4)),
                      breaks = c("adjusted", "unadjusted")) + 
   theme_minimal() +
   xlim(-5, 5) +
   labs(x = "log2(Fold Change)", y = "-log10(adjusted p-value)", color = "Model Type") +
   geom_hline(yintercept = -log10(0.05), linetype = "dashed") +
   geom_vline(xintercept = 0, linetype = "solid", alpha = 0.5) +
-  theme(legend.position = "bottom",
-        text = element_text(color = "black", size = 27),
-        legend.text = element_text(color = "black", size = 27),
+  theme(legend.position = c(0.8,0.7),
+        text = element_text(color = "black", size = 12),
+        legend.text = element_text(color = "black", size = 12),
         panel.background = element_rect(color="black"),
-        plot.background = element_rect(color="black"),
         panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        plot.margin = unit(c(1,1,1,1), "cm")) 
+        panel.grid.minor = element_blank()) 
 
 # Save 
 if(!dir.exists("results/10_plot_de")){
   dir.create("results/10_plot_de")
 }
 png(file = "results/10_plot_de/volcano_adjusted.png",
-    width = 12, 
-    height = 9,
+    width = 4, 
+    height = 3.797236,
     units = "in",
     res = 600)
 
 p.adjusted.de
 
 dev.off()
-
-
-
-
 
 
 # Plot the PCA of samples

@@ -55,20 +55,25 @@ cell.go <- cell.go |>
 p.dot <- cell.go |> 
   filter(!(contrast %in% c("clr.Fibroblast", "clr.Cardiomyocytes", "genotype_cmAKO_vs_WT"))) |> 
   ggplot(aes(x = qscore.unadj, y = qscore.adj, color = cell.type.sig)) +
-  geom_jitter(alpha = 0.4, size = 4, width = 0.35, height = 0.35) +
+  geom_jitter(alpha = 0.4, size = 3, width = 0.35, height = 0.35) +
   geom_abline(intercept = 0, slope = 1)+
   facet_wrap(~contrast, 
              labeller = labeller(contrast = c("treatment_MI_vs_Sham" = "Myocardial Infarction", 
                                               "genotype_cmAKO_vs_WT" = "cmAKO",
                                               "treatmentMI.genotypecmAKO" = "cmAKO:MI"))) +
-  scale_color_manual(values = c("#F96A5F","#66C2A5", "#6683D4", "#828282"), name = "Variables significant\n      for GO term") +
+  scale_color_manual(values = c("#F96A5F","#66C2A5", "#6683D4", "#828282"), name = "Variables sig.\n for GO term") +
   labs(x = "Q-score without cell types", 
        y = "Q-score with cell types") +
   theme_minimal() +
   theme(
     legend.position = "bottom",
     plot.title = element_blank(),
-    text = element_text(size = 15)
+    text = element_text(size = 9),
+    strip.text = element_text(size = 10),
+    legend.text = element_text(size = 8),
+    legend.margin=margin(0,0,0,0),
+    plot.margin= margin(0,0,0,0),
+    legend.key.height = unit(-2, "cm")
   ) +
   guides(color = guide_legend(nrow = 2))
 
@@ -79,8 +84,8 @@ if(!dir.exists("results/11_clusterProfiler")){
 
 # Save plot to results 
 png(file = paste0("results/11_clusterProfiler/go_contrast_dot.png"),
-    width = 6, 
-    height =4,
+    width = 4, 
+    height =2.8,
     units = "in",
     res = 600)
 

@@ -9,8 +9,7 @@ go.adj <- readRDS("data/processed/pathway_genesets/goadjusted_005.RDS")
 go.unadj <- readRDS("data/processed/pathway_genesets/gounadjusted_005.RDS")
 
 # Simplify terms
-go.adj.simp <- lapply(go.adj, function(x){
-            clusterProfiler::simplify(x, cutoff = 0.45)})
+
 
 go.adj <- lapply(names(go.adj),
                  function(x){
@@ -20,18 +19,6 @@ go.adj <- lapply(names(go.adj),
                    return(data)}) |> 
   rbindlist() |> 
   as.data.frame()
-
-go.adj.simp <- lapply(names(go.adj.simp),
-                 function(x){
-                   data <- go.adj.simp[[x]]@result
-                   data <- data |> mutate(qscore = -log(p.adjust, base=10))
-                   data$contrast <- x
-                   return(data)}) |> 
-  rbindlist() |> 
-  as.data.frame()
-
-go.unadj.simp <- lapply(go.unadj, function(x){
-  clusterProfiler::simplify(x, cutoff = 0.45)})
 
 go.unadj <- lapply(names(go.unadj),
                    function(x){
@@ -253,10 +240,6 @@ tab <- go |>
   cols_align(
     align = "center",
     columns = c(p.adjust.adj, qscore.adj)
-  ) |> 
-  tab_header(
-    title = md("GO terms associated with cardiomyocytes, fibroblasts, MI, and cmAKO response to MI"),
-    subtitle = paste("Top", n.terms, "terms by significance after adjusting for cell-types")
   ) |>  
   opt_row_striping() |> 
   cols_width(Description ~ 300) |> 
@@ -312,9 +295,6 @@ tab <- go |>
   cols_align(
     align = "center",
     columns = c(p.adjust.unadj, p.adjust.unadj, p.adjust.adj, p.adjust.adj)
-  ) |> 
-  tab_header(
-    title = md("Cell-type adjusted GO terms associated with WT and cmAKO responses to MI"),
   ) |>  
   opt_row_striping() |> 
   cols_width(Description ~ 300) |> 
@@ -331,7 +311,7 @@ webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"),
                  vwidth = 800, vheight = n.terms*110, zoom = 3)
 
 #### Top terms, adj cell types ####
-
+n.terms <- 5
 # Get the top 5 terms for each cell type
 top.terms <- go |> 
   filter(contrast %in% c("clr.Cardiomyocytes", 
@@ -395,10 +375,7 @@ tab <- go |>
   cols_align(
     align = "center",
     columns = c(p.adjust.adj, p.adjust.adj, orig.p, orig.q, orig.contrast)
-  ) |> 
-  tab_header(
-    title = md("GO terms asscociated with cell type proportions"),
-  ) |>  
+  )  |>  
   opt_row_striping() |> 
   cols_width(Description ~ 300) |> 
   tab_style(
