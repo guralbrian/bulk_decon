@@ -23,34 +23,39 @@ pal <- c("#969696",
 
 # Modify legend text 
 models.legend <- list(
-  "1"    = ~ "No cell types in model",
-  "2"    = ~ "Unchanged CM proportion",
-  "4"    = ~ "CLR transform of CM proportion",
-  "6"    = ~ "PC1 of cell proportions"
+  "1"    = ~ "No cell types",
+  "2"    = ~ "CM proportion",
+  "3"    = ~ "Cell types in model",
+  "4"    = ~ "PC1"
 )
 
 
 p.sim <- all_data |> 
   mutate(pct.sig = pct.sig*100,
          pct.change = 50 + 100*pct.change) |>
-  filter(model %in% c(1,2,4,6)) |> 
+  filter(model %in% c(1,3)) |> 
   ggplot(aes(x = pct.change, y = pct.sig, color = as.factor(model))) +
-  geom_point(alpha = 0.2, size = 5) +
-  geom_smooth(se = F, method = "loess", size = 1.5, alpha = 0.2, span = 0.3) +
+  geom_point(alpha = 0.2, size = 0.6) +
+  geom_smooth(se = F, method = "loess", size = 1, alpha = 0.2, span = 0.3) +
   scale_color_manual(values = pal,
-                     name = "      DESeq2\nmodel variables",
+                     name = "DESeq2 model variables",
                      labels = models.legend,
                      breaks = names(models.legend)) +
   theme_minimal() +
   theme(
-    legend.position = "top",
-    text = element_text(size = 30),
+    legend.position = c(0.5, 0.75),
+    text = element_text(size = 8),
+    legend.text = element_text(size = 8, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")),
+    legend.key.size = unit(0.5, "lines"),  # Adjust size of the keys
+    legend.spacing.x = unit(0.5, "mm"),    # Reduce spacing between columns of the legend
+    legend.spacing.y = unit(0.5, "mm"),    # Reduce spacing between rows of the legend
     panel.grid.major = element_blank(), # remove major gridlines
-    panel.grid.minor = element_line(color = "grey")  # remove minor gridlines
+    panel.grid.minor = element_line(color = "grey"),
+    plot.margin = unit(c(0,0,0,0), units = "cm"),# remove minor gridlines
   ) +
   coord_cartesian(clip = 'off') +
-  labs(y= "% DEGs compared to 50% CMs group", x = "Cardiomyocyte Percentage of Samples") +
-  guides(color = guide_legend(nrow = 2))
+  labs(y= "% DEGs vs. to 50% CMs", x = "Cardiomyocyte Percentage of Samples") +
+  guides(color = guide_legend(nrow = 4))
 #Maybe add cm% bar under plot
 # make legend text more direct/clear
 
@@ -60,11 +65,12 @@ if(!dir.exists("results/12_sim_de")){
 }
 
 png(file = "results/12_sim_de/plot_sims.png",
-    width = 16, 
-    height = 9,
+    width = 3.0603, 
+    height = 1.9348 ,
     units = "in",
     res = 600)
 
 p.sim
 
 dev.off()
+

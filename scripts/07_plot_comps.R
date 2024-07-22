@@ -96,34 +96,34 @@ design <- "AA
 comp_celltype <- decon.whole   %>%
   ggplot(aes(x = factor(CellType_wrap, levels = as.character(cell.type.order)), y = Prop, fill = Genotype_Treatment)) +
   #geom_boxplot(position = position_dodge(0.9), width = 0.9, color = "black") +
-  geom_bar(stat = "summary",position = position_dodge(0.9),  fun = mean,width = 0.9,  color = "black", alpha = 0.8) +
+  geom_bar(stat = "summary",position = position_dodge(0.9),  fun = mean, width = 0.9,  color = "black", alpha = 0.8) +
   geom_jitter(inherit.aes = T, 
               position = position_jitterdodge(jitter.width = 0.005, dodge.width = 0.9),
-              size = 4, alpha = 0.5) +
-  theme(axis.text.x = element_text(color = "black", angle =25, vjust = 0.5),
+              size = 1, alpha = 0.5) +
+  theme(axis.text.x = element_text(color = "black", angle =25, vjust = 1.3, hjust = 1),
         axis.text.y = element_text(color = "black"),
         axis.ticks = element_blank(),
-        legend.position = c(0.9, 1),
-        legend.justification = c("right", "top"),
-        legend.box.just = "right",
-        legend.margin = margin(6, 6, 6, 6),
+        legend.position = c(0.8, 0.73),
+        legend.justification = c("center", "center"),
+        legend.box.just = "center",
+        legend.title = element_blank(),
+        legend.text = element_text(size = 8, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")),
+        legend.key.size = unit(0.7, "lines"),  # Adjust size of the keys
+        legend.spacing.x = unit(0.5, "mm"),    # Reduce spacing between columns of the legend
+        legend.spacing.y = unit(0.5, "mm"),    # Reduce spacing between rows of the legend
+        legend.box.spacing = unit(0.5, "mm"),
         panel.background = element_rect(fill='transparent'),
         plot.background = element_rect(fill='transparent', color=NA),
         panel.grid.minor = element_blank(),
-        legend.background = element_rect(fill='transparent'),
-        legend.box.background = element_rect(fill='transparent'),
+        legend.background = element_blank(),
+        legend.box.background = element_blank(),
         axis.title.x = element_blank(),
-        plot.margin = unit(c(1,1,1,1), units = "cm"),
-        text = element_text(size = 40)) +
+        plot.margin = unit(c(0,0.1,-0.4,0), units = "cm"),
+        text = element_text(size = 9)) +
   labs(y = "Estimated Proportion", 
        fill = "Treatment") +
-  scale_fill_manual(values = my_palette)
+  scale_fill_manual(values = my_palette) 
 
-# Find average comp at baseline
-decon.whole |> 
-  filter(Genotype_Treatment == "WT - Sham") |> 
-  group_by(CellType) |> 
-  summarize(mean = mean(Prop))
 
 # Save plot to results 
 #Save outputs
@@ -132,8 +132,8 @@ if(!dir.exists("results/7_plot_comps")){
 }
 
 png(file = "results/7_plot_comps/sample_comps.png",
-    width = 16, 
-    height = 8,
+    width = 3.9219, 
+    height = 1.834,
     units = "in",
     res = 600)
 
@@ -141,6 +141,11 @@ comp_celltype
 
 dev.off()
 
+# Find average comp at baseline
+decon.whole |> 
+  filter(Genotype_Treatment == "WT - Sham") |> 
+  group_by(CellType) |> 
+  summarize(mean = mean(Prop))
 
 # format for ternary 
 decon.wide <- decon.whole  |> 
@@ -183,8 +188,8 @@ decon.wide <- decon.frac  |>
 pal <- brewer.pal(3, "Set2")
 
 p.tern.frac <- ggtern(decon.wide,aes(x=Cardiomyocytes,y=Fibroblast, z=`Endothelial Cells`, color = cell.type)) +
-  geom_point(size = 13, alpha = 0.8) +
-  scale_color_manual(values = pal) +
+  geom_point(size = 3, alpha = 0.8) +
+  scale_color_manual(values = pal, labels = c("CMs", "ECs", "FBs")) +
   theme_bw() +
   theme_hidegrid_minor() +
   theme_showarrows() +
@@ -192,14 +197,28 @@ p.tern.frac <- ggtern(decon.wide,aes(x=Cardiomyocytes,y=Fibroblast, z=`Endotheli
   theme_arrowlarge() +
   #tern_limit(T = 0.65,L = 1, R = 0.65) +
   theme(
-    text = element_text(size = 28),
+    text = element_text(size = 8, color = "black"),
+    legend.position = c(0.85,0.78),
+    legend.justification = c("center", "center"),
+    legend.box.just = "center",
     legend.title = element_blank(),
-    legend.position = "bottom",
-    tern.axis.arrow = element_line(size = 3)
-  )
+    legend.text = element_text(size = 8, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")),
+    legend.key.size = unit(0.5, "lines"),  # Adjust size of the keys
+    legend.spacing.x = unit(0.5, "mm"),    # Reduce spacing between columns of the legend
+    legend.spacing.y = unit(0.5, "mm"),    # Reduce spacing between rows of the legend
+    legend.box.spacing = unit(0.5, "mm"),
+    plot.margin = unit(c(-0.6,-0.5,0.1,-0.5), units = "cm"),
+    axis.title = element_text(vjust = 2, size = 8), 
+    tern.axis.arrow = element_line(size = 0.5),
+    tern.axis.arrow.sep = 0.12,
+    tern.axis.text = element_text(size = 8),
+    tern.axis.vshift = 0.005
+  ) +
+  theme_nomask() + 
+  labs(z = "Endothelial Cells")
 png(file = "results/7_plot_comps/tern_frac.png",
-    width = 8, 
-    height = 8,
+    width = 2.5, 
+    height = 2.25,
     units = "in",
     res = 600)
 

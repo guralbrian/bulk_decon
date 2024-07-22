@@ -39,7 +39,7 @@ up.upset <- significant_genes_df %>%
   table() |> 
   as.data.frame.matrix()
 
-colnames(up.upset) <- colnames(down.upset) <- c("cmAKO", "MI", "cmAKO:MI")
+colnames(up.upset) <- colnames(down.upset) <- c("cmAKO", "MI", "cmAKO X MI")
 
 
 presence = ComplexUpset:::get_mode_presence('exclusive_intersection')
@@ -59,10 +59,20 @@ p.upset.down <- down.upset |>
       ggplot()
       + geom_bar(data=summarise_values, stat='identity', aes(y=!!presence), 
                  color = "black", fill = "#d15469") 
-      + ylab('Downregulated Genes')
       + scale_y_continuous(trans='log10')
+      + labs(title = "Downregulated")
+      + theme(text = element_text(size = 8),
+              plot.margin = unit(c(0,0,0,0), unit = "cm"),
+              axis.title = element_blank(),
+              axis.text.y = element_blank())
+      
     )
   ),
+  labeller=ggplot2::as_labeller(c(
+    'cmAKO'='',
+    'MI'='',
+    'cmAKO X MI' = ""
+  )),
   min_size=5,
   width_ratio=0.1,
   set_sizes = F
@@ -75,10 +85,15 @@ p.upset.up <- up.upset |>
                           ggplot()
                           + geom_bar(data=summarise_values, stat='identity', aes(y=!!presence), 
                                      color = "black", fill = "lightblue") 
-                          + ylab('Upregulated Genes')
-                          + scale_y_continuous(trans='log10')
+                          + scale_y_continuous(trans='log10') 
+                          + labs(title = "Upregulated", y = 'Sig. Genes')
+                          + theme(text = element_text(size = 8),
+                                  plot.margin = unit(c(0,0,0,0), unit = "cm"),
+                                  axis.title.x = element_blank(),
+                                  axis.title.y = element_text(vjust = -20))
                         )
                       ),
+                      wrap = F,
                       min_size=5,
                       width_ratio=0.1,
                       set_sizes = F
@@ -92,8 +107,8 @@ if(!dir.exists("results/10_plot_de")){
 }
 
 png(file = "results/10_plot_de/upset_unadj.png",
-    width = 8, 
-    height = 5,
+    width = 4, 
+    height = 3,
     units = "in",
     res = 600)
 

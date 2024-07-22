@@ -57,7 +57,7 @@ write.csv(dir.results, "data/processed/models/dirichelet_coefficients.csv", row.
 dir.results <- dir.results |> 
   mutate(Feature_wrap = case_when(
     str_detect(Feature, "TreatmentMI$") ~ "MI",
-    str_detect(Feature, ":") ~ "MI and\ncmAKO",
+    str_detect(Feature, ":") ~ "cmAKO\n  X MI",
     str_detect(Feature, "GenotypecmAKO$") ~ "cmAKO",
     str_detect(Feature, "Intercept") ~ "Intercept"
   ))
@@ -68,12 +68,12 @@ dir.results <- dir.results |>
 err.plot <- dir.results |> 
   subset(Feature != "(Intercept)") |> 
   ggplot(aes(y = Feature_wrap, x = Estimate, color = `Pr(>|z|)`, shape = CellType)) +
-  geom_point(position = position_dodge(width = 0.6), size = 6) +
   geom_errorbarh(aes(xmin = Estimate - StdError, xmax = Estimate + StdError),
-                 height = 0.2, position = position_dodge(width = 0.6), size = 2) +
+                 height = 0.2, position = position_dodge(width = 0.7), size = 1) +
   geom_errorbarh(data = dir.results[dir.results$unsig,], aes(xmin = Estimate - StdError, xmax = Estimate + StdError),
-                 height = 0.2, position = position_dodge(width = 0.6), size = 2, color = "darkgrey") +
-  scale_x_continuous(limits = c(-4, 2), n.breaks = 6) +
+                 height = 0.2, position = position_dodge(width = 0.7), size = 1, color = "darkgrey") +
+  geom_point(position = position_dodge(width = 0.7), size = 3, color = "#474747") +
+  scale_x_continuous(limits = c(-3, 2), n.breaks = 5) +
   theme_classic() +
   binned_scale(aesthetics = "color",
                scale_name = "stepsn", 
@@ -90,16 +90,24 @@ err.plot <- dir.results |>
         axis.ticks = element_blank(),
         plot.title = element_blank(),
         legend.position = "right",
-        legend.justification = c("center", "center"),
+        legend.justification = c("left", "center"),
+        legend.box.just = "left",
+        legend.text = element_text(size = 8, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")),
+        legend.key.size = unit(0.7, "lines"),  # Adjust size of the keys
+        legend.spacing.x = unit(0.5, "mm"),    # Reduce spacing between columns of the legend
+        legend.spacing.y = unit(0.5, "mm"),    # Reduce spacing between rows of the legend
+        legend.box.spacing = unit(0.5, "mm"),
         axis.title.y = element_blank(),
         plot.background = element_rect(fill='transparent', color=NA),
         panel.grid.major = element_line(colour = "grey", size = 0.5),
         panel.grid.minor = element_blank(),
         legend.background = element_rect(fill='transparent'),
-        text = element_text(size = 20)) +
+        text = element_text(size = 9),
+        plot.margin = unit(c(0,-0.2,0,0), units = "cm")) +
   labs(x = "Coefficients (estimates of effect)", 
        shape = "Cell Types",
        color = "p-value") 
+  #guides(shape = guide_legend(nrow = 1))
 
 # Save 
 
@@ -109,8 +117,8 @@ if(!dir.exists("results/8_dirichlet")){
 }
 
 png(file = "results/8_dirichlet/dirichlet_coeff.png",
-    width = 10, 
-    height = 6,
+    width = 3.9217, 
+    height = 2.4357,
     units = "in",
     res = 600)
 

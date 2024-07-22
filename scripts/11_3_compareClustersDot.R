@@ -85,7 +85,7 @@ if(!dir.exists("results/11_clusterProfiler")){
 # Save plot to results 
 png(file = paste0("results/11_clusterProfiler/go_contrast_dot.png"),
     width = 4, 
-    height =2.8,
+    height =2.51814,
     units = "in",
     res = 600)
 

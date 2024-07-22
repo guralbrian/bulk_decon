@@ -48,7 +48,7 @@ dictionary <- data.frame(name = names(res)) |>
       str_detect(name, "cmAKO_vs_WT") ~ "cmAKO",
       str_detect(name, "Cardiomyocytes") ~ "Cardiomyocytes",
       str_detect(name, "Fibroblast") ~ "Fibroblast",
-      str_detect(name, "treatmentMI.genotypecmAKO") ~ "cmAKO:MI")
+      str_detect(name, "treatmentMI.genotypecmAKO") ~ "cmAKO X MI")
   )
 
 #####
@@ -140,19 +140,19 @@ top <- res.unadj |>
 # Add conditional color formatting for significance
 res.unadj <- res.unadj |> 
   mutate(significant = case_when(
-    padj >  0.05 ~ FALSE,
-    padj <= 0.05 & abs(log2FoldChange) >= 0.583  ~ TRUE,
-    .default = FALSE
+    padj >  0.05 ~ "False",
+    padj <= 0.05 & abs(log2FoldChange) >= 0.583  ~ "True",
+    .default = "False"
   ))
 
 p.unadj <- ggplot(res.unadj, aes(x = log2FoldChange, y = -log10(padj), color = significant)) +
   geom_point(alpha = 1, size = 6) + 
   scale_color_manual(values = c("#999999", "#ed9209")) +
-  geom_text_repel(data = top, aes(label = gene), size = 12, box.padding = unit(0.35, "lines"), 
+  geom_text_repel(data = top, aes(label = gene), size = 9, box.padding = unit(0.35, "lines"), 
                   force = 20, segment.linetype = 2, segment.size = 0.6, color = "black", force_pull = 0.01, min.segment.length = 0) + # label most sig genes 
   theme_minimal() +
   xlim(-5, 5) +
-  labs(x = "log2(Fold Change)", y = "-log10(adjusted p-value)", color = "p < 0.05 and\nFold Change > 1.5") +
+  labs(x = "log2(Fold Change)", y = "-log10(adjusted p-value)", color = "     p < 0.05 &\nFold Change > 1.5") +
   geom_hline(yintercept = -log10(0.05), linetype = "dashed") + 
   geom_vline(xintercept = 0, linetype = "solid") + # add a line for p=0.05
   theme(legend.position = "bottom",
@@ -163,11 +163,10 @@ p.unadj <- ggplot(res.unadj, aes(x = log2FoldChange, y = -log10(padj), color = s
         legend.key.size = unit(0.7, 'in'),
         legend.title = element_text(size = 28, vjust = 0.7),
         axis.title = element_text(color = "black", size = 28),
-        panel.background = element_rect(color="black"),
-        plot.background = element_rect(color="black"),
+        panel.background = element_rect(color="grey"),
         panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
-        plot.margin = unit(c(1,1,1,1), "cm"))
+        plot.margin = unit(c(0,0,0,0), "cm"))
 
 
 # Save 
@@ -175,7 +174,7 @@ if(!dir.exists("results/10_plot_de")){
   dir.create("results/10_plot_de")
 }
 png(file = "results/10_plot_de/volcano_unadjusted.png",
-    width = 12, 
+    width = 8, 
     height = 9,
     units = "in",
     res = 600)
@@ -184,13 +183,71 @@ p.unadj
 
 dev.off()
 
+
+# Make same plot as above but for post-adjustment ####
+
+res.adj <- res$treatmentMI.genotypecmAKO.adj
+
+# Find top DE genes
+top <- res.adj |> 
+  arrange(padj) |>
+  slice_head(n = 10)
+
+# Add conditional color formatting for significance
+res.adj <- res.adj |> 
+  mutate(significant = case_when(
+    padj >  0.05 ~ "False",
+    padj <= 0.05 & abs(log2FoldChange) >= 0.583  ~ "True",
+    .default = "False"
+  ))
+
+p.adj <- ggplot(res.adj, aes(x = log2FoldChange, y = -log10(padj), color = significant)) +
+  geom_point(alpha = 1, size = 6) + 
+  scale_color_manual(values = c("#999999", "#ed9209")) +
+  geom_text_repel(data = top, aes(label = gene), size = 9, box.padding = unit(0.35, "lines"), 
+                  force = 20, segment.linetype = 2, segment.size = 0.6, color = "black", force_pull = 0.01, min.segment.length = 0) + # label most sig genes 
+  theme_minimal() +
+  xlim(-5, 5) +
+  labs(x = "log2(Fold Change)", y = "-log10(adjusted p-value)", color = "     p < 0.05 & Fold Change > 1.5") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed") + 
+  geom_vline(xintercept = 0, linetype = "solid") + # add a line for p=0.05
+  theme(legend.position = "bottom",
+        axis.text = element_text(color = "black", size = 25),
+        axis.ticks = element_blank(),
+        title = element_text(size = 25),
+        legend.text = element_text(size = 25),
+        legend.key.size = unit(0.7, 'in'),
+        legend.title = element_text(size = 28, vjust = 0.7),
+        axis.title = element_text(color = "black", size = 28),
+        panel.background = element_rect(color="grey"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        plot.margin = unit(c(0,0,0,0), "cm"))
+
+
+# Save 
+if(!dir.exists("results/10_plot_de")){
+  dir.create("results/10_plot_de")
+}
+png(file = "results/10_plot_de/volcano_adjusted_simple.png",
+    width = 14, 
+    height = 6,
+    units = "in",
+    res = 600)
+
+p.adj
+
+dev.off()
+
+#
+
 #### Make plot that shows before and after adj ####
 
 res.compare <- full_join(res$treatmentMI.genotypecmAKO.unadj, res$treatmentMI.genotypecmAKO.adj)
 
 
 # Define your gene list
-gene_list <- c("Zbtb16", "Pik3r1", "Egr1")
+gene_list <- c("Egr1", "Errfi1")
 
 # Modify the dataset with new color and alpha values
 res.compare <- res.compare %>% 
@@ -237,9 +294,95 @@ p.adjusted.de <- ggplot(res.compare, aes(x = log2FoldChange, y = -log10(padj), c
   geom_point(alpha = 0.3, size = 1) +  # Base layer for all points with reduced visibility
   geom_point(data = res.labeled, color = "black", size = 4, alpha = 1) +  # Gives colored points a black outline
   geom_point(data = res.labeled, size = 3.5, alpha = 1) +  # Colored points
-  geom_segment(aes(x = x.start[[2]], y = -log10(y.start[[2]])- 0.5, xend = x.end[[2]], yend = -log10(y.end[[2]])+ 0.5), 
+  #geom_segment(aes(x = x.start[[1]], y = -log10(y.start[[1]])- 0.5, xend = x.end[[1]], yend = -log10(y.end[[1]])+ 0.5), 
+  #             color = "black", arrow = arrow(length = unit(0.2, "cm")), linetype=2) +
+  #geom_segment(aes(x = x.start[[2]], y = -log10(y.start[[2]])- 0.5, xend = x.end[[2]], yend = -log10(y.end[[2]])+ 0.5), 
+  #             color = "black", arrow = arrow(length = unit(0.2, "cm")), linetype=2) +
+  #geom_segment(aes(x = x.start, y = -log10(y.start), xend = x.end, yend = -log10(y.end)), arrow = arrow(length = unit(0.5, "cm"))) +
+  geom_text_repel(data = res.labels, aes(label = gene), size = 5, box.padding = unit(0.6, "lines"), 
+                  force = 20, color = "black", nudge_x = 0.7, min.segment.length = 5) +  # Labels only for colored points
+  scale_color_manual(values = colors, 
+                     guide = guide_legend(override.aes = list(alpha = 1, size = 4)),
+                     breaks = c("adjusted", "unadjusted")) + 
+  theme_minimal() +
+  xlim(-5, 5) +
+  labs(x = "log2(Fold Change)", y = "-log10(adjusted p-value)", color = "Model Type") +
+  geom_hline(yintercept = -log10(0.05), linetype = "dashed") +
+  geom_vline(xintercept = 0, linetype = "solid", alpha = 0.5) +
+  theme(legend.position = c(0.8,0.7),
+        text = element_text(color = "black", size = 12),
+        legend.text = element_text(color = "black", size = 12),
+        panel.background = element_rect(color="black"),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank()) 
+
+# Save 
+if(!dir.exists("results/10_plot_de")){
+  dir.create("results/10_plot_de")
+}
+png(file = "results/10_plot_de/errfi1_egr1.png",
+    width = 4, 
+    height = 3.797236,
+    units = "in",
+    res = 600)
+
+p.adjusted.de
+
+dev.off()
+
+
+
+# Define gene list
+gene_list <- c("Zbtb16", "Pik3r1")
+
+# Modify the dataset with new color and alpha values
+res.compare <- res.compare %>% 
+  mutate(
+    in_list = gene %in% gene_list,
+    color.cat = case_when(
+      in_list & model == "unadjusted" ~ paste(gene, "pre-adjustment"),
+      in_list & model == "adjusted" ~ paste(gene, "post-adjustment"),
+      !in_list & model == "unadjusted" ~ "Unadjusted",
+      !in_list & model == "adjusted" ~ "Adjusted",
+      TRUE ~ "Other"
+    ),
+    alpha.val = ifelse(in_list, 1, 0.3)
+  )
+
+# Define colors for plotting
+colors <- c(
+  "unadjusted" = "#fee090", 
+  "adjusted" = "#abd9e9" 
+)
+
+# Define the subset of data for labeling
+res.labeled <- res.compare %>% 
+  filter(in_list) 
+
+x.start <- res.labeled |> 
+  filter(model == "unadjusted") |> 
+  pull(log2FoldChange)
+x.end <- res.labeled |> 
+  filter(model == "adjusted") |> 
+  pull(log2FoldChange)
+y.start <- res.labeled |> 
+  filter(model == "unadjusted") |> 
+  pull(padj)
+y.end <- res.labeled |> 
+  filter(model == "adjusted") |> 
+  pull(padj)
+
+res.labels <- res.labeled %>% 
+  filter(model == "adjusted") 
+
+# Create the plot
+p.adjusted.de <- ggplot(res.compare, aes(x = log2FoldChange, y = -log10(padj), color = model)) +
+  geom_point(alpha = 0.3, size = 1) +  # Base layer for all points with reduced visibility
+  geom_point(data = res.labeled, color = "black", size = 4, alpha = 1) +  # Gives colored points a black outline
+  geom_point(data = res.labeled, size = 3.5, alpha = 1) +  # Colored points
+  geom_segment(aes(x = x.start[[1]], y = -log10(y.start[[1]])- 0.5, xend = x.end[[1]], yend = -log10(y.end[[1]])+ 0.5), 
                color = "black", arrow = arrow(length = unit(0.2, "cm")), linetype=2) +
-  geom_segment(aes(x = x.start[[3]], y = -log10(y.start[[3]])- 0.5, xend = x.end[[3]], yend = -log10(y.end[[3]])+ 0.5), 
+  geom_segment(aes(x = x.start[[2]], y = -log10(y.start[[2]])- 0.5, xend = x.end[[2]], yend = -log10(y.end[[2]])+ 0.5), 
                color = "black", arrow = arrow(length = unit(0.2, "cm")), linetype=2) +
   #geom_segment(aes(x = x.start, y = -log10(y.start), xend = x.end, yend = -log10(y.end)), arrow = arrow(length = unit(0.5, "cm"))) +
   geom_text_repel(data = res.labels, aes(label = gene), size = 5, box.padding = unit(0.6, "lines"), 
@@ -263,7 +406,7 @@ p.adjusted.de <- ggplot(res.compare, aes(x = log2FoldChange, y = -log10(padj), c
 if(!dir.exists("results/10_plot_de")){
   dir.create("results/10_plot_de")
 }
-png(file = "results/10_plot_de/volcano_adjusted.png",
+png(file = "results/10_plot_de/zbtb16_pik3r1.png",
     width = 4, 
     height = 3.797236,
     units = "in",
@@ -306,8 +449,6 @@ pca <- pca$rotation |>
 pca$new.id <- row.names(pca)
 
 my_palette <- c( "#A6CEE3", "#1F78B4", "#FDBF6F", "#FF7F00")
-legend.names <- c("Sham_1","Sham_2", "MI_1", "MI_2")
-
 
 #! Add an arg to specify which samples should have labels
 pca <- pca |> left_join(pheno.reorder) |> 
@@ -315,43 +456,37 @@ pca <- pca |> left_join(pheno.reorder) |>
               levels = c("WT Sham", "WT MI", "cmAKO Sham", "cmAKO MI"))) |> 
   filter(type == "whole") 
 
-pca.labels <- pca |> filter(new.id == "WT Sham (4)")
 pca.plot <- pca |> 
   ggplot(aes(x = PC1, y = PC2, color = gene_treat)) +
-  geom_point(size = 8, color = "black") +
-  geom_point(size = 7) +
-  geom_label_repel(data = pca.labels, aes(x = PC1, y = PC2),
-                   label = pca.labels$new.id, color = "black",
-                   alpha = 0.9, fill = "#A6CEE3", 
-                   box.padding = 0.5, segment.curvature = -0.2,
-                   segment.ncp = 3, segment.angle = 20, force = 10, 
-                   max.overlaps = 8, force_pull = 0.001, size = 6,
-                   nudge_x = 0.015, nudge_y = 0.02) +
+  geom_point(size = 3, color = "black") +
+  geom_point(size = 2.5) +
   scale_color_manual(values = my_palette) +
-  scale_fill_manual(values = my_palette) +
   scale_x_continuous(expand = expansion(mult = 0.3), name = paste0("PC1", " (", PoV[1], " % of total variance)")) +
   scale_y_continuous(expand = expansion(mult = 0.3), name = paste0("PC2", " (", PoV[2], " % of total variance)")) +
   theme(axis.text.x = element_text(vjust = 0.5),
         axis.ticks = element_blank(),
+        axis.title.x = element_text(vjust = 0.5),
         legend.position = "bottom",
         legend.justification = c("center", "center"),
         legend.box.just = "center",
-        legend.margin = margin(6, 6, 6, 6),
         legend.title = element_blank(),
+        legend.text = element_text(size = 8, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")),
+        legend.key.size = unit(0.5, "lines"),  # Adjust size of the keys
+        legend.spacing.x = unit(0.5, "mm"),    # Reduce spacing between columns of the legend
+        legend.spacing.y = unit(0.5, "mm"),    # Reduce spacing between rows of the legend
+        legend.box.spacing = unit(0.5, "mm"),
         panel.background = element_rect(fill='transparent'),
         plot.background = element_rect(fill='transparent', color=NA),
         panel.grid.major = element_line(color = "darkgrey"),
         panel.grid.minor = element_blank(),
-        legend.background = element_rect(fill='transparent'),
-        legend.box.background = element_rect(fill='transparent'),
-        plot.margin = unit(c(1,1,1,1), units = "cm"),
-        text = element_text(size = 25)) 
+        plot.margin = unit(c(0,0,0,0), units = "cm"),
+        text = element_text(size = 8)
+        )
 
-pca.plot
 # Save plot to results 
 png(file = "results/10_plot_de/pca.png",
-    width = 10, 
-    height = 8,
+    width = 3.3, 
+    height = 2.42,
     units = "in",
     res = 800)
 

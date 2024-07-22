@@ -1,4 +1,5 @@
-libs <- c("tidyverse", "Seurat", "SeuratDisk", "tidyseurat", "viridis", "patchwork", "gt") # list libraries here
+libs <- c("tidyverse", "Seurat", "SeuratDisk", "tidyseurat", "viridis", "patchwork", "gt",
+          "RColorBrewer", "cowplot") # list libraries here
 lapply(libs, require, character.only = T)
 rm(libs)
 
@@ -126,4 +127,36 @@ gtsave(tab, paste0(file, ".html"))
 
 webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"), 
                  vwidth = 550, vheight = n.terms*110, zoom = 3)
+
+
+
+
+# UMAP of cell types
+
+
+## Save figure of UMAP with nuclei counts of each cluster in labels
+temp.labels <- paste0(levels(sn.annot), " (", table(Idents(sn.annot)), " nuclei)")
+names(temp.labels) <- levels(sn.annot)
+sn.annot <- RenameIdents(sn.annot, temp.labels)
+sn.annot$cell.type <- Idents(sn.annot)
+
+# Color scheme
+cols <-  brewer.pal(length(unique(temp.labels)), "Set2")
+names(cols) <- unique(temp.labels)
+
+# Save 
+png(file = "results/5_findMarkers/cell_clusters.png",
+    width = 4, 
+    height = 3,
+    units = "in",
+    res = 600)
+
+DimPlot(sn.annot, group.by = "cell.type", cols = cols, pt.size = 1) |>
+  LabelClusters(id = "cell.type", size = 3, repel = T, box = F, force = 50) +
+  ggtitle(NULL) +
+  theme_cowplot(font_size = 8) +
+  NoLegend()
+
+
+dev.off()
 
