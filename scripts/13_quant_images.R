@@ -75,29 +75,48 @@ areas.adj <- cm.normed |>
 # take ratio of CMs (channel 2 actinin) to number of dots detected for channel 3/4, for each ROI
 # Then, take ratio of infarct/border zones to remote regions and compare across sample.types
 
+# reorder norm type factor for plotting
+areas.adj <- areas.adj |> 
+  mutate(norm_type = factor(norm_type, levels = c("raw_counts", "cm_norm_counts")))
 
 # Plot for each gene
 p.adj <- areas.adj |> 
+  filter(region == "Infarct Region") |> 
   ggplot(aes(x = treatment, y = remote_normed, fill = norm_type, group = norm_type)) +
   geom_bar(stat = "summary", fun = "mean", position = "dodge", width = 0.9, color = "black") +
   geom_errorbar(aes(width = 0.9), stat='summary',  position = position_dodge(width = 0.9), width = 0.2, linewidth = 0.7)  +
-  facet_grid(gene ~ region  , scales = "free") +
+  facet_wrap( ~  gene , scales = "free") +
   labs(y = "Ratio of spots compared to remote region") +
-  #scale_fill_manual(values = c("#abd9e9","#fee090"), labels = c("Normalized to Actinin", "Actinin not considered")) +
+  scale_fill_manual(values = c("#fee090", "#abd9e9"), labels = c("Actinin not considered", "Normalized to Actinin")) +
   theme_minimal() +
   theme(axis.title.x = element_blank(),
-        text = element_text(size = 8),
+        text = element_text(size = 11, color = "black"),
         legend.title = element_blank(),
-        legend.position = c(0.25, 0.8),
-        axis.title.y = element_text(size = 8))
+        axis.text.x = element_text(vjust = 0.5),
+        axis.ticks = element_blank(),
+        axis.title.y = element_text(size = 10),
+        strip.text = element_text(size = 11),
+        legend.position = "bottom",
+        legend.justification = c("center", "center"),
+        legend.box.just = "center",
+        legend.text = element_text(size = 12, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")),
+        legend.key.size = unit(0.8, "lines"),  # Adjust size of the keys
+        legend.spacing.x = unit(0.5, "mm"),    # Reduce spacing between columns of the legend
+        legend.spacing.y = unit(0.5, "mm"),    # Reduce spacing between rows of the legend
+        legend.box.spacing = unit(0.5, "mm"),
+        panel.background = element_rect(fill='transparent'),
+        plot.background = element_rect(fill='transparent', color=NA),
+        panel.grid.major = element_line(color = "darkgrey"),
+        panel.grid.minor = element_blank(),
+        plot.margin = unit(c(0,0,0,0), units = "cm"))
 
 if(!dir.exists("results/13_quant_images")){
   dir.create("results/13_quant_images")
 }
 # Save plot to results 
 png(file = "results/13_quant_images/zbtb_norm.png",
-    width = 4, 
-    height = 5,
+    width = 8, 
+    height = 3,
     units = "in",
     res = 800)
 
@@ -105,16 +124,3 @@ p.adj
 
 dev.off()
 
-areas |> 
-  filter(gene == "Zbtb16") |> 
-  ggplot(aes(x = treatment, y = value, fill = method)) +
-  geom_col(position = "dodge") +
-  facet_grid(region ~ gene, scales = "free") +
-  labs(y = "Ratios",
-       title = "Comparison of Pik3r1 and Zbtb16 expression by cardiac region during MI of cmAKO and WT mice",
-       subtitle = "Mean number of RNAscope spots detected within the border and infarct zones were normalized to (divided by) the mean\n # of spots within the remote region within each tissue slice. This was repeated with a step to normalize the number of\nspots to the area of Actinin expression")
-
-
-# For each ROI: 
-# # of spots/actinin area / remote(# of spots/actinin area)
-# # of spots/ remote(# of spots)

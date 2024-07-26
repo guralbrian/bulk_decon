@@ -8,6 +8,7 @@ module load r r/4.3.1
 module load python/3.9.6
 module load fastqc/0.12.1
 module load salmon/1.10.2
+module load sratoolkit/3.0.7
 
 # Add this line when data upload is ready:
 # bash scripts/setup/make_config.sh

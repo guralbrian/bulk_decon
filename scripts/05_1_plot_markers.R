@@ -126,7 +126,7 @@ file = "results/supp_figs/cell_markers"
 gtsave(tab, paste0(file, ".html"))
 
 webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"), 
-                 vwidth = 550, vheight = n.terms*110, zoom = 3)
+                 vwidth = 550, vheight = 15*110, zoom = 3)
 
 
 
@@ -159,4 +159,3 @@ DimPlot(sn.annot, group.by = "cell.type", cols = cols, pt.size = 1) |>
 
 
 dev.off()
-

@@ -1,14 +1,18 @@
 configfile: "scripts/setup/config.json"
 configfile: "scripts/setup/fastq_config.json"
+configfile: "scripts/setup/sra_samples_config.json"
+# Add config file for fastq samples
 import os
 import re
 
 READS = ["_1", "_2"]
 F_SAMPLES = config["samples_fastq"]
+SRA_SAMPLES = config["sra_samples"]
 SN_SAMPLES = ["b6_1", "b6_2"]
 MODEL_TYPE = ["adjusted", "unadjusted"]
 DESEQ_MODELS = range(1, 5)
 DESEQ_BATCHES = range(1, 21)
+
 rule all:
     input:
         "data/raw/multiqc/multiqc_report.html",
@@ -19,11 +23,14 @@ rule all:
         #"results/10_plot_de/upset_unadj.png",
         "results/5_findMarkers/cell_clusters.png",
         "results/5_findMarkers/marker_specificity.png",
-        "data/processed/single_cell/celltype_labeled.h5seurat",
-        expand("data/processed/pathway_genesets/go_{model_type}_any_p.RDS", model_type=MODEL_TYPE),
-        expand("data/processed/single_cell/unprocessed/{sn_sample}.h5seurat", sn_sample=SN_SAMPLES),
-        expand(["data/processed/deseq_simulation/batched_output/{model}_{batch}.csv"],
-                model = DESEQ_MODELS, batch = DESEQ_BATCHES)
+        #"data/processed/single_cell/celltype_labeled.h5seurat",
+        #expand("data/processed/pathway_genesets/go_{model_type}_any_p.RDS", model_type=MODEL_TYPE),
+        #expand("data/processed/single_cell/unprocessed/{sn_sample}.h5seurat", sn_sample=SN_SAMPLES),
+        #expand(["data/processed/deseq_simulation/batched_output/{model}_{batch}.csv"],
+        #        model = DESEQ_MODELS, batch = DESEQ_BATCHES),
+        expand(["data/raw/fastq_sra/{sra_samples}/{sra_samples}{read}.fastq.gz"],
+                sra_samples=SRA_SAMPLES, read = READS)
+
 rule load_transcript:
     output:
         "data/raw/anno/Mus_musculus.GRCm39.cdna.all.fa.gz"
@@ -72,6 +79,26 @@ rule salmon_index:
         directory("data/raw/anno/decoy_Mus_musculus.GRCm39.salmon")
     shell:
         "salmon index -t {input.fa} -k 31 --keepFixedFasta -p 16 -i {output} -d {input.decoy}"
+rule download_sra_files:
+    output:
+        expand(["data/raw/sra_files/{sra_samples}/{sra_samples}.sra"],
+                sra_samples=SRA_SAMPLES)
+    shell:
+        "bash scripts/setup/sra_download.sh"
+rule sra_to_fastq:
+    input:
+        expand(["data/raw/sra_files/{sra_samples}/{sra_samples}.sra"],
+                sra_samples=SRA_SAMPLES)
+    output:
+        expand(["data/raw/fastq_sra/{sra_samples}/{sra_samples}{read}.fastq.gz"],
+                sra_samples=SRA_SAMPLES, read = READS)
+    shell:
+        "bash scripts/setup/fasterq_dump.sh"
+rule download_sra_metadata:
+    output:
+        "data/raw/sra_metadata/SraRunTable.csv"
+    shell:
+        "esearch -db sra -query SRP513262 | efetch -format runinfo > data/raw/fastq_sra/SraRunTable.csv"
 rule salmon_quant:
     input:
         r1 = "data/raw/fastq/{F_SAMPLES}/{F_SAMPLES}_1.fastq.gz",
