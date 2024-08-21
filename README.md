@@ -1,7 +1,7 @@
 # Cardiac Cell Composition during Heart Failure
 
 Written by [Brian Gural](https://www.linkedin.com/in/brian-gural-09bb60128/) \
-README last updated on March 22nd 2024
+README last updated on Aug 21st 2024
 
 ## Project Summary
 
@@ -13,9 +13,9 @@ All data collection was performed in the labs of Drs. Brian Jensen, Christoph Ra
 
 ## Example Results
 
-![Plot 1](https://github.com/guralbrian/bulk_decon/blob/main/results/7_plot_comps/sample_comps.png?raw=true)
+![Plot 1](https://github.com/guralbrian/bulk_decon/blob/main/results/10_plot_de/zbtb16_pik3r1.png?raw=true)
 
-![Plot 2](https://github.com/guralbrian/bulk_decon/blob/main/results/05_findMarkers/marker_specificity.png?raw=true)
+![Plot 2](https://github.com/guralbrian/bulk_decon/blob/main/results/5_findMarkers/marker_specificity.png?raw=true)
 
 ## Reproducing the analysis
 
@@ -31,6 +31,7 @@ Once the items remaining in the "To-Do" list have been finished, this should pro
 - ~~Break scripts into functional units~~
 - ~~Make pipeline executable with Snakemake~~
 - Containerize with Singularity or version control with .Renv
+- Download SRA files
 - ~~Add .fastq pseudoalignment~~
 
 

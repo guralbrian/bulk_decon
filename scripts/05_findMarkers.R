@@ -1,5 +1,4 @@
 # Find markers + annotate clusters
-
 libs <- c("tidyverse", "Seurat", "SeuratDisk",  "Biobase", 
           "reshape2", "SingleCellExperiment", "RColorBrewer", "cowplot") # list libraries here
 lapply(libs, require, character.only = T)
@@ -114,7 +113,7 @@ if(!dir.exists("results/supp_data/")){
   dir.create("results/supp_data/")
 }
 write.csv(top.markers, "results/supp_data/cluster_markers.csv", row.names = F)
-
+write.csv(all.markers, "results/supp_data/all_markers.csv", row.names = F)
 
 ## Save figure of UMAP with nuclei counts of each cluster in labels
 temp.labels <- paste0(levels(sn.mark), " (", table(Idents(sn.mark)), " nuclei)")

@@ -3,6 +3,7 @@ libs <- c("tidyverse", "Seurat", "SeuratDisk", "tidyseurat", "viridis", "patchwo
 lapply(libs, require, character.only = T)
 rm(libs)
 
+# Load marker list from 05_findMarkers
 markers <- read.csv("data/processed/single_cell/cluster_markers.csv")
 sn.annot <- LoadH5Seurat("data/processed/single_cell/celltype_labeled.h5seurat")
 

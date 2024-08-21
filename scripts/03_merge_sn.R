@@ -84,7 +84,7 @@ if(!dir.exists("results/supp_figs/")){
 }
 
 # Save 
-png(file = "results/supp_figs/cell_clusters_preannotation.png",
+png(file = "results/supp_figs/2a_cell_clusters_preannotation.png",
     width = 10, 
     height = 8,
     units = "in",

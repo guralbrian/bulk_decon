@@ -1,20 +1,24 @@
+# This script is meant to generate a figure which shows the performance of 
+# different representations of cell type composition in simulated differential
+# gene expression analysis
+
+## Retrieve data ####
+
 # List libraries
 libs <- c("readr", "purrr", "dplyr", "stringr", "ggplot2", "grid") # list libraries here
-# Require all of them
-lapply(libs, require, character.only = T)
-
+lapply(libs, require, character.only = T) # Require all of them
 rm(libs)
 
-files <- list.files("data/processed/deseq_simulation/batched_output/")
-
-files <- paste0("data/processed/deseq_simulation/batched_output/", files)
-
+# Load data
+file.path <- "data/processed/deseq_simulation/batched_output/"
+files <- paste0(file.path, list.files(file.path))
 all_data <- files %>%
-  map_df(~read_csv(., show_col_types = FALSE))
+  map_df(~read_csv(., show_col_types = FALSE)) # read and join csv files
 
+# Format major cell type percents as numbers
 all_data$pct.change <- all_data$pct.change |> str_replace( "_", "-") |> as.numeric()
 
-
+# Make a palette for the figure
 pal <- c("#969696",
          "#c51b8a",
          "#006837",
@@ -22,28 +26,39 @@ pal <- c("#969696",
 )
 
 # Modify legend text 
+
 models.legend <- list(
   "1"    = ~ "No cell types",
-  "2"    = ~ "CM proportion",
-  "3"    = ~ "Cell types in model",
-  "4"    = ~ "PC1"
+  "2"    = ~ "Untransformed CM proportion",
+  "3"    = ~ "CLR-transformed CM proportion",
+  "4"    = ~ "PC1 of cell type proportions"
 )
 
 
+## Plot the figure ####
+
 p.sim <- all_data |> 
   mutate(pct.sig = pct.sig*100,
-         pct.change = 50 + 100*pct.change) |>
-  filter(model %in% c(1,3)) |> 
+         pct.change = 50 + 100*pct.change,
+         model = case_when(
+           str_detect(model, "1") ~  "Cell-type blind",
+           str_detect(model, "2") ~  "Untransformed CM proportion",
+           str_detect(model, "3") ~  "CLR-transformed CM proportion",
+           str_detect(model, "4") ~  "PC1 of cell type proportions"
+         )) |>
+  #filter(model %in% c(2:4)) |> 
   ggplot(aes(x = pct.change, y = pct.sig, color = as.factor(model))) +
   geom_point(alpha = 0.2, size = 0.6) +
   geom_smooth(se = F, method = "loess", size = 1, alpha = 0.2, span = 0.3) +
+  facet_wrap(~model, nrow = 2) +
   scale_color_manual(values = pal,
                      name = "DESeq2 model variables",
-                     labels = models.legend,
-                     breaks = names(models.legend)) +
+                     #labels = models.legend,
+                     #breaks = names(models.legend)
+                     ) +
   theme_minimal() +
   theme(
-    legend.position = c(0.5, 0.75),
+    legend.position = "none",
     text = element_text(size = 8),
     legend.text = element_text(size = 8, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")),
     legend.key.size = unit(0.5, "lines"),  # Adjust size of the keys
@@ -60,13 +75,13 @@ p.sim <- all_data |>
 # make legend text more direct/clear
 
 #Save outputs
-if(!dir.exists("results/12_sim_de")){
-  dir.create("results/12_sim_de")
+if(!dir.exists("results/supp_figs")){
+  dir.create("results/supp_figs")
 }
 
-png(file = "results/12_sim_de/plot_sims.png",
-    width = 3.0603, 
-    height = 1.9348 ,
+png(file = "results/supp_figs/4a_sim_de.png",
+    width = 3.0603*1.5, 
+    height = 1.9348* 1.5,
     units = "in",
     res = 600)
 

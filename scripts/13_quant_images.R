@@ -77,7 +77,8 @@ areas.adj <- cm.normed |>
 
 # reorder norm type factor for plotting
 areas.adj <- areas.adj |> 
-  mutate(norm_type = factor(norm_type, levels = c("raw_counts", "cm_norm_counts")))
+  mutate(norm_type = factor(norm_type, levels = c("raw_counts", "cm_norm_counts")),
+         treatment = factor(treatment, levels = c("WT Sham", "WT MI", "cmAKO MI")))
 
 # Plot for each gene
 p.adj <- areas.adj |> 
@@ -86,7 +87,7 @@ p.adj <- areas.adj |>
   geom_bar(stat = "summary", fun = "mean", position = "dodge", width = 0.9, color = "black") +
   geom_errorbar(aes(width = 0.9), stat='summary',  position = position_dodge(width = 0.9), width = 0.2, linewidth = 0.7)  +
   facet_wrap( ~  gene , scales = "free") +
-  labs(y = "Ratio of spots compared to remote region") +
+  labs(y = "Ratio of INF and remote region RNA spot counts") +
   scale_fill_manual(values = c("#fee090", "#abd9e9"), labels = c("Actinin not considered", "Normalized to Actinin")) +
   theme_minimal() +
   theme(axis.title.x = element_blank(),
@@ -94,14 +95,14 @@ p.adj <- areas.adj |>
         legend.title = element_blank(),
         axis.text.x = element_text(vjust = 0.5),
         axis.ticks = element_blank(),
-        axis.title.y = element_text(size = 10),
+        axis.title.y = element_text(size = 9),
         strip.text = element_text(size = 11),
         legend.position = "bottom",
         legend.justification = c("center", "center"),
         legend.box.just = "center",
-        legend.text = element_text(size = 12, margin = margin(t = 0, r = 0, b = 0, l = 0, unit = "pt")),
+        legend.text = element_text(size = 12, margin = margin(t = 0, r = 5, b = 0, l = 5, unit = "pt")),
         legend.key.size = unit(0.8, "lines"),  # Adjust size of the keys
-        legend.spacing.x = unit(0.5, "mm"),    # Reduce spacing between columns of the legend
+        legend.spacing.x = unit(1, "mm"),    # Reduce spacing between columns of the legend
         legend.spacing.y = unit(0.5, "mm"),    # Reduce spacing between rows of the legend
         legend.box.spacing = unit(0.5, "mm"),
         panel.background = element_rect(fill='transparent'),
@@ -114,7 +115,53 @@ if(!dir.exists("results/13_quant_images")){
   dir.create("results/13_quant_images")
 }
 # Save plot to results 
-png(file = "results/13_quant_images/zbtb_norm.png",
+png(file = "results/13_quant_images/zbtb_norm_inf.png",
+    width = 8, 
+    height = 3,
+    units = "in",
+    res = 800)
+
+p.adj
+
+dev.off()
+
+
+# Plot for each gene
+p.adj <- areas.adj |> 
+  filter(region == "Border Zone") |> 
+  ggplot(aes(x = treatment, y = remote_normed, fill = norm_type, group = norm_type)) +
+  geom_bar(stat = "summary", fun = "mean", position = "dodge", width = 0.9, color = "black") +
+  geom_errorbar(aes(width = 0.9), stat='summary',  position = position_dodge(width = 0.9), width = 0.2, linewidth = 0.7)  +
+  facet_wrap( ~  gene , scales = "free") +
+  labs(y = "Ratio of BZ and remote region RNA spot counts") +
+  scale_fill_manual(values = c("#fee090", "#abd9e9"), labels = c("Actinin not considered", "Normalized to Actinin")) +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(),
+        text = element_text(size = 11, color = "black"),
+        legend.title = element_blank(),
+        axis.text.x = element_text(vjust = 0.5),
+        axis.ticks = element_blank(),
+        axis.title.y = element_text(size = 9),
+        strip.text = element_text(size = 11),
+        legend.position = "bottom",
+        legend.justification = c("center", "center"),
+        legend.box.just = "center",
+        legend.text = element_text(size = 12, margin = margin(t = 0, r = 5, b = 0, l = 5, unit = "pt")),
+        legend.key.size = unit(0.8, "lines"),  # Adjust size of the keys
+        legend.spacing.x = unit(1, "mm"),    # Reduce spacing between columns of the legend
+        legend.spacing.y = unit(0.5, "mm"),    # Reduce spacing between rows of the legend
+        legend.box.spacing = unit(0.5, "mm"),
+        panel.background = element_rect(fill='transparent'),
+        plot.background = element_rect(fill='transparent', color=NA),
+        panel.grid.major = element_line(color = "darkgrey"),
+        panel.grid.minor = element_blank(),
+        plot.margin = unit(c(0,0,0,0), units = "cm"))
+
+if(!dir.exists("results/supp_figs")){
+  dir.create("results/supp_figs")
+}
+# Save plot to results 
+png(file = "results/supp_figs/zbtb_norm_bz.png",
     width = 8, 
     height = 3,
     units = "in",

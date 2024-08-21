@@ -12,6 +12,8 @@ SN_SAMPLES = ["b6_1", "b6_2"]
 MODEL_TYPE = ["adjusted", "unadjusted"]
 DESEQ_MODELS = range(1, 5)
 DESEQ_BATCHES = range(1, 21)
+CONTRAST = ["gene_treat", "treat"]
+DIRECTION = ["gain", "reduce"]
 
 rule all:
     input:
@@ -19,17 +21,18 @@ rule all:
         "results/7_plot_comps/pure_cell_types.png",
         "results/7_plot_comps/sample_comps.png",
         "results/8_dirichlet/dirichlet_coeff.png",
-        "results/10_plot_de/volcano_adjusted.png",
-        #"results/10_plot_de/upset_unadj.png",
+        "results/10_plot_de/volcano_adjusted_simple.png",
         "results/5_findMarkers/cell_clusters.png",
         "results/5_findMarkers/marker_specificity.png",
-        #"data/processed/single_cell/celltype_labeled.h5seurat",
-        #expand("data/processed/pathway_genesets/go_{model_type}_any_p.RDS", model_type=MODEL_TYPE),
-        #expand("data/processed/single_cell/unprocessed/{sn_sample}.h5seurat", sn_sample=SN_SAMPLES),
-        #expand(["data/processed/deseq_simulation/batched_output/{model}_{batch}.csv"],
-        #        model = DESEQ_MODELS, batch = DESEQ_BATCHES),
+        "data/processed/single_cell/celltype_labeled.h5seurat",
+        expand("data/processed/pathway_genesets/go_{model_type}_any_p.RDS", model_type=MODEL_TYPE),
+        expand("data/processed/single_cell/unprocessed/{sn_sample}.h5seurat", sn_sample=SN_SAMPLES),
+        expand(["data/processed/deseq_simulation/batched_output/{model}_{batch}.csv"],
+                model = DESEQ_MODELS, batch = DESEQ_BATCHES),
         expand(["data/raw/fastq_sra/{sra_samples}/{sra_samples}{read}.fastq.gz"],
-                sra_samples=SRA_SAMPLES, read = READS)
+                sra_samples=SRA_SAMPLES, read = READS),
+        "results/supp_data/DEGs_Results.xlsx",
+        "results/supp_data/go_terms_most_changed_DEGs.xlsx"
 
 rule load_transcript:
     output:
@@ -257,14 +260,31 @@ rule gene_ont:
         "data/processed/pathway_genesets/go_{model_type}_any_p.RDS"
     shell:
         "Rscript scripts/11_clusterProfiler.R {wildcards.model_type}"
-rule make_sim_input:
+rule DEGS_most_changed:
     input:
-        "data/processed/single_cell/celltype_labeled.h5seurat"
+        "data/processed/models/adjusted_de_interaction.RDS",
+        "data/processed/models/unadjusted_de_interaction.RDS"
     output:
-        "data/processed/deseq_simulation/simulated_ratios.csv",
-        "data/processed/deseq_simulation/simulated_counts.csv"
+        "results/supp_data/DEGs_Results.xlsx",
+        expand(["results/supp_data/DEGs/DEGs_{contrast}_{direction}.csv"],
+                contrast=CONTRAST, direction=DIRECTION)
     shell:
-        "Rscript scripts/12_01_simulate_ratios_counts.R"
+        "Rscript scripts/09_02_DEG_csv_xlsx.R"
+rule gene_ont_supplement:
+    input:
+        "results/supp_data/DEGs/DEGs_{contrast}_{direction}.csv"
+    output: 
+        "results/supp_data/go_terms/DEGs_{contrast}_{direction}.csv"
+    shell:
+        "Rscript scripts/11_02_clusterProfilerMostChangedDEGs.R {wildcards.contrast} {wildcards.direction}"
+rule merge_gene_ont_supplement:
+    input:
+        expand(["results/supp_data/go_terms/DEGs_{contrast}_{direction}.csv"],
+                contrast=CONTRAST, direction=DIRECTION)
+    output: 
+        "results/supp_data/go_terms_most_changed_DEGs.xlsx"
+    shell:
+        "Rscript scripts/11_05_MergeMostChanged.R"
 rule simulate_deseq:
     input:
         "data/processed/deseq_simulation/simulated_ratios.csv",
