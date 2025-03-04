@@ -89,14 +89,13 @@ cell.type.order <-  decon.whole %>%
   pull(CellType_wrap) |> 
   unique()
 
-design <- "AA
-           BB"
 
-# Generate boxplot
+
+# Generate barplot
 comp_celltype <- decon.whole   %>%
   ggplot(aes(x = factor(CellType_wrap, levels = as.character(cell.type.order)), y = Prop, fill = Genotype_Treatment)) +
   #geom_boxplot(position = position_dodge(0.9), width = 0.9, color = "black") +
-  geom_bar(stat = "summary",position = position_dodge(0.9),  fun = mean, width = 0.9,  color = "black", alpha = 0.8) +
+  geom_bar(stat = "summary",position = position_dodge(0.9),  fun = mean, width = 0.9,  color = "black", alpha = 1) +
   geom_jitter(inherit.aes = T, 
               position = position_jitterdodge(jitter.width = 0.005, dodge.width = 0.9),
               size = 1, alpha = 0.5) +
@@ -112,13 +111,15 @@ comp_celltype <- decon.whole   %>%
         legend.spacing.x = unit(0.5, "mm"),    # Reduce spacing between columns of the legend
         legend.spacing.y = unit(0.5, "mm"),    # Reduce spacing between rows of the legend
         legend.box.spacing = unit(0.5, "mm"),
-        panel.background = element_rect(fill='transparent'),
+        panel.background = element_rect(fill='white'),
         plot.background = element_rect(fill='transparent', color=NA),
         panel.grid.minor = element_blank(),
+        panel.grid.major = element_line(colour = "grey"),
         legend.background = element_blank(),
         legend.box.background = element_blank(),
         axis.title.x = element_blank(),
         plot.margin = unit(c(0,0.1,-0.4,0), units = "cm"),
+        panel.border = element_rect(colour = "grey", fill = NA),
         text = element_text(size = 9)) +
   labs(y = "Estimated Proportion", 
        fill = "Treatment") +
@@ -140,6 +141,16 @@ png(file = "results/7_plot_comps/sample_comps.png",
 comp_celltype
 
 dev.off()
+
+
+# Save the plot with a transparent background
+ggsave("results/7_plot_comps/sample_comps_gmb_2024.png", 
+       width = 14/3.5, 
+       height = 7/3.5,
+       units = "in",
+       dpi = 600,
+       plot = comp_celltype, bg = "transparent")
+
 
 # Find average comp at baseline
 decon.whole |> 
@@ -212,7 +223,8 @@ p.tern.frac <- ggtern(decon.wide,aes(x=Cardiomyocytes,y=Fibroblast, z=`Endotheli
     tern.axis.arrow = element_line(size = 0.5),
     tern.axis.arrow.sep = 0.12,
     tern.axis.text = element_text(size = 8),
-    tern.axis.vshift = 0.005
+    tern.axis.vshift = 0.005,
+    rect = element_rect(fill = "transparent")
   ) +
   theme_nomask() + 
   labs(z = "Endothelial Cells")

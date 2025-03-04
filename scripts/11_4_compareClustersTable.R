@@ -255,27 +255,30 @@ tab <- go |>
       pattern = "{1} ({2})"
     ) |> 
   cols_label(
-    orig.p = "p-value (Q-score)",
-    p.adjust.adj = "p-value (Q-score)",
-    orig.contrast = "Assc. Variable"
-    ) |> 
+    orig.p = "p-val (Q-score)",
+    p.adjust.adj = "p-val (Q-score)",
+    orig.contrast = "Assc. Var."
+    ) |>
+  tab_header(
+    title = md("Top cell-type assc. GO terms")
+  ) |> 
   cols_align(
     align = "center",
     columns = c(p.adjust.adj, p.adjust.adj, orig.p, orig.q, orig.contrast)
   )  |>  
   opt_row_striping() |> 
-  cols_width(Description ~ 240) |> 
+  cols_width(Description ~ 320) |> 
   tab_style(
     style = list(
       align = "center",
-      cell_fill("grey"),
+      cell_fill("#F3F7FB"),
       cell_text(color = "black", weight = "bold")),
     locations = cells_row_groups())
 
 file = "results/11_clusterProfiler/tables/adj_top_cell_table"
 gtsave(tab, paste0(file, ".html"))
 webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"), 
-                 vwidth = 740, vheight = n.terms*110, zoom = 3)
+                 vwidth = 800, vheight = n.terms*110, zoom = 3)
 
 #### Supplement tables ####
 #### Fig 4 
@@ -284,7 +287,7 @@ webshot::webshot(url = paste0(file, ".html"), file = paste0(file, ".png"),
 
 #### Most Decreased qscores ####
 #### Supp 4b ####
-n.terms <- 20
+n.terms <- 3
 tab <- go |>
   filter(qscore.adj > 1.3 | qscore.unadj > 1.3) |> 
   filter(contrast %in% 
@@ -350,7 +353,7 @@ webshot::webshot(url = paste0(file, ".html"), file =  "results/supp_figs/4b_lost
 
 #### Most Increased qscores 
 #### Supp 4c ####
-n.terms <- 20
+n.terms <- 3
 tab <- go |>
   filter(qscore.adj > 1.3 | qscore.unadj > 1.3) |> 
   filter(contrast %in% 
@@ -398,7 +401,7 @@ tab <- go |>
     title = md("Most significantly increased terms after adjustment")
   ) |>  
   opt_row_striping() |> 
-  cols_width(Description ~ 200) |>  
+  cols_width(Description ~ 350) |>  
   tab_style(
     style = list(
       align = "center",
@@ -411,7 +414,7 @@ gtsave(tab, paste0(file, ".html"))
 
 # Save to supplements
 webshot::webshot(url = paste0(file, ".html"), file = "results/supp_figs/4c_gained_sig_go.png", 
-                 vwidth = 700, vheight = n.terms*110, zoom = 3)
+                 vwidth = 900, vheight = n.terms*110, zoom = 3)
 
 #### Longer lists of top terms
 #### Supp 4d ####
@@ -478,7 +481,7 @@ webshot::webshot(url = paste0(file, ".html"), file = "results/supp_figs/4d_top20
 
 
 #### Supp 4e ####
-n.terms <- 20
+n.terms <- 3
 tab <- go |> 
   filter(qscore.adj >= 1.3 & contrast %in% c("clr.Cardiomyocytes", "clr.Fibroblast")) |> 
   group_by(contrast) |> 
@@ -511,11 +514,11 @@ tab <- go |>
     title = md("GO terms associated with cardiomyocytes and fibroblasts")
   ) |>  
   opt_row_striping() |> 
-  cols_width(Description ~ 300) |> 
+  cols_width(Description ~ 200) |> 
   tab_style(
     style = list(
       align = "center",
-      cell_fill("grey"),
+      cell_fill("#F3F7FB"),
       cell_text(color = "black", weight = "bold")),
     locations = cells_row_groups())
 
@@ -523,7 +526,7 @@ tab <- go |>
 file = "results/11_clusterProfiler/tables/supp_4b_top20_celltypes"
 gtsave(tab, paste0(file, ".html"))
 webshot::webshot(url = paste0(file, ".html"), file = "results/supp_figs/4e_top20_celltype.png", 
-                 vwidth = 700, vheight = n.terms*100, zoom = 3)
+                 vwidth = 420, vheight = n.terms*100, zoom = 3)
 
 
 

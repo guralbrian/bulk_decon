@@ -1,6 +1,5 @@
-
 # List libraries
-libs <- c("Seurat", "SeuratDisk") # list libraries here
+libs <- c("Seurat", "SeuratDisk", "tidyverse") # list libraries here
 # Require all of them
 lapply(libs, require, character.only = T)
 
@@ -8,6 +7,7 @@ rm(libs)
 
 sn <- LoadH5Seurat("data/processed/single_cell/celltype_labeled.h5seurat")
 
+set.seed(305)
 
 # Function to make a data frame of cell type ratios
 simulate_ratios <- function(major_cell, major_prop, 
@@ -23,7 +23,6 @@ simulate_ratios <- function(major_cell, major_prop,
   
   # Set major cell type and proportion
   minor <- cell_types[!(cell_types %in% c(major_cell))]
-  
   
   # Define the range for proportions
   minor_props <- rep((1-major_props)/length(minor), length(minor)) |>
@@ -68,7 +67,7 @@ ratios <- simulate_ratios(major_cell = major.cell,
                           noise = noise)
 
 
-# Function to aggregte the gene expression of cells from the same type into a single propability vector
+# Function to aggregte the gene expression of cells from the same type into a single probability vector
 getCellProfile <- function(sn, cell_type){
   # Get the cell.ids that are the cell type of interest
   cell.ids  <- Idents(sn)[which(Idents(sn) == cell_type)] |>
@@ -87,10 +86,27 @@ getCellProfile <- function(sn, cell_type){
 # make a df that has cell types as columns, genes as rows, and probablity of a single gene being expressed by a given cell type in each matrix cell
 cell.profiles <- sapply(cell.types, function(x){getCellProfile(sn, x)}) |> as.data.frame()
 row.names(cell.profiles) <- sn@assays$RNA@counts |> row.names() 
+
+
+set.seed(100)
+# Randomly select 10% of genes to be differentially expressed
+n_genes <- nrow(cell.profiles)
+n_diff_exp_genes <- round(0.1 * n_genes)
+diff_exp_genes <- sample(rownames(cell.profiles), n_diff_exp_genes)
+stable_genes <- rownames(cell.profiles)[!(rownames(cell.profiles) %in% diff_exp_genes)]
+
+# Define the fold-change or other modifier
+fold_change <- 2  
+reference.group <- ratios |> 
+  subset(pct.change == 0) |> 
+  rownames_to_column() |> 
+  pull(rowname)
+
 #cell.profiles <- cell.profiles[sample(rownames(cell.profiles), 2000, replace = F), ]
 #### Make prob vector for each sample
 sampleExpression <- function(sample, counts_target){
-  # Extract the sample ratios for the given sample and convert to matrix
+  #sample <- row.names(ratios)[[1]]
+  #counts_target <- 25*10^5  # Extract the sample ratios for the given sample and convert to matrix
   sample.ratios <- ratios[sample, colnames(cell.profiles)] |> as.matrix()
   
   # Modify the expression profiles based on the sample ratios
@@ -109,16 +125,25 @@ sampleExpression <- function(sample, counts_target){
   # Create a named vector with counts
   counts_vector <- setNames(counts, genes)
   
-  # Return the counts vector
-  return(counts_vector)
+  # Add DEGs for non-reference group
+  if(!(sample %in% reference.group)){
+    counts_vector[diff_exp_genes] <- counts_vector[diff_exp_genes] * 2
+    }
+    # Return the counts vector
+    return(counts_vector)
+    
 }
 
 # Make a counts matrix
 start <- Sys.time()
-sim.counts <- sapply(row.names(ratios), function(x){sampleExpression(x, 25000000)})
+sim.counts <- sapply(row.names(ratios), function(x){sampleExpression(x, 2.5*10^7)})
 delta <- Sys.time() - start 
+
 # Save counts and ratios
 write.csv(sim.counts, "data/processed/deseq_simulation/simulated_counts.csv")
 
 ratios$sample <- row.names(ratios)
 write.csv(ratios, "data/processed/deseq_simulation/simulated_ratios.csv")
+
+# Save list of true postiives
+write_lines(diff_exp_genes, "data/processed/deseq_simulation/true_postives.txt")

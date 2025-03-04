@@ -36,7 +36,6 @@ summarized_counts <- counts_with_symbols %>%
   subset(!is.na(external_gene_name)) |> 
   as.data.frame()
 
-# If you wish to replace row names with gene symbols, where available
 # Replace Ensembl IDs with gene symbols where available, keeping Ensembl ID where not
 rownames(summarized_counts) <- summarized_counts$external_gene_name
 

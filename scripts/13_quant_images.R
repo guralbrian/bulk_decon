@@ -87,7 +87,7 @@ p.adj <- areas.adj |>
   geom_bar(stat = "summary", fun = "mean", position = "dodge", width = 0.9, color = "black") +
   geom_errorbar(aes(width = 0.9), stat='summary',  position = position_dodge(width = 0.9), width = 0.2, linewidth = 0.7)  +
   facet_wrap( ~  gene , scales = "free") +
-  labs(y = "Ratio of INF and remote region RNA spot counts") +
+  labs(y = "INF:remote-region RNA spot counts") +
   scale_fill_manual(values = c("#fee090", "#abd9e9"), labels = c("Actinin not considered", "Normalized to Actinin")) +
   theme_minimal() +
   theme(axis.title.x = element_blank(),
@@ -105,7 +105,7 @@ p.adj <- areas.adj |>
         legend.spacing.x = unit(1, "mm"),    # Reduce spacing between columns of the legend
         legend.spacing.y = unit(0.5, "mm"),    # Reduce spacing between rows of the legend
         legend.box.spacing = unit(0.5, "mm"),
-        panel.background = element_rect(fill='transparent'),
+        panel.background = element_rect(fill='white'),
         plot.background = element_rect(fill='transparent', color=NA),
         panel.grid.major = element_line(color = "darkgrey"),
         panel.grid.minor = element_blank(),
@@ -125,6 +125,14 @@ p.adj
 
 dev.off()
 
+
+# Save the plot with a transparent background
+ggsave("results/13_quant_images/gmb_2024_zbtb_norm_inf.png",
+       width = 13.81/3,
+       height = 7.37/3,
+       units = "in",
+       dpi = 600,
+       plot = p.adj, bg = "transparent")
 
 # Plot for each gene
 p.adj <- areas.adj |> 

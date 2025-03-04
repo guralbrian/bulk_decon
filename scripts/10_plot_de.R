@@ -290,7 +290,7 @@ res.labels <- res.labeled %>%
 
 # Create the plot
 p.adjusted.de <- ggplot(res.compare, aes(x = log2FoldChange, y = -log10(padj), color = model)) +
-  geom_point(alpha = 0.3, size = 1) +  # Base layer for all points with reduced visibility
+  geom_point(alpha = 0.5, size = 1) +  # Base layer for all points with reduced visibility
   geom_point(data = res.labeled, color = "black", size = 4, alpha = 1) +  # Gives colored points a black outline
   geom_point(data = res.labeled, size = 3.5, alpha = 1) +  # Colored points
   geom_segment(aes(x = x.start[[1]], y = -log10(y.start[[1]])- 0.5, xend = x.end[[1]], yend = -log10(y.end[[1]])+ 0.5), 
@@ -328,6 +328,15 @@ png(file = "results/10_plot_de/zbtb16_pik3r1.png",
 p.adjusted.de
 
 dev.off()
+
+
+ggsave("results/10_plot_de/zbtb16_pik3r1_gmb_symposium_2024.png", 
+       width = 14/2.3, 
+       height = 6.51/2.3,
+       units = "in",
+       dpi = 600,
+       plot = p.adjusted.de, bg = "transparent")
+
 
 
 # Plot the PCA of samples

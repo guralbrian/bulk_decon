@@ -118,3 +118,54 @@ wrap_plots(p.upset.up, p.upset.down)
 
 dev.off()
 
+#### Make plot for GMB symposium 2024
+
+# Each row represents a gene, and each column represents a condition (combination of type and regulation)
+all.upset <- significant_genes_df %>%
+  select(-regulation) |> 
+  table() |> 
+  as.data.frame.matrix()
+
+
+colnames(all.upset) <- c("CMs", "FBs", "cmAKO", "MI", "cmAKO X MI")
+
+
+presence = ComplexUpset:::get_mode_presence('exclusive_intersection')
+
+summarise_values = function(df) {
+  aggregate(
+    as.formula(paste0(presence, '~ intersection')),
+    df,
+    FUN=sum
+  )
+}
+p.upset.all <- all.upset |> 
+  ComplexUpset::upset(intersect = colnames(all.upset),
+                      base_annotations=list(
+                        'log10(intersection size)'=(
+                          ggplot()
+                          + geom_bar(data=summarise_values, stat='identity', aes(y=!!presence), 
+                                     color = "black", fill = "lightblue") 
+                          + scale_y_continuous(trans='log10') 
+                          + labs(y = '# Sig. Genes')
+                          + theme(text = element_text(size = 10),
+                                  plot.margin = unit(c(0,0,0,0), unit = "cm"),
+                                  axis.title.x = element_blank(),
+                                  axis.title.y = element_text(vjust = -10),
+                                  rect = element_rect(fill = "transparent"))
+                        )
+                      ),
+                      wrap = F,
+                      min_size=5,
+                      width_ratio=0.1,
+                      set_sizes = F
+  )
+
+# Save the plot with a transparent background
+ggsave("results/10_plot_de/upset_gmb_2024.png", 
+       width = 9.6/3, 
+       height = 9/3,
+       units = "in",
+       dpi = 600,
+       plot = p.upset.all, bg = "transparent")
+

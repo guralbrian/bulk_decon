@@ -8,7 +8,7 @@
 # Load Libraries
 
 # List libraries
-libs <- c("compositions", "DESeq2", "stringr", "dplyr") # list libraries here
+libs <- c("compositions", "DESeq2", "stringr", "tidyverse") # list libraries here
 # Require all of them
 lapply(libs, require, character.only = T)
 
@@ -21,11 +21,14 @@ gene_batch <- args[[2]] |> as.numeric()
 
 
 # Gene batch size
-batch_size <- 500
+batch_size <- 1000
 
 # Calculate start and end row for the chunk
 start_row <- (gene_batch - 1) * batch_size + 1
 end_row <- gene_batch * batch_size
+
+# Load list of true positives
+counts.dict <-  read_lines("data/processed/deseq_simulation/true_postives.txt")
 
 # Read and subset the ratios and counts matrix
 sim.counts <- read.csv("data/processed/deseq_simulation/simulated_counts.csv", row.names = 1)[c(start_row:end_row),]
@@ -38,10 +41,13 @@ cell.types <- colnames(ratios)[!(colnames(ratios) %in% c("pct.change", "sample")
 models <- list(
   unadjusted    = ~ 0 + pct.change,
   raw_cm        = ~ 0 + pct.change + Cardiomyocytes,
+  raw_cm_fb     = ~ 0 + pct.change + Cardiomyocytes + Fibroblast,
   clr_cm        = ~ 0 + pct.change + clr_Cardiomyocytes,
+  clr_cm_fb     = ~ 0 + pct.change +  clr_Cardiomyocytes + clr_Fibroblast,
   pc1           = ~ 0 + pct.change + PC1
   )
 
+var_names <- c("Cardiomyocytes", "Fibroblast", "clr_Cardiomyocytes", "clr_Fibroblast", "PC1")
 # Compute PCA and clr 
 clr.cells <- clr(ratios[,cell.types])
 colnames(clr.cells) <- paste0("clr_", colnames(clr.cells))
@@ -54,12 +60,13 @@ sample_info <- ratios[colnames(sim.counts),]
 sample_info <- merge(sample_info, clr.cells, by = "row.names")
 sample_info <- merge(sample_info, pca.cells, by.x = "Row.names", by.y = "row.names")
 
-sample_info$pct.change <- sample_info$pct.change |>
-  str_replace_all("-", "_") |>
+# There's an issue converting the numbers to characters, so we need to us this weird way
+# .. its bc going to character is converting the whole binary representation
+sample_info$pct.change <- sprintf("%.2f", sample_info$pct.change) |> 
+  str_replace_all("-", "_") |> 
   as.factor()
-
 # Relevel the sample info to have the no change group as the reference
-sample_info$pct.change <- relevel(sample_info$pct.change, ref = "0")
+sample_info$pct.change <- relevel(sample_info$pct.change, ref = "0.00")
 
 row.names(sample_info) <- sample_info$Row.names
 sample_info <- sample_info |> select(-Row.names)
@@ -75,36 +82,59 @@ dds <- DESeqDataSetFromMatrix(
   design = model.use
 )
 
-# Run the DESeq 
-dds <- DESeq(dds, fitType="mean")
+# Run DESeq 
+dds <- DESeq(dds)
+
 
 # Get the differential expression analysis results, contrasted against the 0 percent change group
 genes <- lapply(pct.use, function(x){
-  results(dds, contrast = c("pct.change", "0", x)) |> as.data.frame()})
+  results(dds, contrast = c("pct.change", "0.00", x)) |> as.data.frame()})
 
 # rename the nested list with the percent changes
-names(genes) <- pct.use #lapply(str_split(resultsNames(dds)[-1], "pct.change"), "[[", 2) |> unlist()
+names(genes) <- pct.use 
 
+non.pct.vars <- resultsNames(dds)[!str_detect(resultsNames(dds), "pct.change")]
 
-sig.genes <- lapply(genes, function(x){
-  sig.genes.temp <- x |> 
-    mutate(sig = case_when(
-      padj <= 0.05 ~ TRUE,
-      padj > 0.05 ~ FALSE
-    )) |> 
-    pull(sig) |> 
+# add the cell type covariate if it exists
+for(i in non.pct.vars){
+  genes[[i]] <- results(dds, name = i) |> as.data.frame()
+}
+
+sig.genes <- lapply(1:length(genes), function(x){
+  genes.temp <- genes[[x]]
+  sig.genes.temp <- genes.temp |> 
+    rownames_to_column(var = "gene") |> 
+  # Label each gene result by true/false postive/negative
+    mutate(
+      sig = case_when(  
+        padj <= 0.05 ~ TRUE,
+        padj > 0.05 ~ FALSE,
+        is.na(padj) ~ FALSE),
+      true_de = case_when(
+        gene %in% counts.dict ~ TRUE,
+        .default = FALSE),
+      result_category = case_when(
+        sig == F & true_de == F ~ "True negative",
+        sig == T & true_de == F ~ "False positive",
+        sig == F & true_de == T ~ "False negative",
+        sig == T & true_de == T ~ "True positive"),
+  # Relevel so that all options appear in the resulting list
+      result_category = factor(result_category, levels = c("True negative","False positive", 
+                                                           "False negative","True positive"))) |> 
+    pull(result_category) |> 
     table()
-  if(length(sig.genes.temp) == 1){
-    sig.genes.temp[[2]] <- 0
-  }
-  pct.sig <- sig.genes.temp[[2]]/sum(sig.genes.temp)
-  return(pct.sig)
+  # make it into a df
+  df.temp <- matrix(sig.genes.temp, nrow = 1) |> as.data.frame()
+  colnames(df.temp) <- names(sig.genes.temp)
+  df.temp$batch <- gene_batch
+  df.temp$model <- model_arg
+  df.temp$pct.change <- names(genes)[[x]]
+  df.temp$nDEGs <- sum(rownames(genes.temp) %in% counts.dict)
+  return(df.temp)
 })
 
-sig.df <- data.frame(pct.change = names(sig.genes),
-                     pct.sig = unlist(sig.genes),
-                     model = model_arg,
-                     batch = gene_batch)
+# merge all results
+sig.df <- do.call("rbind", sig.genes)
 
 if(!dir.exists("data/processed/deseq_simulation/batched_output/")){
   dir.create("data/processed/deseq_simulation/batched_output/")
