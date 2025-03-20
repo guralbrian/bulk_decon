@@ -55,7 +55,7 @@ dds.clr <- run_deseq(
 
 dds.raw <- run_deseq(
   bulk,
-  sample_info,
+  sample.clr,
   ~ treatment + genotype + treatment:genotype,
   "data/processed/models/unadjusted_de_interaction.RDS"
 )

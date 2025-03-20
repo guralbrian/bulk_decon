@@ -341,7 +341,8 @@ ggsave("results/10_plot_de/zbtb16_pik3r1_gmb_symposium_2024.png",
 
 # Plot the PCA of samples
 # Run PCA
-phenotypes <- read.csv("data/processed/bulk/pheno_table.csv")
+phenotypes <- read.csv("data/processed/bulk/pheno_table.csv") |> 
+  filter(type == "whole")
 bulk <- read.csv("data/processed/bulk/all_counts.csv", row.names = 1, check.names = F)
 # Set reference factor levels for phenotypes
 pheno.reorder <- phenotypes |> 
@@ -353,9 +354,15 @@ pheno.reorder <- phenotypes |>
       str_detect(new.id, "Sham") ~ "Sham",
       str_detect(new.id, "MI") ~ "MI")))
 
+bulk <- bulk[,unique(phenotypes$new.id)]
+
 # Convert to CPM
+drop <- which(apply(cpm(bulk), 1, max) < 0.1)
+bulk <- bulk[-drop,] 
+
 cpm <- apply(bulk,2, function(x) (x/sum(x))*1000000) |> 
   as.data.frame()
+
 
 # Run PCA
 pca <- prcomp(cpm)
@@ -404,7 +411,7 @@ pca.plot <- pca |>
         plot.margin = unit(c(0,0,0,0), units = "cm"),
         text = element_text(size = 8)
         )
-
+pca.plot
 # Save plot to results 
 png(file = "results/10_plot_de/pca.png",
     width = 3.3, 
